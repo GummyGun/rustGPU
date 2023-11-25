@@ -1,0 +1,11 @@
+[package]
+name = "c_bind"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+ash = "0.37.3"
+cstr = "0.2.11"
+glfw = {version = "0.54.0", features = ["vulkan"]}
+thiserror = "1.0.50"
+
