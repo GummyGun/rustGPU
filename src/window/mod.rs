@@ -1,7 +1,14 @@
+use ash::vk;
+
 use super::{
     constants,
     State,
     Verbosity,
+    vk_bindings,
+};
+
+use std::{
+    ops::Deref,
 };
 
 #[derive(Debug)]
@@ -34,9 +41,44 @@ impl Window {
         self.window.glfw.poll_events()
     }
     
-    pub fn get_required_instance_extentions(&self) -> Vec<String> {
-        self.window.glfw.get_required_instance_extensions().unwrap()
+    pub fn get_required_instance_extentions(&self) -> Vec<&'static str> {
         
+        use glfw::ffi;
+        use std::ffi::c_uint;
+        use std::slice;
+        use std::ffi::CStr;
+        
+        let mut len: c_uint = 0;
+        
+        let raw_extensions = unsafe{ffi::glfwGetRequiredInstanceExtensions(&mut len as *mut c_uint)};
+        
+        if raw_extensions.is_null() {
+            panic!("glfw should require Extensions");
+        }
+        unsafe{
+            slice::from_raw_parts(raw_extensions, len as usize)
+                .into_iter()
+                .map(|extensions| CStr::from_ptr(extensions.clone()).to_str().unwrap())
+                .collect()
+        }
+        
+    }
+    
+    pub unsafe fn create_surface(&self, instance:&vk_bindings::Instance, allocator:Option<&vk::AllocationCallbacks>) -> ash::prelude::VkResult<vk::SurfaceKHR> {
+        use ash::RawPtr;
+        let mut holder:vk::SurfaceKHR = Default::default();
+        let instance = instance.handle();
+        let holder_ptr = &mut holder as *mut _;
+        
+        self.create_window_surface(instance, allocator.as_raw_ptr(), holder_ptr).result()?;
+        Ok(holder)
+    }
+}
+
+impl Deref for Window {
+    type Target = glfw::PWindow;
+    fn deref(&self) -> &Self::Target {
+        &self.window
     }
 }
 

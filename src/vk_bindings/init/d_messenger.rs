@@ -1,6 +1,6 @@
 use ash::{
-    prelude::VkResult,
     vk,
+    prelude::VkResult,
 };
 
 use std::{
