@@ -2,9 +2,10 @@ use ash::{
     vk,
     prelude::VkResult,
 };
+
 use crate::{
     State,
-    //errors::Error as AAError,
+    constants,
 };
 
 use std::{
@@ -13,6 +14,7 @@ use std::{
 };
 
 use super::{
+    ActiveDrop,
     instance::Instance,
     p_device::PhysicalDevice,
     p_device::QueueFamilyIndices,
@@ -52,15 +54,19 @@ impl Device {
             
         }
         
-        /*
-        holder.queue_family_index = p_device.queues.graphics_family.unwrap();
-        holder.queue_count = 1;
-        holder.p_queue_priorities = priority_ptr;
-        */
+        let extensions:Vec<_> = constants::DEVICE_EXTENSIONS_CSTR[..].iter().map(|extension|{
+            extension.as_ptr()
+        }).collect();
+        
+        if state.v_exp() {
+            println!("device extensions available");
+        }
         
         let device_create_info = vk::DeviceCreateInfo::builder()
             .queue_create_infos(&queue_create_info[..])
-            .enabled_features(&p_device.features);
+            .enabled_features(&p_device.features)
+            .enabled_extension_names(&extensions);
+        
         
         /*
         TODO: Add device layers
@@ -68,6 +74,11 @@ impl Device {
         
         let device = unsafe{instance.create_device(**p_device, &device_create_info, None)?};
         let queue_handles = Self::get_queue_handles(&device, &p_device.queues);
+        
+        if state.v_dmp() {
+            println!("queue handles fetched");
+        }
+        
         
         Ok(Self{
             device: device,
@@ -85,6 +96,10 @@ impl Device {
         }
     }
     
+    #[inline(always)]
+    fn drop_internal(&mut self) {
+        unsafe{self.device.destroy_device(None)};
+    }
 }
 
 impl Deref for Device {
@@ -95,9 +110,19 @@ impl Deref for Device {
     }
 }
 
+impl ActiveDrop for Device {
+    fn active_drop(&mut self, state:&State) {
+        if state.v_nor() {
+            println!("[0]:deleting device");
+        }
+        self.drop_internal()
+    }
+}
+
 impl Drop for Device {
     fn drop(&mut self) {
-        unsafe{self.device.destroy_device(None)};
+        eprintln!("droping device");
+        self.drop_internal()
     }
 }
 

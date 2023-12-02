@@ -3,8 +3,10 @@ use std::collections::HashSet;
 
 #[derive(Error, Debug)]
 pub enum Error {
+    /*
     #[error("debug error")]
     TODOError,
+    */
     #[error("No suitable GPU")]
     NoGPU,
     #[error("Missing Extensions: {0:?}")]

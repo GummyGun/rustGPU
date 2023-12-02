@@ -73,6 +73,10 @@ impl Window {
         self.create_window_surface(instance, allocator.as_raw_ptr(), holder_ptr).result()?;
         Ok(holder)
     }
+    
+    pub fn get_pixel_dimensions(&self) -> (i32,i32) {
+        self.get_framebuffer_size()
+    }
 }
 
 impl Deref for Window {
@@ -85,7 +89,7 @@ impl Deref for Window {
 impl Drop for Window {
     fn drop(&mut self) {
         if let Verbosity::Expresive | Verbosity::Normal = self.state.verbosity {
-            print!("deleting Window\n")
+            print!("[0]:deleting Window\n")
         }
     }
 }

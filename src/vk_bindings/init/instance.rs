@@ -12,6 +12,7 @@ use std::{
 };
 
 use super::{
+    ActiveDrop,
     d_messenger::DMessenger
 };
 
@@ -53,6 +54,7 @@ impl Instance {
         let extensions_ptr = av_extensions.handle_logic(state, window);
         
         
+        
         let av_layers = Layers::gets(&entry);
         av_layers.debug_print(state);
         let layers_ptr = av_layers.handle_logic(state);
@@ -62,7 +64,6 @@ impl Instance {
             .application_info(&app_info)
             .enabled_extension_names(&extensions_ptr[..])
             .enabled_layer_names(&layers_ptr[..]);
-        
         
         
         let mut debug_messenger;
@@ -78,6 +79,20 @@ impl Instance {
         Ok(Self{entry:entry, instance:instance_holder})
     }
 
+    #[inline(always)]
+    fn drop_internal(&mut self) {
+        unsafe{self.destroy_instance(None)};
+    }
+}
+
+impl ActiveDrop for Instance {
+    fn active_drop(&mut self, state:&State) {
+        if state.v_nor() {
+            println!("[0]:deleting instance");
+        }
+        self.drop_internal()
+    }
+    
 }
 
 impl Deref for Instance {
@@ -89,7 +104,8 @@ impl Deref for Instance {
 
 impl Drop for Instance{
     fn drop(&mut self) {
-        unsafe{self.destroy_instance(None)};
+        eprintln!("droping instance");
+        self.drop_internal()
     }
 }
 
@@ -127,34 +143,10 @@ impl Extensions {
     }
     
     fn validate(&self, window:&Window) -> Result<Vec<*const c_char>, AAError> {
-        
-        let mut extensions:Vec<&'static str> = constants::EXTENSIONS.into_iter().collect();
         let window_extensions = window.get_required_instance_extentions();
-        extensions.extend(&window_extensions[..]);
-        let mut required_extensions = extensions.len();
-        
-        /*
-        for extension in &self.0 {
-            
-            let name_holder = unsafe{CStr::from_ptr(extension.extension_name.as_ptr())};
-            let mut index = 0;
-            
-            while index<extensions.len() {
-                
-                if &name_holder.to_string_lossy() == extensions[index] {
-                    extensions.remove(index);
-                    required_extensions -= 1;
-                    holder.push(extension.extension_name.as_ptr() as *const c_char);
-                } 
-                index += 1;
-            }
-        }
-        */
-        //let mut set:HashSet<&'static str> = HashSet::new();//(extensions);
-        
-        let mut holder = Vec::<*const c_char>::with_capacity(required_extensions);
         let mut set:HashSet<&'static str> = HashSet::from(constants::EXTENSIONS);//(extensions);
         set.extend(&window_extensions[..]);
+        let mut holder = Vec::<*const c_char>::with_capacity(set.len());
         
         for extension in &self.0 {
             let name_holder = unsafe{CStr::from_ptr(extension.extension_name.as_ptr())}.to_string_lossy();
@@ -162,7 +154,6 @@ impl Extensions {
                 holder.push(extension.extension_name.as_ptr() as *const c_char);
             }
         }
-        
         
         if set.is_empty() {
             Ok(holder)
@@ -175,7 +166,7 @@ impl Extensions {
         if constants::VALIDATION {
             match (state.v_exp(), self.validate(window)) {
                 (true, Ok(holder)) => {
-                    println!("All extensions layers found");
+                    println!("all extensions layers found");
                     holder
                 }
                 (false, Ok(holder)) => {holder}
@@ -186,6 +177,7 @@ impl Extensions {
         }
     }
 }
+
 
 struct Layers(Vec<vk::LayerProperties>);
 
@@ -200,10 +192,6 @@ impl Layers {
         if state.v_exp() {
             println!("Layers:");
             for layer in &self.0 {
-                /*
-                let u8slice = unsafe { &*(&layer.layer_name as *const [i8] as *const [u8]) };
-                let name_holder = std::str::from_utf8(u8slice).expect("all strings should be UTF8 valid");
-                */
                 let name_holder = unsafe{CStr::from_ptr(layer.layer_name.as_ptr())};
                 println!("\t{:?}", name_holder);
             }
@@ -217,12 +205,6 @@ impl Layers {
         
         let mut holder = Vec::<*const c_char>::new();
         for layer in &self.0 {
-            /*
-            let u8slice = unsafe { &*(&layer.layer_name as *const [i8] as *const [u8]) };
-            let name_holder = std::str::from_utf8(u8slice).expect("all strings should be UTF8 valid");
-            //let name_holder = CStr::from_bytes_until_nul(layer.layer_name).expect("all strings should be UTF8 valid");
-            //CStr::from_bytes_until_nul(layer.layer_name).expect("all strings should be UTF8 valid");
-            */
             let name_holder = unsafe{CStr::from_ptr(layer.layer_name.as_ptr())};
             
             let mut index = 0;
@@ -248,7 +230,7 @@ impl Layers {
         if constants::VALIDATION {
             match (state.v_exp(), self.validate()) {
                 (true, Ok(holder)) => {
-                    println!("All validation layers found");
+                    println!("all validation layers found");
                     holder
                 }
                 (false, Ok(holder)) => {holder}

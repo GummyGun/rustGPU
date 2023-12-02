@@ -1,4 +1,5 @@
 mod init;
+mod objects;
 
 
 use super::{
@@ -15,19 +16,24 @@ pub use init::{
     p_device::*,
     device::*,
     surface::*,
+    swapchain::*,
 };
 
-use std::{
-    mem::ManuallyDrop,
+use objects::{
+    VkObj,
+    VkObjDevDep,
+    DeviceDrop,
+    ActiveDrop,
 };
 
 pub struct VInit {
     state: State,
-    pub instance: ManuallyDrop<Instance>,
-    pub messenger: Option<ManuallyDrop<DMessenger>>,
-    pub surface: ManuallyDrop<Surface>,
+    pub instance: VkObj<Instance>,
+    pub messenger: Option<VkObj<DMessenger>>,
+    pub surface: VkObj<Surface>,
     pub p_device: PhysicalDevice,
-    pub device: ManuallyDrop<Device>,
+    pub device: VkObj<Device>,
+    pub swapchain: VkObjDevDep<Swapchain>,
 }
 
 impl VInit {
@@ -53,17 +59,19 @@ impl VInit {
         let surface =  vk_create_interpreter(state, Surface::create(&state, &window, &instance), "surface"); 
         let p_device = vk_create_interpreter(state, PhysicalDevice::chose(&state, &instance, &surface), "p_device selected"); 
         let device = vk_create_interpreter(state, Device::create(&state, &instance, &p_device), "device"); 
+        let swapchain = vk_create_interpreter(state, Swapchain::create(&state, &window, &instance, &surface, &p_device, &device), "swapchain");
         
         VInit{
             state: state,
-            instance: ManuallyDrop::new(instance),
+            instance: VkObj::new(instance),
             messenger: match messenger {
-                Some(holder) => {Some(ManuallyDrop::new(holder))}
+                Some(holder) => {Some(VkObj::new(holder))}
                 None => None
             },
             p_device: p_device,
-            device: ManuallyDrop::new(device),
-            surface: ManuallyDrop::new(surface),
+            surface: VkObj::new(surface),
+            device: VkObj::new(device),
+            swapchain: VkObjDevDep::new(swapchain),
         }
     }
 }
@@ -78,10 +86,11 @@ fn vk_create_interpreter<T, A:std::fmt::Debug>(state:State, result:Result<T, A>,
             }
             device
         }
-        Err(err) => {panic!("{:?}", err);}
+        Err(err) => {panic!("error in {} {:?}", name, err);}
     }
 }
 
+/*
 #[inline]
 fn vk_drop<T>(state:&State, vk_object:&mut ManuallyDrop<T>, name:&'static str) {
     if state.v_nor() {
@@ -90,7 +99,6 @@ fn vk_drop<T>(state:&State, vk_object:&mut ManuallyDrop<T>, name:&'static str) {
     unsafe{ManuallyDrop::drop(vk_object);}
 }
 
-/*
 #[macro_export]
 macro_rules! vk_drop {
     ( $state:expr, $field:expr, $name:expr ) => {
@@ -105,15 +113,13 @@ macro_rules! vk_drop {
 impl Drop for VInit {
     fn drop(&mut self) {
         
-        vk_drop(&self.state, &mut self.device, "device");
-        vk_drop(&self.state, &mut self.surface, "surface");
+        self.swapchain.device_drop(&self.state, &self.device);
+        self.device.active_drop(&self.state);
+        self.surface.active_drop(&self.state);
+        
         match &mut self.messenger {
             Some(ref mut messenger) => {
-                if self.state.v_nor() {
-                    
-                    println!("deleting Messenger");
-                }
-                unsafe{ManuallyDrop::drop(messenger);}
+                messenger.active_drop(&self.state);
             }
             None => {
                 if self.state.v_nor() {
@@ -122,7 +128,7 @@ impl Drop for VInit {
             }
         }
         
-        vk_drop(&self.state, &mut self.instance, "instance");
+        self.instance.active_drop(&self.state);
     }
 }
 

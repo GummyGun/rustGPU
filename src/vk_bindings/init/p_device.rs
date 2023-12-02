@@ -1,6 +1,7 @@
 use ash::{
     vk,
 };
+
 use crate::{
     State,
     constants,
@@ -16,6 +17,7 @@ use std::{
 use super::{
     instance::Instance,
     surface::Surface,
+    swapchain::SwapchainSupportDetails,
 };
 
 
@@ -23,6 +25,7 @@ pub struct PhysicalDevice {
     device: vk::PhysicalDevice,
     pub queues: QueueFamilyIndices,
     pub features: vk::PhysicalDeviceFeatures,
+    pub swapchain_details: SwapchainSupportDetails,
 }
 
 #[derive(Debug, Default, Clone, Copy)]
@@ -37,11 +40,10 @@ pub struct QueueFamilyIndices {
     pub present_family: u32,
 }
 
-
 impl PhysicalDevice {
     pub fn chose(state:&State, instance:&Instance, surface:&Surface) -> Result<Self, AAError> {
         if state.v_exp() {
-            println!("\nCHOSSING:\tDEBUG_MESSENGER\nvalidation layers activated");
+            println!("\nCHOSSING:\tPHYSICAL DEVICE");
         }
         let p_devices = unsafe{instance.enumerate_physical_devices().unwrap()};
         if p_devices.len() == 0 {
@@ -49,33 +51,49 @@ impl PhysicalDevice {
         }
         let mut best = vk::PhysicalDevice::null();
         let mut best_queue = QueueFamilyOptionalIndices::default();
+        let mut best_sc_details = SwapchainSupportDetails::default();
         let mut best_score = 0;
         
         
         for p_device in p_devices.into_iter() {
             
-            let (current_score, current_queue) = Self::rate(state, instance, surface, p_device);
-            if current_score > best_score {
-                best_score = current_score;
-                best_queue = current_queue;
-                best = p_device;
+            if let Ok((current_score, current_queue, sc_support_details)) = Self::rate(state, instance, surface, p_device) {
+                if current_score > best_score {
+                    best_score = current_score;
+                    best_queue = current_queue;
+                    best_sc_details = sc_support_details;
+                    best = p_device;
+                }
             }
         }
         
         if best != vk::PhysicalDevice::null() {
+            if state.v_exp() {
+                println!("physical device succesfully selected");
+            }
+            
             Ok(Self{
                 device: best,
                 queues: best_queue.into(),
                 features: vk::PhysicalDeviceFeatures::default(),
+                swapchain_details: best_sc_details
             })
         } else {
             Err(AAError::NoGPU)
         }
     }
     
-    fn rate(state:&State, instance:&Instance, surface:&Surface, p_device:vk::PhysicalDevice) -> (i64, QueueFamilyOptionalIndices) {
+    fn rate(state:&State, instance:&Instance, surface:&Surface, p_device:vk::PhysicalDevice) -> Result<(i64, QueueFamilyOptionalIndices, SwapchainSupportDetails), ()> {
         let queues = Self::find_queue_families(state, instance, surface, p_device);
-        let device_support = Self::check_device_support(state, instance, p_device);
+        if !queues.complete() && !Self::check_device_support(instance, p_device) {
+            return Err(());
+        }
+        let swapchain_support = SwapchainSupportDetails::query_swapchain_support(surface, p_device);
+        if !swapchain_support.min_requirements() {
+            return Err(());
+        }
+        
+        
         let mut score:i64 = 0;
         let properties = unsafe{instance.get_physical_device_properties(p_device)};
         let features = unsafe{instance.get_physical_device_features(p_device)};
@@ -91,11 +109,11 @@ impl PhysicalDevice {
         
         score += i64::from(properties.limits.max_image_dimension2_d);
         
-        if features.geometry_shader<=0 || !queues.complete() {
-            return (0, QueueFamilyOptionalIndices::default());
+        if features.geometry_shader<=0 {
+            Err(()) 
+        } else {
+            Ok((score, queues, swapchain_support))
         }
-        
-        return (score, queues);
     }
     
 
@@ -104,7 +122,7 @@ impl PhysicalDevice {
         let properties = unsafe{instance.get_physical_device_queue_family_properties(p_device)};
         
         if state.v_dmp() {
-            println!("{:?}", &properties);
+            println!("{:#?}", &properties);
         }
         
         for (index, queue) in properties.iter().enumerate() {
@@ -127,7 +145,7 @@ impl PhysicalDevice {
         return holder;
     }
     
-    fn check_device_support(state:&State, instance:&Instance, p_device:vk::PhysicalDevice) -> bool {
+    fn check_device_support(instance:&Instance, p_device:vk::PhysicalDevice) -> bool {
         let device_extensions = unsafe{instance.enumerate_device_extension_properties(p_device)}.unwrap();
         
         let mut set = HashSet::from(constants::DEVICE_EXTENSIONS.clone());
@@ -139,6 +157,7 @@ impl PhysicalDevice {
         
         set.is_empty()
     }
+    
 }
 
 impl Deref for PhysicalDevice {
@@ -155,6 +174,16 @@ impl QueueFamilyOptionalIndices {
         self.graphics_family.is_some() && self.present_family.is_some()
     }
     
+}
+
+impl QueueFamilyIndices {
+    pub fn different_families(&self) -> bool {
+        self.graphics_family != self.present_family
+    }
+    
+    pub fn queue_indices(&self) -> [u32;2] {
+        [self.graphics_family, self.present_family]
+    }
 }
 
 impl From<QueueFamilyOptionalIndices> for QueueFamilyIndices {

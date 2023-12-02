@@ -5,6 +5,7 @@ use ash::{
 
 
 use super::{
+    ActiveDrop,
     instance::Instance,
 };
 
@@ -31,13 +32,18 @@ impl Surface {
         if  state.v_exp() {
             println!("\nCREATING:\tSURFACE");
         }
-        let holder = unsafe{window.create_surface(instance, None)?};
-        let hola = ash::extensions::khr::Surface::new(&instance.entry, instance);
+        let surface = unsafe{window.create_surface(instance, None)?};
+        let surface_loader = ash::extensions::khr::Surface::new(&instance.entry, instance);
         
         Ok(Self{
-            surface:holder,
-            surface_loader:hola,
+            surface:surface,
+            surface_loader:surface_loader,
         })
+    }
+    
+    #[inline(always)]
+    pub fn drop_internal(&mut self) {
+        unsafe{self.destroy_surface(self.surface, None)}
     }
 }
 
@@ -48,9 +54,17 @@ impl Deref for Surface {
     }
 }
 
+impl ActiveDrop for Surface {
+    fn active_drop(&mut self, state:&State) {
+        if state.v_nor() {
+            println!("[0]:deleting surface");
+        }
+        self.drop_internal()
+    }
+}
 
 impl Drop for Surface {
     fn drop(&mut self) {
-        unsafe{self.destroy_surface(self.surface, None)};
+        self.drop_internal()
     }
 }

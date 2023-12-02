@@ -12,6 +12,7 @@ use std::{
 };
 
 use super::{
+    ActiveDrop,
     instance::Instance,
 };
 
@@ -85,11 +86,25 @@ impl DMessenger {
         vk::FALSE
     }
     
+    #[inline(always)]
+    fn drop_internal(&mut self) {
+        unsafe{self.debug_utils.destroy_debug_utils_messenger(self.messenger, None)};
+    }
+    
+}
+
+impl ActiveDrop for DMessenger {
+    fn active_drop(&mut self, state:&State) {
+        if state.v_nor() {
+            println!("[0]:deleting debugMessenger");
+        }
+        self.drop_internal()
+    }
 }
 
 impl Drop for DMessenger {
     fn drop(&mut self) {
-        unsafe{self.debug_utils.destroy_debug_utils_messenger(self.messenger, None)};
+        self.drop_internal()
     }
 }
 

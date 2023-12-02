@@ -28,7 +28,9 @@ mod constants{
     pub const LAYERS:[&'static str; 1] = ["VK_LAYER_KHRONOS_validation"];
     pub const EXTENSIONS:[&'static str; EXTENSIONS_LEN_PLUS_VAL] = extension_logic();
     
+    pub const DEVICE_EXTENSIONS_CSTR:[&'static CStr; 1] = [Swapchain::name()];
     pub const DEVICE_EXTENSIONS:[&'static str; 1] = const_array!(Swapchain::name());
+    
     
     const BASE_EXTENSIONS:[&'static str; 0] = [];
     const DEBUG_EXTENSIONS:[&'static str; 1] = const_array!(DebugUtils::name());
@@ -81,8 +83,8 @@ pub struct State {
 #[derive(Default, Debug, Clone, Copy)]
 enum Verbosity {
     Silent,
-    Normal,
     #[default]
+    Normal,
     Expresive,
     Dump,
 }
@@ -92,6 +94,7 @@ fn main() {
     
     let mut window = window::Window::init(state);
     let _v_init = vk_bindings::VInit::init(state, &window);
+    println!("===========\n===========");
     while !window.should_close() {
         window.poll_events();
         break;
@@ -127,6 +130,16 @@ impl State {
             _ => false,
         }
     }
+    
+    /*
+    fn v_exp_only(&self) -> bool {
+        if let Verbosity::Expresive = self.verbosity {
+            true
+        } else {
+            false
+        }
+    }
+    */
     
 }
 
