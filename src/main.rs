@@ -29,6 +29,7 @@ fn main() {
         window.poll_events();
         v_init.draw_frame();
     }
+    v_init.wait_idle();
 }
 
 
