@@ -121,6 +121,10 @@ impl VInit {
         
         
     }
+    
+    pub fn wait_idle(&self) {
+        unsafe{self.device.device_wait_idle()}.expect("waiting for iddle should not fail");
+    }
 }
 
 

@@ -12,7 +12,7 @@ pub enum Error {
     #[error("Missing Extensions: {0:?}")]
     MissingExtensions(HashSet<&'static str>),
     #[error("Missing Layers: {0:?}")]
-    MissingLayers(Vec<&'static str>),
+    MissingLayers(HashSet<&'static str>),
 }
 
 /*
