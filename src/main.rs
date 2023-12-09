@@ -13,8 +13,8 @@ pub struct State {
 #[derive(Default, Debug, Clone, Copy)]
 enum Verbosity {
     Silent,
-    Normal,
     #[default]
+    Normal,
     Expresive,
     Dump,
 }

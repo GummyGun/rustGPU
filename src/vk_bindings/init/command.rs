@@ -15,12 +15,13 @@ use super::{
 
 use crate::{
     State,
+    constants,
 };
 
 
 pub struct CommandControl{
     pub pool: vk::CommandPool,
-    pub buffer: vk::CommandBuffer,
+    pub buffer: [vk::CommandBuffer; constants::FIF],
 }
 
 
@@ -40,25 +41,29 @@ impl CommandControl {
         let create_info = vk::CommandBufferAllocateInfo::builder()
             .command_pool(command_pool)
             .level(vk::CommandBufferLevel::PRIMARY)
-            .command_buffer_count(1);
-        let command_buffer_vec = unsafe{device.allocate_command_buffers(&create_info)}?;
+            .command_buffer_count(constants::FIF_U32);
         
-        let command_buffer = command_buffer_vec[0];
+        let buffer_vec = unsafe{device.allocate_command_buffers(&create_info)}?;
+        
+        let mut buffer_arr = [vk::CommandBuffer::null(); constants::FIF];
+        for (index, buffer) in buffer_vec.into_iter().enumerate() {
+            buffer_arr[index] = buffer;
+        }
         
         Ok(Self{
             pool: command_pool,
-            buffer: command_buffer
+            buffer: buffer_arr
         })
     }
     
-    pub fn record_command_buffer(&mut self, state:&State, device:&Device, swapchain:&Swapchain, render_pass:&RenderPass, pipeline:&Pipeline, framebuffer:&SCFramebuffers, image_index:u32) {
+    pub fn record_command_buffer(&mut self, state:&State, device:&Device, swapchain:&Swapchain, render_pass:&RenderPass, pipeline:&Pipeline, framebuffer:&SCFramebuffers, image_index:u32, frame_index:usize) {
         if  state.v_dmp() {
             println!("\nFILLING:\tCOMMAND BUFFER");
         }
         
         let command_buffer_begin = vk::CommandBufferBeginInfo::builder();
         
-        unsafe{device.begin_command_buffer(self.buffer, &command_buffer_begin)}.unwrap();
+        unsafe{device.begin_command_buffer(self.buffer[frame_index], &command_buffer_begin)}.unwrap();
         
         let scissor = [
             vk::Rect2D::builder()
@@ -91,16 +96,16 @@ impl CommandControl {
             .clear_values(&clear_color[..]);
         
         //initialize the command buffer
-        unsafe{device.cmd_begin_render_pass(self.buffer, &render_pass_begin, vk::SubpassContents::INLINE)};
+        unsafe{device.cmd_begin_render_pass(self.buffer[frame_index], &render_pass_begin, vk::SubpassContents::INLINE)};
         //bind command buffer to graphics pipeline
-        unsafe{device.cmd_bind_pipeline(self.buffer, vk::PipelineBindPoint::GRAPHICS, pipeline.as_inner())};
+        unsafe{device.cmd_bind_pipeline(self.buffer[frame_index], vk::PipelineBindPoint::GRAPHICS, pipeline.as_inner())};
         
-        unsafe{device.cmd_set_viewport(self.buffer, 0, &viewport[..])};
-        unsafe{device.cmd_set_scissor(self.buffer, 0, &scissor[..])};
-        unsafe{device.cmd_draw(self.buffer, 3, 1, 0, 0)};
-        unsafe{device.cmd_end_render_pass(self.buffer)};
+        unsafe{device.cmd_set_viewport(self.buffer[frame_index], 0, &viewport[..])};
+        unsafe{device.cmd_set_scissor(self.buffer[frame_index], 0, &scissor[..])};
+        unsafe{device.cmd_draw(self.buffer[frame_index], 3, 1, 0, 0)};
+        unsafe{device.cmd_end_render_pass(self.buffer[frame_index])};
         
-        unsafe{device.end_command_buffer(self.buffer)}.unwrap();
+        unsafe{device.end_command_buffer(self.buffer[frame_index])}.unwrap();
     }
     
 }

@@ -9,14 +9,15 @@ use super::{
 };
 
 use crate::{
-    State
+    State,
+    constants,
 };
 
 
 pub struct SyncObjects {
-    pub image_available_semaphore: [vk::Semaphore; 1],
-    pub render_finished_semaphore: [vk::Semaphore; 1],
-    pub in_flight_fence: [vk::Fence; 1],
+    pub image_available_semaphore: [vk::Semaphore; constants::FIF],
+    pub render_finished_semaphore: [vk::Semaphore; constants::FIF],
+    pub in_flight_fence: [vk::Fence; constants::FIF],
 }
 
 impl SyncObjects {
@@ -28,14 +29,21 @@ impl SyncObjects {
         let semaphore_create_info = vk::SemaphoreCreateInfo::builder();
         let fence_create_info = vk::FenceCreateInfo::builder()
             .flags(vk::FenceCreateFlags::SIGNALED);
-        let image_available_semaphore = unsafe{device.create_semaphore(&semaphore_create_info, None)}?;
-        let render_finished_semaphore = unsafe{device.create_semaphore(&semaphore_create_info, None)}?;
-        let in_flight_fence =  unsafe{device.create_fence(&fence_create_info, None)}?;
+        
+        let mut image_available_semaphore = [vk::Semaphore::null(); constants::FIF];
+        let mut render_finished_semaphore = [vk::Semaphore::null(); constants::FIF];
+        let mut in_flight_fence = [vk::Fence::null(); constants::FIF];
+            
+        for index in 0..constants::FIF {
+            image_available_semaphore[index] = unsafe{device.create_semaphore(&semaphore_create_info, None)}?;
+            render_finished_semaphore[index] = unsafe{device.create_semaphore(&semaphore_create_info, None)}?;
+            in_flight_fence[index] =  unsafe{device.create_fence(&fence_create_info, None)}?;
+        }
         
         Ok(Self{
-            image_available_semaphore: [image_available_semaphore],
-            render_finished_semaphore: [render_finished_semaphore],
-            in_flight_fence: [in_flight_fence],
+            image_available_semaphore: image_available_semaphore,
+            render_finished_semaphore: render_finished_semaphore,
+            in_flight_fence: in_flight_fence,
         })
     }
 }
@@ -44,13 +52,14 @@ impl DeviceDrop for SyncObjects {
     fn device_drop(&mut self, state:&State, device:&Device) {
         if state.v_nor() {
             println!("[0]:deleting semaphores");
-        }
-        unsafe{device.destroy_semaphore(self.image_available_semaphore[0], None)};
-        unsafe{device.destroy_semaphore(self.render_finished_semaphore[0], None)};
-        if state.v_nor() {
             println!("[0]:deleting fence");
         }
-        unsafe{device.destroy_fence(self.in_flight_fence[0], None)};
+        
+        for index in 0..constants::FIF {
+            unsafe{device.destroy_semaphore(self.image_available_semaphore[index], None)};
+            unsafe{device.destroy_semaphore(self.render_finished_semaphore[index], None)};
+            unsafe{device.destroy_fence(self.in_flight_fence[index], None)};
+        }
         
     }
 }

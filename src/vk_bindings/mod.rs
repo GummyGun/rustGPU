@@ -20,10 +20,12 @@ use objects::{
 
 use std::{
     ptr::addr_of,
+    ops::RangeInclusive,
 };
 
 pub struct VInit {
     state: State,
+    current_frame:usize,
     pub instance: VkObj<Instance>,
     pub messenger: Option<VkObj<DMessenger>>,
     pub surface: VkObj<Surface>,
@@ -69,6 +71,7 @@ impl VInit {
         
         VInit{
             state: state,
+            current_frame: 0,
             instance: VkObj::new(instance),
             messenger: match messenger {
                 Some(holder) => {Some(VkObj::new(holder))}
@@ -88,44 +91,56 @@ impl VInit {
     
     pub fn draw_frame(&mut self) {
         
-        unsafe{self.device.wait_for_fences(&self.sync_objects.in_flight_fence[..], true, u64::MAX)}.expect("waiting for fence should not fail");
-        unsafe{self.device.reset_fences(&self.sync_objects.in_flight_fence[..])}.expect("waiting for fence should not fail");
-        let (image_index, _) = unsafe{self.swapchain.acquire_next_image(self.swapchain.swapchain, u64::MAX, self.sync_objects.image_available_semaphore[0], vk::Fence::null()).expect("next image should not fail")};
+        unsafe{self.device.wait_for_fences(&self.sync_objects.in_flight_fence[self.frame_range()], true, u64::MAX)}.expect("waiting for fence should not fail");
+        unsafe{self.device.reset_fences(&self.sync_objects.in_flight_fence[self.frame_range()])}.expect("waiting for fence should not fail");
         
-        unsafe{self.device.reset_command_buffer(self.command_control.buffer, vk::CommandBufferResetFlags::empty())}.expect("reseting command should not fail");
-        self.command_control.record_command_buffer(&self.state, &self.device, &self.swapchain, &self.render_pass, &self.pipeline, &self.sc_framebuffers, image_index);
+        let (image_index, _) = unsafe{self.swapchain.acquire_next_image(self.swapchain.swapchain, u64::MAX, self.sync_objects.image_available_semaphore[self.current_frame], vk::Fence::null()).expect("next image should not fail")};
+        
+        unsafe{self.device.reset_command_buffer(self.command_control.buffer[self.current_frame], vk::CommandBufferResetFlags::empty())}.expect("reseting command should not fail");
+        self.command_control.record_command_buffer(&self.state, &self.device, &self.swapchain, &self.render_pass, &self.pipeline, &self.sc_framebuffers, image_index, self.current_frame);
         
         let wait_stages = [vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT];
-        let command_buffer_slice = unsafe{std::slice::from_raw_parts(addr_of!(self.command_control.buffer), 1)};
         
         let submit_info = [
             vk::SubmitInfo::builder()
-                .wait_semaphores(&self.sync_objects.image_available_semaphore[..])
+                .wait_semaphores(&self.sync_objects.image_available_semaphore[self.frame_range()])
                 .wait_dst_stage_mask(&wait_stages[..])
-                .command_buffers(command_buffer_slice)
-                .signal_semaphores(&self.sync_objects.render_finished_semaphore[..])
+                .command_buffers(&self.command_control.buffer[self.frame_range()])
+                .signal_semaphores(&self.sync_objects.render_finished_semaphore[self.frame_range()])
                 .build()
         ];
         
-        unsafe{self.device.queue_submit(self.device.queue_handles.graphics, &submit_info[..], self.sync_objects.in_flight_fence[0])}.expect("should not fail");
+        unsafe{self.device.queue_submit(self.device.queue_handles.graphics, &submit_info[..], self.sync_objects.in_flight_fence[self.current_frame])}.expect("should not fail");
         
         let swapchain_slice = unsafe{std::slice::from_raw_parts(addr_of!(self.swapchain.swapchain), 1)};
         let image_index_slice = unsafe{std::slice::from_raw_parts(addr_of!(image_index), 1)};
         
         let present_info = vk::PresentInfoKHR::builder()
-            .wait_semaphores(&self.sync_objects.render_finished_semaphore[..])
+            .wait_semaphores(&self.sync_objects.render_finished_semaphore[self.frame_range()])
             .swapchains(swapchain_slice)
             .image_indices(image_index_slice);
-        
         unsafe{self.swapchain.queue_present(self.device.queue_handles.presentation, &present_info)}.expect("present should not fail");
         
         
+        self.frame_update();
     }
     
+    #[inline(always)]
     pub fn wait_idle(&self) {
         unsafe{self.device.device_wait_idle()}.expect("waiting for iddle should not fail");
     }
+    
+    #[inline(always)]
+    fn frame_range(&self) -> RangeInclusive<usize> {
+        self.current_frame..=self.current_frame
+    }
+    
+    #[inline(always)]
+    fn frame_update(&mut self) {
+        self.current_frame = (self.current_frame + 1) % constants::FIF;
+    }
 }
+
 
 
 #[inline]
@@ -167,6 +182,5 @@ impl Drop for VInit {
         self.instance.active_drop(&self.state);
     }
 }
-
 
 
