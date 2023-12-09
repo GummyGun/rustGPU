@@ -16,8 +16,7 @@ pub trait ActiveDrop {
 }
 
 pub struct VkObj<T:ActiveDrop>(ManuallyDrop<T>);
-pub struct VkObjDevDep<T:DeviceDrop>(T);
-
+pub struct VkObjDevDep<T:DeviceDrop>(Option<T>);
 
 
 impl<T:ActiveDrop> Drop for VkObj<T> {
@@ -54,33 +53,36 @@ impl<T:ActiveDrop> VkObj<T> {
 
 impl<T:DeviceDrop> Drop for VkObjDevDep<T> {
     fn drop(&mut self) {
-        //eprintln!("VkObjDevDep trivially droped");
+        match self.0.as_mut() {
+            Some(_) => {eprintln!("dropping non-destroyed object")}
+            None => {}
+        }
     }
 }
 
 impl<T:DeviceDrop> DeviceDrop for VkObjDevDep<T> {
     fn device_drop(&mut self, state:&State, device:&Device) {
-        self.0.device_drop(state, device);
+        self.0.as_mut().unwrap().device_drop(state, device);
+        self.0 = None;
     }
 }
 
 impl<T:DeviceDrop> Deref for VkObjDevDep<T> {
     type Target = T;
     fn deref(&self) -> &Self::Target {
-        &self.0
+        self.0.as_ref().expect("can't run methods on destroyed objects")
     }
 }
 
 impl<T:DeviceDrop> DerefMut for VkObjDevDep<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
+        self.0.as_mut().expect("can't run methods on destroyed objects")
     }
 }
 
 impl<T:DeviceDrop> VkObjDevDep<T> {
     pub fn new(new:T) -> Self {
-        Self(new)
+        Self(Some(new))
     }
 }
-
 

@@ -8,21 +8,19 @@ use crate::{
     errors::Error as AAError,
 };
 
-use std::{
-    ops::Deref,
-    collections::HashSet,
-    ffi::CStr,
-};
-
 use super::{
     instance::Instance,
     surface::Surface,
     swapchain::SwapchainSupportDetails,
 };
 
+use std::{
+    collections::HashSet,
+    ffi::CStr,
+};
 
 pub struct PhysicalDevice {
-    device: vk::PhysicalDevice,
+    pub p_device: vk::PhysicalDevice,
     pub queues: QueueFamilyIndices,
     pub features: vk::PhysicalDeviceFeatures,
     pub swapchain_details: SwapchainSupportDetails,
@@ -73,7 +71,7 @@ impl PhysicalDevice {
             }
             
             Ok(Self{
-                device: best,
+                p_device: best,
                 queues: best_queue.into(),
                 features: vk::PhysicalDeviceFeatures::default(),
                 swapchain_details: best_sc_details
@@ -158,15 +156,6 @@ impl PhysicalDevice {
         set.is_empty()
     }
     
-}
-
-impl Deref for PhysicalDevice {
-    type Target = vk::PhysicalDevice;
-    
-    fn deref(&self) -> &Self::Target {
-        &self.device
-    }
-
 }
 
 impl QueueFamilyOptionalIndices {

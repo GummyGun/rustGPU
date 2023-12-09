@@ -3,6 +3,13 @@ use ash::{
     prelude::VkResult,
 };
 
+use super::{
+    ActiveDrop,
+    instance::Instance,
+    p_device::PhysicalDevice,
+    p_device::QueueFamilyIndices,
+};
+
 use crate::{
     State,
     constants,
@@ -13,18 +20,9 @@ use std::{
     collections::HashSet,
 };
 
-use super::{
-    ActiveDrop,
-    instance::Instance,
-    p_device::PhysicalDevice,
-    p_device::QueueFamilyIndices,
-};
-
-
-
 pub struct Device {
     device: ash::Device,
-    queue_handles: QueueHandles,
+    pub queue_handles: QueueHandles,
 }
 
 pub struct QueueHandles {
@@ -72,7 +70,7 @@ impl Device {
         TODO: Add device layers
         */
         
-        let device = unsafe{instance.create_device(**p_device, &device_create_info, None)?};
+        let device = unsafe{instance.create_device(p_device.p_device, &device_create_info, None)?};
         let queue_handles = Self::get_queue_handles(&device, &p_device.queues);
         
         if state.v_dmp() {
@@ -101,6 +99,7 @@ impl Device {
         unsafe{self.device.destroy_device(None)};
     }
 }
+
 
 impl Deref for Device {
     type Target = ash::Device;

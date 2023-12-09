@@ -3,14 +3,9 @@ use ash::{
     prelude::VkResult,
 };
 
-
 use super::{
     ActiveDrop,
     instance::Instance,
-};
-
-use std::{
-    ops::Deref,
 };
 
 use crate::{
@@ -18,9 +13,11 @@ use crate::{
     window::{
         Window,
     },
-    //errors::Error as AAError,
 };
 
+use std::{
+    ops::Deref,
+};
 
 pub struct Surface {
     pub surface: vk::SurfaceKHR,
@@ -46,6 +43,7 @@ impl Surface {
         unsafe{self.destroy_surface(self.surface, None)}
     }
 }
+
 
 impl Deref for Surface {
     type Target = ash::extensions::khr::Surface;

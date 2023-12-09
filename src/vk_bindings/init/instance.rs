@@ -2,14 +2,6 @@ use ash::{
     vk,
     prelude::VkResult,
 };
-use std::{
-    ffi::{
-        c_char,
-        CStr,
-    },
-    ops::Deref,
-    collections::HashSet,
-};
 
 use super::{
     ActiveDrop,
@@ -25,6 +17,14 @@ use crate::{
     errors::Error as AAError,
 };
 
+use std::{
+    ffi::{
+        c_char,
+        CStr,
+    },
+    ops::Deref,
+    collections::HashSet,
+};
 
 pub struct Instance {
     pub entry: ash::Entry,

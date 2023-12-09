@@ -3,14 +3,6 @@ use ash::{
     prelude::VkResult,
 };
 
-use std::{
-    ffi::{
-        CStr,
-    },
-    borrow::Cow,
-    ops::Deref,
-};
-
 use super::{
     ActiveDrop,
     instance::Instance,
@@ -19,6 +11,13 @@ use super::{
 use crate::{
     State,
     Verbosity,
+};
+
+use std::{
+    ffi::{
+        CStr,
+    },
+    borrow::Cow,
 };
 
 
@@ -105,13 +104,5 @@ impl ActiveDrop for DMessenger {
 impl Drop for DMessenger {
     fn drop(&mut self) {
         self.drop_internal()
-    }
-}
-
-impl Deref for DMessenger {
-    type Target = vk::DebugUtilsMessengerEXT;
-    
-    fn deref(&self) -> &Self::Target {
-        &self.messenger
     }
 }

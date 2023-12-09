@@ -3,25 +3,23 @@ use ash::{
     prelude::VkResult,
 };
 
+use super::{
+    DeviceDrop,
+    device::Device,
+    instance::Instance,
+    surface::Surface,
+    p_device::PhysicalDevice,
+};
+
 use crate::{
     State,
-    //constants,
     window::{
         Window
     },
-    //errors::Error as AAError,
 };
 
 use std::{
     ops::Deref,
-};
-
-use super::{
-    DeviceDrop,
-    instance::Instance,
-    surface::Surface,
-    p_device::PhysicalDevice,
-    device::Device,
 };
 
 
@@ -29,6 +27,9 @@ use super::{
 pub struct Swapchain {
     pub image_views: Vec<vk::ImageView>,
     pub images: Vec<vk::Image>,
+    pub extent: vk::Extent2D,
+    pub surface_format: vk::SurfaceFormatKHR,
+    
     pub swapchain: vk::SwapchainKHR,
     swapchain_loader: ash::extensions::khr::Swapchain,
 }
@@ -45,12 +46,6 @@ pub struct SwapchainSupportDetails {
 
 
 impl Swapchain {
-    
-    /*
-    pub fn create_validate(state:&State, window:&Window, instance:&Instance, surface:&Surface, p_device:&PhysicalDevice, device:&Device) -> Self {
-        panic!();
-    }
-    */
     
     pub fn create(state:&State, window:&Window, instance:&Instance, surface:&Surface, p_device:&PhysicalDevice, device:&Device) -> VkResult<Self> {
         if  state.v_exp() {
@@ -105,6 +100,8 @@ impl Swapchain {
             images:images,
             swapchain:swapchain,
             swapchain_loader:swapchain_loader,
+            extent:swap_extent,
+            surface_format:surface_format,
         })
     }
     
@@ -155,6 +152,7 @@ impl DeviceDrop for Swapchain {
         unsafe{self.destroy_swapchain(self.swapchain, None)};
     }
 }
+
 
 impl Deref for Swapchain {
     type Target = ash::extensions::khr::Swapchain;
