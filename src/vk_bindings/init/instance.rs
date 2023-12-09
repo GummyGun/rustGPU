@@ -199,30 +199,20 @@ impl Layers {
     }
     
     fn validate(&self) -> Result<Vec<*const c_char>, AAError> {
+        let mut set:HashSet<&'static str> = constants::LAYERS.into_iter().collect();
         
-        let mut validation_layers:Vec<&'static str> = constants::LAYERS.into_iter().collect();
-        let mut required_layers = validation_layers.len();
-        
-        let mut holder = Vec::<*const c_char>::new();
+        let mut holder = Vec::<*const c_char>::with_capacity(set.len());
         for layer in &self.0 {
-            let name_holder = unsafe{CStr::from_ptr(layer.layer_name.as_ptr())};
-            
-            let mut index = 0;
-            while index <validation_layers.len() {
-                
-                if &name_holder.to_string_lossy() == validation_layers[index] {
-                    validation_layers.remove(index);
-                    required_layers -= 1;
-                    holder.push(layer.layer_name.as_ptr() as *const c_char);
-                } 
-                index += 1;
+            let name_holder = unsafe{CStr::from_ptr(layer.layer_name.as_ptr())}.to_string_lossy();
+            if set.remove(&name_holder as &str) {
+                holder.push(layer.layer_name.as_ptr() as *const c_char);
             }
         }
         
-        if required_layers != 0 {
-            Err(AAError::MissingLayers(validation_layers))
-        } else {
+        if set.is_empty() {
             Ok(holder)
+        } else {
+            Err(AAError::MissingLayers(set))
         }
     }
     
