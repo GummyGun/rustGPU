@@ -10,7 +10,6 @@ use super::{
     swapchain::Swapchain,
     render_pass::RenderPass,
     pipeline::Pipeline,
-    framebuffer::SCFramebuffers,
 };
 
 use crate::{
@@ -56,10 +55,11 @@ impl CommandControl {
         })
     }
     
-    pub fn record_command_buffer(&mut self, state:&State, device:&Device, swapchain:&Swapchain, render_pass:&RenderPass, pipeline:&Pipeline, framebuffer:&SCFramebuffers, image_index:u32, frame_index:usize) {
+    pub fn record_command_buffer(&mut self, state:&State, device:&Device, swapchain:&Swapchain, render_pass:&RenderPass, pipeline:&Pipeline/*, framebuffer:&SCFramebuffers*/, image_index:u32, frame_index:usize) {
         if  state.v_dmp() {
             println!("\nFILLING:\tCOMMAND BUFFER");
         }
+        let image_index_usize = usize::try_from(image_index).unwrap();
         
         let command_buffer_begin = vk::CommandBufferBeginInfo::builder();
         
@@ -91,7 +91,7 @@ impl CommandControl {
         
         let render_pass_begin = vk::RenderPassBeginInfo::builder()
             .render_pass(render_pass.as_inner())
-            .framebuffer(framebuffer[usize::try_from(image_index).unwrap()])
+            .framebuffer(swapchain.framebuffers[image_index_usize])
             .render_area(scissor[0])
             .clear_values(&clear_color[..]);
         

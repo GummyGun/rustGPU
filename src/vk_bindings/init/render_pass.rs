@@ -6,7 +6,7 @@ use ash::{
 use super::{
     DeviceDrop,
     device::Device,
-    swapchain::Swapchain,
+    swapchain::SwapchainBasic,
     /*
     instance::Instance,
     surface::Surface,
@@ -22,7 +22,7 @@ use crate::{
 pub struct RenderPass(vk::RenderPass);
 
 impl RenderPass {
-    pub fn create(state:&State, device:&Device, swapchain:&Swapchain) -> VkResult<Self> {
+    pub fn create(state:&State, device:&Device, swapchain:&SwapchainBasic) -> VkResult<Self> {
         if state.v_exp() {
             println!("\nCREATING:\tRENDER PASS");
         }

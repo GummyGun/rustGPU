@@ -9,6 +9,7 @@ use super::{
     instance::Instance,
     surface::Surface,
     p_device::PhysicalDevice,
+    render_pass::RenderPass,
 };
 
 use crate::{
@@ -24,7 +25,7 @@ use std::{
 
 
 
-pub struct Swapchain {
+pub struct SwapchainBasic {
     pub image_views: Vec<vk::ImageView>,
     pub images: Vec<vk::Image>,
     pub extent: vk::Extent2D,
@@ -40,12 +41,58 @@ pub struct SwapchainSupportDetails {
     pub surface_formats: Vec<vk::SurfaceFormatKHR>,
     pub present_modes: Vec<vk::PresentModeKHR>,
     
+}
+
+pub struct Swapchain {
+    pub swapchain_basic: SwapchainBasic,
+    pub framebuffers: Vec<vk::Framebuffer>
+}
+
+impl Deref for Swapchain {
+    type Target = SwapchainBasic;
+    fn deref(&self) -> &Self::Target {
+        &self.swapchain_basic
+    }
+    
+}
+
+impl Swapchain {
+    pub fn complete(state:&State, device:&Device, swapchain:SwapchainBasic, render_pass:&RenderPass) -> VkResult<Self> {
+        if  state.v_exp() {
+            println!("\nCREATING:\tFRAME BUFFER");
+        }
+        
+        let mut framebuffers_holder:Vec<vk::Framebuffer> = Vec::with_capacity(swapchain.image_views.len());
+        
+        for image_view in &swapchain.image_views {
+            
+            let attachments = [*image_view];
+            let create_info = vk::FramebufferCreateInfo::builder()
+                .render_pass(render_pass.as_inner())
+                .attachments(&attachments[..])
+                .width(swapchain.extent.width)
+                .height(swapchain.extent.height)
+                .layers(1);
+            let holder = unsafe{device.create_framebuffer(&create_info, None)}?;
+            framebuffers_holder.push(holder);
+        }
+        
+        Ok(Self{
+            swapchain_basic: swapchain,
+            framebuffers: framebuffers_holder,
+        })
+    }
+    
+    pub fn direct_create(state:&State, window:&Window, instance:&Instance, surface:&Surface, p_device:&PhysicalDevice, device:&Device, render_pass:&RenderPass) -> VkResult<Self> {
+        let holder = SwapchainBasic::create(state, window, instance, surface, p_device, device)?;
+        Self::complete(state, device, holder, render_pass)
+    }
+    
     
 }
 
 
-
-impl Swapchain {
+impl SwapchainBasic {
     
     pub fn create(state:&State, window:&Window, instance:&Instance, surface:&Surface, p_device:&PhysicalDevice, device:&Device) -> VkResult<Self> {
         if  state.v_exp() {
@@ -77,7 +124,6 @@ impl Swapchain {
             .present_mode(present_mode)
             .clipped(true)
             .old_swapchain(vk::SwapchainKHR::null());
-        
         
         
         create_info = if p_device.queues.different_families() {
@@ -141,6 +187,12 @@ impl Swapchain {
 impl DeviceDrop for Swapchain {
     fn device_drop(&mut self, state:&State, device:&Device) {
         if state.v_nor() {
+            println!("[0]:deleting Swapchain framebuffers");
+        }
+        for framebuffer in self.framebuffers.iter() {
+            unsafe{device.destroy_framebuffer(*framebuffer, None)};
+        }
+        if state.v_nor() {
             println!("[0]:deleting images");
         }
         for view in self.image_views.iter() {
@@ -150,11 +202,13 @@ impl DeviceDrop for Swapchain {
             println!("[0]:deleting swapchain");
         }
         unsafe{self.destroy_swapchain(self.swapchain, None)};
+        /*
+        */
     }
 }
 
 
-impl Deref for Swapchain {
+impl Deref for SwapchainBasic {
     type Target = ash::extensions::khr::Swapchain;
     fn deref(&self) -> &Self::Target {
         &self.swapchain_loader
