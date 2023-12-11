@@ -13,6 +13,9 @@ pub enum Error {
     MissingExtensions(HashSet<&'static str>),
     #[error("Missing Layers: {0:?}")]
     MissingLayers(HashSet<&'static str>),
+    
+    #[error("No suitable memory")]
+    NoSuitableMemory,
 }
 
 /*

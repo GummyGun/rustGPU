@@ -36,7 +36,7 @@ impl Instance {
     TODO: change strings to CStrings
     */
     
-    pub fn create(state:&State, window: &Window) -> VkResult<Instance> {
+    pub fn create(state:&State, window:&Window) -> VkResult<Instance> {
         if  state.v_exp() {
             println!("\nCREATING:\tINSTANCE");
         }

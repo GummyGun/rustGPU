@@ -6,7 +6,7 @@ use ash::{
 use super::{
     DeviceDrop,
     device::Device,
-    swapchain::Swapchain,
+    swapchain::SwapchainBasic,
     /*
     instance::Instance,
     surface::Surface,
@@ -22,7 +22,7 @@ use crate::{
 pub struct RenderPass(vk::RenderPass);
 
 impl RenderPass {
-    pub fn create(state:&State, device:&Device, swapchain:&Swapchain) -> VkResult<Self> {
+    pub fn create(state:&State, device:&Device, swapchain:&SwapchainBasic) -> VkResult<Self> {
         if state.v_exp() {
             println!("\nCREATING:\tRENDER PASS");
         }
@@ -37,6 +37,11 @@ impl RenderPass {
                 .dst_access_mask(vk::AccessFlags::COLOR_ATTACHMENT_WRITE)
                 .build()
         ];
+        
+        if state.v_exp() {
+            println!("initial layout:\tundefined");
+            println!("final layout:  \tpresent");
+        }
         
         let attachment_description = [
             vk::AttachmentDescription::builder()
@@ -63,7 +68,7 @@ impl RenderPass {
             vk::SubpassDescription::builder()
                 .pipeline_bind_point(vk::PipelineBindPoint::GRAPHICS)
                 .color_attachments(&color_attachment_reference[..])
-            .build()
+                .build()
         ];
         
         let create_info = vk::RenderPassCreateInfo::builder()

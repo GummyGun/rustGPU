@@ -27,11 +27,11 @@ pub use pipeline::*;
 mod render_pass;
 pub use render_pass::*;
 
-mod framebuffer;
-pub use framebuffer::*;
-
 mod command;
 pub use command::*;
 
 mod sync_obj;
 pub use sync_obj::*;
+
+mod buffers;
+pub use buffers::*;

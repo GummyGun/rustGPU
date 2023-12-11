@@ -9,12 +9,14 @@ use super::{
     render_pass::RenderPass,
 };
 
-use crate::State;
+use crate::{
+    State,
+    graphics::Vertex,
+};
 
 use std::{
     fs::File,
     ffi::CStr,
-    //ops::Deref,
 };
 
 
@@ -54,7 +56,9 @@ impl Pipeline {
             .dynamic_states(&dynamic_states);
         
         
-        let vertex_input_state_create_info = vk::PipelineVertexInputStateCreateInfo::builder();
+        let vertex_input_state_create_info = vk::PipelineVertexInputStateCreateInfo::builder()
+            .vertex_binding_descriptions(Vertex::binding_description())
+            .vertex_attribute_descriptions(Vertex::attribute_description());
         
         let input_assembly_create_info = ash::vk::PipelineInputAssemblyStateCreateInfo::builder()
             .topology(vk::PrimitiveTopology::TRIANGLE_LIST)
@@ -77,6 +81,10 @@ impl Pipeline {
         let multisample_state_create_info = vk::PipelineMultisampleStateCreateInfo::builder()
             .sample_shading_enable(false)
             .rasterization_samples(vk::SampleCountFlags::TYPE_1);
+        
+        if state.v_exp() {
+            println!("enabling RGBA color attachment");
+        }
         
         let color_blend_attachment = [
             vk::PipelineColorBlendAttachmentState::builder()

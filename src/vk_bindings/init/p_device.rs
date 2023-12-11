@@ -24,6 +24,7 @@ pub struct PhysicalDevice {
     pub queues: QueueFamilyIndices,
     pub features: vk::PhysicalDeviceFeatures,
     pub swapchain_details: SwapchainSupportDetails,
+    pub memory_properties: vk::PhysicalDeviceMemoryProperties,
 }
 
 #[derive(Debug, Default, Clone, Copy)]
@@ -65,23 +66,40 @@ impl PhysicalDevice {
             }
         }
         
+        
         if best != vk::PhysicalDevice::null() {
             if state.v_exp() {
                 println!("physical device succesfully selected");
             }
             
+            let queue = QueueFamilyIndices::from(best_queue);
+            assert!(!queue.different_families(), "queues should be the same");
+            
+            let memory_properties = unsafe{instance.get_physical_device_memory_properties(best)};
+            if state.v_exp() {
+                println!("getting memory properties");
+            }
+            if state.v_dmp() {
+                println!("{:?}", &memory_properties);
+            }
             Ok(Self{
                 p_device: best,
-                queues: best_queue.into(),
+                queues: queue,
                 features: vk::PhysicalDeviceFeatures::default(),
-                swapchain_details: best_sc_details
+                swapchain_details: best_sc_details,
+                memory_properties: memory_properties,
             })
         } else {
             Err(AAError::NoGPU)
         }
     }
     
-    fn rate(state:&State, instance:&Instance, surface:&Surface, p_device:vk::PhysicalDevice) -> Result<(i64, QueueFamilyOptionalIndices, SwapchainSupportDetails), ()> {
+    fn rate(state:&State, 
+        instance:&Instance, 
+        surface:&Surface, 
+        p_device:vk::PhysicalDevice
+    ) -> Result<(i64, QueueFamilyOptionalIndices, SwapchainSupportDetails), ()> {
+        
         let queues = Self::find_queue_families(state, instance, surface, p_device);
         if !queues.complete() && !Self::check_device_support(instance, p_device) {
             return Err(());
@@ -115,7 +133,12 @@ impl PhysicalDevice {
     }
     
 
-    fn find_queue_families(state:&State, instance:&Instance, surface:&Surface, p_device:vk::PhysicalDevice) -> QueueFamilyOptionalIndices {
+    fn find_queue_families(
+        state:&State, 
+        instance:&Instance, 
+        surface:&Surface, 
+        p_device:vk::PhysicalDevice
+    ) -> QueueFamilyOptionalIndices {
         let mut holder = QueueFamilyOptionalIndices::default();
         let properties = unsafe{instance.get_physical_device_queue_family_properties(p_device)};
         
@@ -173,6 +196,7 @@ impl QueueFamilyIndices {
     pub fn queue_indices(&self) -> [u32;2] {
         [self.graphics_family, self.present_family]
     }
+    
 }
 
 impl From<QueueFamilyOptionalIndices> for QueueFamilyIndices {
