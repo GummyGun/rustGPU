@@ -33,8 +33,11 @@ impl SyncObjects {
         let mut image_available_semaphore = [vk::Semaphore::null(); constants::FIF];
         let mut render_finished_semaphore = [vk::Semaphore::null(); constants::FIF];
         let mut in_flight_fence = [vk::Fence::null(); constants::FIF];
-            
+        
         for index in 0..constants::FIF {
+            if  state.v_exp() {
+                println!("creating sync objects for frame {}", index);
+            }
             image_available_semaphore[index] = unsafe{device.create_semaphore(&semaphore_create_info, None)}?;
             render_finished_semaphore[index] = unsafe{device.create_semaphore(&semaphore_create_info, None)}?;
             in_flight_fence[index] =  unsafe{device.create_fence(&fence_create_info, None)}?;

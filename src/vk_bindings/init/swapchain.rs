@@ -83,6 +83,8 @@ impl Swapchain {
         })
     }
     
+    
+    #[allow(dead_code)]
     pub fn direct_create(state:&State, window:&Window, instance:&Instance, surface:&Surface, p_device:&PhysicalDevice, device:&Device, render_pass:&RenderPass) -> VkResult<Self> {
         let holder = SwapchainBasic::create(state, window, instance, surface, p_device, device)?;
         Self::complete(state, device, holder, render_pass)
@@ -111,7 +113,7 @@ impl SwapchainBasic {
         }
         
         
-        let mut create_info = ash::vk::SwapchainCreateInfoKHR::builder()
+        let mut create_info = vk::SwapchainCreateInfoKHR::builder()
             .surface(surface.surface)
             .min_image_count(image_count)
             .image_format(surface_format.format)
@@ -155,10 +157,10 @@ impl SwapchainBasic {
         let mut image_views_holder:Vec<vk::ImageView> = Vec::with_capacity(images.len());
         
         let component_create_info = vk::ComponentMapping::builder()
-            .r(ash::vk::ComponentSwizzle::IDENTITY)
-            .g(ash::vk::ComponentSwizzle::IDENTITY)
-            .b(ash::vk::ComponentSwizzle::IDENTITY)
-            .a(ash::vk::ComponentSwizzle::IDENTITY);
+            .r(vk::ComponentSwizzle::IDENTITY)
+            .g(vk::ComponentSwizzle::IDENTITY)
+            .b(vk::ComponentSwizzle::IDENTITY)
+            .a(vk::ComponentSwizzle::IDENTITY);
         
         let subresource_range_create_info = vk::ImageSubresourceRange::builder()
             .aspect_mask(vk::ImageAspectFlags::COLOR)
@@ -187,7 +189,7 @@ impl SwapchainBasic {
 impl DeviceDrop for Swapchain {
     fn device_drop(&mut self, state:&State, device:&Device) {
         if state.v_nor() {
-            println!("[0]:deleting Swapchain framebuffers");
+            println!("[0]:deleting swapchain framebuffers");
         }
         for framebuffer in self.framebuffers.iter() {
             unsafe{device.destroy_framebuffer(*framebuffer, None)};

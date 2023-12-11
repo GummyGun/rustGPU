@@ -38,6 +38,11 @@ impl RenderPass {
                 .build()
         ];
         
+        if state.v_exp() {
+            println!("initial layout:\tundefined");
+            println!("final layout:  \tpresent");
+        }
+        
         let attachment_description = [
             vk::AttachmentDescription::builder()
                 .format(swapchain.surface_format.format)
@@ -63,7 +68,7 @@ impl RenderPass {
             vk::SubpassDescription::builder()
                 .pipeline_bind_point(vk::PipelineBindPoint::GRAPHICS)
                 .color_attachments(&color_attachment_reference[..])
-            .build()
+                .build()
         ];
         
         let create_info = vk::RenderPassCreateInfo::builder()

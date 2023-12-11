@@ -70,7 +70,7 @@ impl Device {
         TODO: Add device layers
         */
         
-        let device = unsafe{instance.create_device(p_device.p_device, &device_create_info, None)?};
+        let device = unsafe{instance.create_device(p_device.p_device, &device_create_info, None)}?;
         let queue_handles = Self::get_queue_handles(&device, &p_device.queues);
         
         if state.v_dmp() {

@@ -3,6 +3,7 @@ mod vk_bindings;
 mod errors;
 mod constants;
 mod utility;
+mod graphics;
 
 #[derive(Default, Debug, Clone, Copy)]
 pub struct State {
@@ -25,6 +26,7 @@ fn main() {
     let mut window = window::Window::init(state);
     let mut v_init = vk_bindings::VInit::init(state, &window);
     println!("===========\n===========");
+    //v_init.test();
     while !window.should_close() {
         window.poll_events();
         v_init.draw_frame();
