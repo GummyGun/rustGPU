@@ -8,7 +8,7 @@ use super::{
     device::Device,
     instance::Instance,
     surface::Surface,
-    p_device::PhysicalDevice,
+    p_device::PDevice,
     render_pass::RenderPass,
 };
 
@@ -30,7 +30,6 @@ pub struct SwapchainBasic {
     pub images: Vec<vk::Image>,
     pub extent: vk::Extent2D,
     pub surface_format: vk::SurfaceFormatKHR,
-    
     pub swapchain: vk::SwapchainKHR,
     swapchain_loader: ash::extensions::khr::Swapchain,
 }
@@ -44,60 +43,29 @@ pub struct SwapchainSupportDetails {
 }
 
 pub struct Swapchain {
-    pub swapchain_basic: SwapchainBasic,
+    //pub swapchain_basic: SwapchainBasic,
+    pub image_views: Vec<vk::ImageView>,
+    pub images: Vec<vk::Image>,
+    pub extent: vk::Extent2D,
+    pub surface_format: vk::SurfaceFormatKHR,
+    
+    pub swapchain: vk::SwapchainKHR,
+    swapchain_loader: ash::extensions::khr::Swapchain,
     pub framebuffers: Vec<vk::Framebuffer>
 }
 
 impl Deref for Swapchain {
-    type Target = SwapchainBasic;
+    type Target = ash::extensions::khr::Swapchain;
     fn deref(&self) -> &Self::Target {
-        &self.swapchain_basic
+        &self.swapchain_loader
     }
     
 }
 
 impl Swapchain {
-    pub fn complete(state:&State, device:&Device, swapchain:SwapchainBasic, render_pass:&RenderPass) -> VkResult<Self> {
-        if  state.v_exp() {
-            println!("\nCREATING:\tFRAME BUFFER");
-        }
-        
-        let mut framebuffers_holder:Vec<vk::Framebuffer> = Vec::with_capacity(swapchain.image_views.len());
-        
-        for image_view in &swapchain.image_views {
-            
-            let attachments = [*image_view];
-            let create_info = vk::FramebufferCreateInfo::builder()
-                .render_pass(render_pass.as_inner())
-                .attachments(&attachments[..])
-                .width(swapchain.extent.width)
-                .height(swapchain.extent.height)
-                .layers(1);
-            let holder = unsafe{device.create_framebuffer(&create_info, None)}?;
-            framebuffers_holder.push(holder);
-        }
-        
-        Ok(Self{
-            swapchain_basic: swapchain,
-            framebuffers: framebuffers_holder,
-        })
-    }
     
-    
-    #[allow(dead_code)]
-    pub fn direct_create(state:&State, window:&Window, instance:&Instance, surface:&Surface, p_device:&PhysicalDevice, device:&Device, render_pass:&RenderPass) -> VkResult<Self> {
-        let holder = SwapchainBasic::create(state, window, instance, surface, p_device, device)?;
-        Self::complete(state, device, holder, render_pass)
-    }
-    
-    
-}
-
-
-impl SwapchainBasic {
-    
-    pub fn create(state:&State, window:&Window, instance:&Instance, surface:&Surface, p_device:&PhysicalDevice, device:&Device) -> VkResult<Self> {
-        if  state.v_exp() {
+    pub fn create(state:&State, window:&Window, instance:&Instance, surface:&Surface, p_device:&PDevice, device:&Device) -> VkResult<SwapchainBasic> {
+        if state.v_exp() {
             println!("\nCREATING:\tSWAPCHAIN");
         }
         
@@ -141,17 +109,62 @@ impl SwapchainBasic {
         
         let images = unsafe{swapchain_loader.get_swapchain_images(swapchain)?};
         
-        let image_views = Self::create_image_views(&device, &images, &surface_format.format)?;
+        let image_views = SwapchainBasic::create_image_views(&device, &images, &surface_format.format)?;
         
-        Ok(Self{
+        Ok(SwapchainBasic{
             image_views:image_views,
             images:images,
             swapchain:swapchain,
             swapchain_loader:swapchain_loader,
             extent:swap_extent,
             surface_format:surface_format,
+            
         })
     }
+    
+    pub fn complete(state:&State, device:&Device, swapchain:SwapchainBasic, render_pass:&RenderPass) -> VkResult<Self> {
+        if state.v_exp() {
+            println!("\nCREATING:\tFRAME BUFFER");
+        }
+        
+        let mut framebuffers_holder:Vec<vk::Framebuffer> = Vec::with_capacity(swapchain.image_views.len());
+        
+        for image_view in &swapchain.image_views {
+            
+            let attachments = [*image_view];
+            let create_info = vk::FramebufferCreateInfo::builder()
+                .render_pass(render_pass.as_inner())
+                .attachments(&attachments[..])
+                .width(swapchain.extent.width)
+                .height(swapchain.extent.height)
+                .layers(1);
+            let holder = unsafe{device.create_framebuffer(&create_info, None)}?;
+            framebuffers_holder.push(holder);
+        }
+        
+        Ok(Self{
+            image_views: swapchain.image_views,
+            images: swapchain.images,
+            extent: swapchain.extent,
+            surface_format: swapchain.surface_format,
+            swapchain: swapchain.swapchain,
+            swapchain_loader: swapchain.swapchain_loader,
+            framebuffers: framebuffers_holder,
+        })
+        
+    }
+    
+    
+    #[allow(dead_code)]
+    pub fn direct_create(state:&State, window:&Window, instance:&Instance, surface:&Surface, p_device:&PDevice, device:&Device, render_pass:&RenderPass) -> VkResult<Self> {
+        let holder = Self::create(state, window, instance, surface, p_device, device)?;
+        Self::complete(state, device, holder, render_pass)
+    }
+    
+}
+
+
+impl SwapchainBasic {
     
     fn create_image_views(device:&Device, images:&Vec<vk::Image>, format:&vk::Format) -> VkResult<Vec<vk::ImageView>> {
         let mut image_views_holder:Vec<vk::ImageView> = Vec::with_capacity(images.len());
@@ -204,8 +217,6 @@ impl DeviceDrop for Swapchain {
             println!("[0]:deleting swapchain");
         }
         unsafe{self.destroy_swapchain(self.swapchain, None)};
-        /*
-        */
     }
 }
 

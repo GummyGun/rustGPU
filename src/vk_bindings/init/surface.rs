@@ -26,7 +26,7 @@ pub struct Surface {
 
 impl Surface {
     pub fn create(state:&State, window:&Window, instance:&Instance) -> VkResult<Self> {
-        if  state.v_exp() {
+        if state.v_exp() {
             println!("\nCREATING:\tSURFACE");
         }
         let surface = unsafe{window.create_surface(instance, None)?};

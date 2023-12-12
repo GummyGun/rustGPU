@@ -6,7 +6,7 @@ use ash::{
 use super::{
     ActiveDrop,
     instance::Instance,
-    p_device::PhysicalDevice,
+    p_device::PDevice,
     p_device::QueueFamilyIndices,
 };
 
@@ -32,8 +32,8 @@ pub struct QueueHandles {
 
 
 impl Device {
-    pub fn create(state:&State, instance:&Instance, p_device:&PhysicalDevice) -> VkResult<Self> {
-        if  state.v_exp() {
+    pub fn create(state:&State, instance:&Instance, p_device:&PDevice) -> VkResult<Self> {
+        if state.v_exp() {
             println!("\nCREATING:\tDEVICE");
         }
         

@@ -7,6 +7,8 @@ use super::{
     DeviceDrop,
     device::Device,
     render_pass::RenderPass,
+    //d_s_layout::DSLayout,
+    descriptor::DescriptorControlLayout,
 };
 
 use crate::{
@@ -17,6 +19,8 @@ use crate::{
 use std::{
     fs::File,
     ffi::CStr,
+    slice::from_raw_parts,
+    ptr::addr_of,
 };
 
 
@@ -27,8 +31,8 @@ pub struct Pipeline {
 
 impl Pipeline {
     
-    pub fn create(state:&State, device:&Device, render_pass:&RenderPass) -> VkResult<Self> {
-        if  state.v_exp() {
+    pub fn create(state:&State, device:&Device, render_pass:&RenderPass, layout:&DescriptorControlLayout) -> VkResult<Self> {
+        if state.v_exp() {
             println!("\nCREATING:\tPIPELINE");
         }
         
@@ -102,11 +106,14 @@ impl Pipeline {
             .logic_op(vk::LogicOp::COPY)
             .attachments(&color_blend_attachment[..]);
         
-        let pipeline_layout_create_info = vk::PipelineLayoutCreateInfo::builder();
+        let layout_slice = unsafe{from_raw_parts(addr_of!(layout.layout), 1)};
+        
+        let pipeline_layout_create_info = vk::PipelineLayoutCreateInfo::builder()
+            .set_layouts(layout_slice);
         
         let pipeline_layout = unsafe{device.create_pipeline_layout(&pipeline_layout_create_info, None)?};
         
-
+        
         let create_info = [
             vk::GraphicsPipelineCreateInfo::builder()
                 .stages(&sm_create_info[..])

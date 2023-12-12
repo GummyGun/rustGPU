@@ -10,7 +10,7 @@ use super::{
     /*
     instance::Instance,
     surface::Surface,
-    p_device::PhysicalDevice,
+    p_device::PDevice,
     */
 };
 
