@@ -15,14 +15,16 @@ use crate::{
 
 
 pub struct SyncObjects {
-    pub image_available_semaphore: [vk::Semaphore; constants::FIF],
-    pub render_finished_semaphore: [vk::Semaphore; constants::FIF],
-    pub in_flight_fence: [vk::Fence; constants::FIF],
+    pub image_available_semaphore: [vk::Semaphore; constants::fif::USIZE],
+    pub render_finished_semaphore: [vk::Semaphore; constants::fif::USIZE],
+    pub in_flight_fence: [vk::Fence; constants::fif::USIZE],
 }
 
 impl SyncObjects {
     pub fn create(state:&State, device:&Device) -> VkResult<Self> {
-        if  state.v_exp() {
+        use constants::fif;
+        
+        if state.v_exp() {
             println!("\nCREATING:\tSYNC OBJECTS");
         }
         
@@ -30,12 +32,12 @@ impl SyncObjects {
         let fence_create_info = vk::FenceCreateInfo::builder()
             .flags(vk::FenceCreateFlags::SIGNALED);
         
-        let mut image_available_semaphore = [vk::Semaphore::null(); constants::FIF];
-        let mut render_finished_semaphore = [vk::Semaphore::null(); constants::FIF];
-        let mut in_flight_fence = [vk::Fence::null(); constants::FIF];
+        let mut image_available_semaphore = [vk::Semaphore::null(); fif::USIZE];
+        let mut render_finished_semaphore = [vk::Semaphore::null(); fif::USIZE];
+        let mut in_flight_fence = [vk::Fence::null(); fif::USIZE];
         
-        for index in 0..constants::FIF {
-            if  state.v_exp() {
+        for index in 0..fif::USIZE {
+            if state.v_exp() {
                 println!("creating sync objects for frame {}", index);
             }
             image_available_semaphore[index] = unsafe{device.create_semaphore(&semaphore_create_info, None)}?;
@@ -53,12 +55,13 @@ impl SyncObjects {
 
 impl DeviceDrop for SyncObjects {
     fn device_drop(&mut self, state:&State, device:&Device) {
+        use constants::fif;
         if state.v_nor() {
             println!("[0]:deleting semaphores");
             println!("[0]:deleting fence");
         }
         
-        for index in 0..constants::FIF {
+        for index in 0..fif::USIZE {
             unsafe{device.destroy_semaphore(self.image_available_semaphore[index], None)};
             unsafe{device.destroy_semaphore(self.render_finished_semaphore[index], None)};
             unsafe{device.destroy_fence(self.in_flight_fence[index], None)};

@@ -19,7 +19,7 @@ use std::{
     ffi::CStr,
 };
 
-pub struct PhysicalDevice {
+pub struct PDevice {
     pub p_device: vk::PhysicalDevice,
     pub queues: QueueFamilyIndices,
     pub features: vk::PhysicalDeviceFeatures,
@@ -39,7 +39,7 @@ pub struct QueueFamilyIndices {
     pub present_family: u32,
 }
 
-impl PhysicalDevice {
+impl PDevice {
     pub fn chose(state:&State, instance:&Instance, surface:&Surface) -> Result<Self, AAError> {
         if state.v_exp() {
             println!("\nCHOSSING:\tPHYSICAL DEVICE");

@@ -6,11 +6,12 @@ use ash::{
 use super::{
     DeviceDrop,
     device::Device,
-    p_device::PhysicalDevice,
+    p_device::PDevice,
     swapchain::Swapchain,
     render_pass::RenderPass,
     pipeline::Pipeline,
     buffers::Buffer,
+    descriptor::DescriptorControl,
 };
 
 use crate::{
@@ -26,14 +27,16 @@ use std::{
 
 pub struct CommandControl{
     pub pool: vk::CommandPool,
-    pub buffer: [vk::CommandBuffer; constants::FIF],
+    pub buffer: [vk::CommandBuffer; constants::fif::USIZE],
     pub staging_buffer: vk::CommandBuffer,
 }
 
 
 impl CommandControl {
-    pub fn create(state:&State, p_device:&PhysicalDevice, device:&Device) -> VkResult<Self> {
-        if  state.v_exp() {
+    pub fn create(state:&State, p_device:&PDevice, device:&Device) -> VkResult<Self> {
+        use constants::fif;
+        
+        if state.v_exp() {
             println!("\nCREATING:\tCOMMAND CONTROL STRUCTURES");
         }
         let create_info = vk::CommandPoolCreateInfo::builder()
@@ -41,18 +44,18 @@ impl CommandControl {
             .queue_family_index(p_device.queues.graphics_family);
         let command_pool = unsafe{device.create_command_pool(&create_info, None)}?;
         
-        if  state.v_exp() {
+        if state.v_exp() {
             println!("\nALLOCATING:\tCOMMAND BUFFERS");
             println!("allocating graphics command buffers");
         }
         let create_info = vk::CommandBufferAllocateInfo::builder()
             .command_pool(command_pool)
             .level(vk::CommandBufferLevel::PRIMARY)
-            .command_buffer_count(constants::FIF_U32);
+            .command_buffer_count(fif::U32);
         
         let buffer_vec = unsafe{device.allocate_command_buffers(&create_info)}?;
         
-        if  state.v_exp() {
+        if state.v_exp() {
             println!("allocating staging command buffer");
         }
         let sb_create_info = vk::CommandBufferAllocateInfo::builder()
@@ -62,7 +65,7 @@ impl CommandControl {
         
         let staging_buffer = unsafe{device.allocate_command_buffers(&sb_create_info)}?;
         
-        let mut buffer_arr = [vk::CommandBuffer::null(); constants::FIF];
+        let mut buffer_arr = [vk::CommandBuffer::null(); fif::USIZE];
         for (index, buffer) in buffer_vec.into_iter().enumerate() {
             buffer_arr[index] = buffer;
         }
@@ -83,10 +86,12 @@ impl CommandControl {
         pipeline:&Pipeline, 
         vertex_buffer:&Buffer, 
         index_buffer:&Buffer,
+        descriptor_control:&DescriptorControl,
         image_index:u32, 
         frame_index:usize,
     ) {
-        if  state.v_dmp() {
+        
+        if state.v_dmp() {
             println!("\nFILLING:\tCOMMAND BUFFER");
         }
         let image_index_usize = usize::try_from(image_index).unwrap();
@@ -140,6 +145,8 @@ impl CommandControl {
         
         unsafe{device.cmd_bind_vertex_buffers(self.buffer[frame_index], 0, vertex_buffer_slice, &device_size)};
         unsafe{device.cmd_bind_index_buffer(self.buffer[frame_index], index_buffer.buffer, 0, vk::IndexType::UINT16)};
+        
+        unsafe{device.cmd_bind_descriptor_sets(self.buffer[frame_index], vk::PipelineBindPoint::GRAPHICS, pipeline.layout, 0, std::slice::from_ref(&descriptor_control.sets[frame_index]), &[])};
         
         unsafe{device.cmd_draw_indexed(self.buffer[frame_index], u32::try_from(VERTEX_INDEX.len()).expect("vertex to draw should fit in u32"), 1, 0, 0, 0)};
         unsafe{device.cmd_end_render_pass(self.buffer[frame_index])};

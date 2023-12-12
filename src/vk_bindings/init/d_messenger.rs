@@ -10,7 +10,6 @@ use super::{
 
 use crate::{
     State,
-    Verbosity,
 };
 
 use std::{
@@ -29,7 +28,7 @@ pub struct DMessenger {
 impl DMessenger {
     
     pub fn create(state:&State, instance:&Instance) -> VkResult<Self> {
-        if let Verbosity::Expresive = state.verbosity {
+        if state.v_exp() {
             println!("\nCREATING:\tDEBUG_MESSENGER\nvalidation layers activated");
         }
         
