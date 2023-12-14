@@ -94,10 +94,6 @@ impl Device {
         }
     }
     
-    #[inline(always)]
-    fn drop_internal(&mut self) {
-        unsafe{self.device.destroy_device(None)};
-    }
 }
 
 
@@ -114,14 +110,6 @@ impl ActiveDrop for Device {
         if state.v_nor() {
             println!("[0]:deleting device");
         }
-        self.drop_internal()
+        unsafe{self.device.destroy_device(None)};
     }
 }
-
-impl Drop for Device {
-    fn drop(&mut self) {
-        eprintln!("droping device");
-        self.drop_internal()
-    }
-}
-

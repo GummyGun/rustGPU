@@ -76,10 +76,6 @@ impl Instance {
         Ok(Self{entry:entry, instance:instance_holder})
     }
 
-    #[inline(always)]
-    fn drop_internal(&mut self) {
-        unsafe{self.destroy_instance(None)};
-    }
 }
 
 impl ActiveDrop for Instance {
@@ -87,7 +83,7 @@ impl ActiveDrop for Instance {
         if state.v_nor() {
             println!("[0]:deleting instance");
         }
-        self.drop_internal()
+        unsafe{self.destroy_instance(None)};
     }
     
 }
@@ -96,13 +92,6 @@ impl Deref for Instance {
     type Target = ash::Instance;
     fn deref(&self) -> &Self::Target {
         &self.instance
-    }
-}
-
-impl Drop for Instance{
-    fn drop(&mut self) {
-        eprintln!("droping instance");
-        self.drop_internal()
     }
 }
 

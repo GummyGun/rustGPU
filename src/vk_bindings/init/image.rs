@@ -85,6 +85,10 @@ impl Image {
             vk::ImageLayout::TRANSFER_DST_OPTIMAL,
         )?;
         
+        if state.v_exp() {
+            println!("copying from buffer to image");
+        }
+        
         memory::copy_buffer_2_image(
             state,
             device,

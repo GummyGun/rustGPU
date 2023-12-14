@@ -84,24 +84,13 @@ impl DMessenger {
         vk::FALSE
     }
     
-    #[inline(always)]
-    fn drop_internal(&mut self) {
-        unsafe{self.debug_utils.destroy_debug_utils_messenger(self.messenger, None)};
-    }
-    
 }
 
 impl ActiveDrop for DMessenger {
     fn active_drop(&mut self, state:&State) {
         if state.v_nor() {
-            println!("[0]:deleting debugMessenger");
+            println!("[0]:deleting debug messenger");
         }
-        self.drop_internal()
-    }
-}
-
-impl Drop for DMessenger {
-    fn drop(&mut self) {
-        self.drop_internal()
+        unsafe{self.debug_utils.destroy_debug_utils_messenger(self.messenger, None)};
     }
 }

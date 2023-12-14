@@ -38,10 +38,6 @@ impl Surface {
         })
     }
     
-    #[inline(always)]
-    pub fn drop_internal(&mut self) {
-        unsafe{self.destroy_surface(self.surface, None)}
-    }
 }
 
 
@@ -57,12 +53,6 @@ impl ActiveDrop for Surface {
         if state.v_nor() {
             println!("[0]:deleting surface");
         }
-        self.drop_internal()
-    }
-}
-
-impl Drop for Surface {
-    fn drop(&mut self) {
-        self.drop_internal()
+        unsafe{self.destroy_surface(self.surface, None)}
     }
 }
