@@ -3,7 +3,6 @@ use ash::{
     prelude::VkResult,
 };
 
-
 use super::{
     DeviceDrop,
     device::Device,
@@ -17,6 +16,10 @@ use crate::{
     graphics,
 };
 
+
+use std::{
+    slice::from_ref,
+};
 
 
 pub struct DescriptorControlLayout {
@@ -35,16 +38,13 @@ impl DescriptorControl {
             println!("\nCREATING:\tDESCRIPTOR SET LAYOUT");
         }
         
-        let d_s_layout_binding = [
-            vk::DescriptorSetLayoutBinding::builder()
-                .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
-                .descriptor_count(1)
-                .stage_flags(vk::ShaderStageFlags::VERTEX)
-                .build(),
-        ];
+        let d_s_layout_binding = vk::DescriptorSetLayoutBinding::builder()
+            .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
+            .descriptor_count(1)
+            .stage_flags(vk::ShaderStageFlags::VERTEX);
         
         let create_info = vk::DescriptorSetLayoutCreateInfo::builder()
-            .bindings(&d_s_layout_binding[..]);
+            .bindings(from_ref(&d_s_layout_binding));
         
         let layout = unsafe{device.create_descriptor_set_layout(&create_info, None)}?;
         Ok(DescriptorControlLayout{
@@ -61,15 +61,12 @@ impl DescriptorControl {
             println!("\nCREATING:\tDESCRIPTOR POOL AND SETS");
         }
         
-        let pool_size = [
-            vk::DescriptorPoolSize::builder()
-                .ty(vk::DescriptorType::UNIFORM_BUFFER)
-                .descriptor_count(fif::U32)
-                .build()
-        ];
+        let pool_size = vk::DescriptorPoolSize::builder()
+            .ty(vk::DescriptorType::UNIFORM_BUFFER)
+            .descriptor_count(fif::U32);
         
         let create_info = vk::DescriptorPoolCreateInfo::builder()
-            .pool_sizes(&pool_size[..])
+            .pool_sizes(from_ref(&pool_size))
             .max_sets(fif::U32);
         
         
@@ -89,24 +86,18 @@ impl DescriptorControl {
         for (index, set) in sets_vec.into_iter().enumerate() {
             sets_arr[index] = set;
             
-            let descriptor = [
-                vk::DescriptorBufferInfo::builder()
-                    .buffer(uniform_buffers[index].buffer.buffer)//TODO: this line is horrible
-                    .range(graphics::UniformBufferObject::size_u64())
-                    .build()
-            ];
+            let descriptor = vk::DescriptorBufferInfo::builder()
+                .buffer(uniform_buffers[index].buffer.buffer)//TODO: this line is horrible
+                .range(graphics::UniformBufferObject::size_u64());
             
-            let write_descriptor = [
-                vk::WriteDescriptorSet::builder()
-                    .dst_set(set)
-                    .dst_binding(0)
-                    .dst_array_element(0)
-                    .descriptor_type(ash::vk::DescriptorType::UNIFORM_BUFFER)
-                    .buffer_info(&descriptor[..])
-                    .build()
-            ];
+            let write_descriptor = vk::WriteDescriptorSet::builder()
+                .dst_set(set)
+                .dst_binding(0)
+                .dst_array_element(0)
+                .descriptor_type(ash::vk::DescriptorType::UNIFORM_BUFFER)
+                .buffer_info(from_ref(&descriptor));
             
-            unsafe{device.update_descriptor_sets(&write_descriptor[..], &[])}
+            unsafe{device.update_descriptor_sets(from_ref(&write_descriptor), &[])}
         }
         
         Ok(Self{

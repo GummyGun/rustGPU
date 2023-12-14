@@ -1,5 +1,8 @@
 use thiserror::Error;
 use std::collections::HashSet;
+use std::io;
+use ash::vk;
+
 
 #[derive(Error, Debug)]
 pub enum Error {
@@ -13,9 +16,17 @@ pub enum Error {
     MissingExtensions(HashSet<&'static str>),
     #[error("Missing Layers: {0:?}")]
     MissingLayers(HashSet<&'static str>),
-    
     #[error("No suitable memory")]
     NoSuitableMemory,
+    #[error("Decoding error")]
+    DecodeError,
+    #[error("image transition")]
+    ImageLayoutUnsuported,
+    #[error("VK error")]
+    VkError(#[from] vk::Result),
+    #[error("IO error")]
+    IOError(#[from] io::Error),
+    
 }
 
 /*

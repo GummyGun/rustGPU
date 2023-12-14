@@ -32,9 +32,6 @@ pub struct Instance {
 }
 
 impl Instance {
-    /*
-    TODO: change strings to CStrings
-    */
     
     pub fn create(state:&State, window:&Window) -> VkResult<Instance> {
         if state.v_exp() {
@@ -208,7 +205,6 @@ impl Layers {
                 holder.push(layer.layer_name.as_ptr() as *const c_char);
             }
         }
-        
         if set.is_empty() {
             Ok(holder)
         } else {

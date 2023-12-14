@@ -5,9 +5,12 @@ mod constants;
 mod utility;
 mod graphics;
 
-#[derive(Default, Debug, Clone, Copy)]
+use std::time::SystemTime;
+
+#[derive(Debug, Clone, Copy)]
 pub struct State {
-    verbosity: Verbosity
+    verbosity: Verbosity,
+    time: SystemTime
 }
 
 #[allow(dead_code)]
@@ -20,8 +23,9 @@ enum Verbosity {
     Dump,
 }
 
+
 fn main() {
-    let state = State::default();
+    let state = State{time:SystemTime::now(), verbosity:Verbosity::default()};
     
     let mut window = window::Window::init(state);
     let mut v_init = vk_bindings::VInit::init(state, &window);
@@ -29,6 +33,7 @@ fn main() {
     //v_init.test();
     while !window.should_close() {
         window.poll_events();
+        v_init.tick();
         v_init.draw_frame();
     }
     v_init.wait_idle();

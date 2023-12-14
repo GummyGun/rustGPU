@@ -7,11 +7,6 @@ use super::{
     DeviceDrop,
     device::Device,
     swapchain::SwapchainBasic,
-    /*
-    instance::Instance,
-    surface::Surface,
-    p_device::PDevice,
-    */
 };
 
 use crate::{

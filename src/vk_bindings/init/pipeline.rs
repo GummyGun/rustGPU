@@ -19,8 +19,7 @@ use crate::{
 use std::{
     fs::File,
     ffi::CStr,
-    slice::from_raw_parts,
-    ptr::addr_of,
+    slice::from_ref,
 };
 
 
@@ -106,10 +105,9 @@ impl Pipeline {
             .logic_op(vk::LogicOp::COPY)
             .attachments(&color_blend_attachment[..]);
         
-        let layout_slice = unsafe{from_raw_parts(addr_of!(layout.layout), 1)};
         
         let pipeline_layout_create_info = vk::PipelineLayoutCreateInfo::builder()
-            .set_layouts(layout_slice);
+            .set_layouts(from_ref(&layout.layout));
         
         let pipeline_layout = unsafe{device.create_pipeline_layout(&pipeline_layout_create_info, None)?};
         

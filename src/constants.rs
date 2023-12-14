@@ -14,8 +14,12 @@ use std::ffi::CStr;
 use ash::extensions::khr::Swapchain;
 use ash::extensions::ext::DebugUtils;
 
-pub const FIF/*FRAMES_IN_FLIGHT*/:usize = 2;
-pub const FIF_U32/*FRAMES_IN_FLIGHT*/:u32 = FIF as u32;
+const FIF:usize = 2;
+pub mod fif {
+    pub const USIZE:usize = super::FIF as usize;
+    pub const U32:u32 = super::FIF as u32;
+}
+
 pub const WIDTH:u32 = 600;
 pub const HEIGTH:u32 = 600;
 pub const VALIDATION:bool = true;

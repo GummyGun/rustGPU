@@ -4,6 +4,7 @@ use ash::{
 };
 
 use super::{
+    memory,
     DeviceDrop,
     device::Device,
     p_device::PDevice,
@@ -19,17 +20,13 @@ use crate::{
         UniformBufferObject,
     },
     constants,
-    errors::Error as AAError,
 };
 
 use std::{
     mem::{
         size_of,
         align_of,
-        //MaybeUninit,
     },
-    ptr::addr_of,
-    slice::from_raw_parts,
     ffi::{
         c_void,
     },
@@ -74,25 +71,22 @@ impl Buffer {
         
         let staging_memory_flags = MPF::HOST_VISIBLE | MPF::HOST_COHERENT;
         
-        let (mut staging, staging_size) = Self::create_buffer(state, p_device, device, raw_size, BUF::TRANSFER_SRC, staging_memory_flags)?;
+        let (staging, staging_size) = Self::create_buffer(state, p_device, device, raw_size, BUF::TRANSFER_SRC, staging_memory_flags)?;
         
         let memory_ptr = unsafe{device.map_memory(staging.memory, 0, staging_size, vk::MemoryMapFlags::empty())}?;
-        let mut vert_align = unsafe{ash::util::Align::new(memory_ptr, align_of::<Vertex>() as u64, staging_size)};
+        let mut vert_align = unsafe{ash::util::Align::new(memory_ptr, align_of::<Vertex>() as u64, raw_size)};
         vert_align.copy_from_slice(&VERTEX_ARR);
         
         unsafe{device.unmap_memory(staging.memory)};
         
-        let vertex_buffer_usage = BUF::VERTEX_BUFFER | BUF::TRANSFER_DST;
-        let vertex_memory_flags = MPF::HOST_VISIBLE | MPF::HOST_COHERENT;
+        let buffer_usage = BUF::VERTEX_BUFFER | BUF::TRANSFER_DST;
+        let memory_flags = MPF::HOST_VISIBLE | MPF::HOST_COHERENT;
         
-        let (holder, _) = Self::create_buffer(state, p_device, device, raw_size, vertex_buffer_usage, vertex_memory_flags)?;
+        let (mut holder, _) = Self::create_buffer(state, p_device, device, raw_size, buffer_usage, memory_flags)?;
         
-        Self::copy_buffer(state, device, command.staging_buffer, &staging, &holder, raw_size);
+        memory::copy_buffer_2_buffer(state, device, command, &staging, &mut holder, raw_size);
         
-        if state.v_exp() {
-            println!("deleting stage buffer");
-        }
-        staging.silent_drop(device);
+        staging.staging_drop(state, device);
         Ok(holder)
     }
     
@@ -114,11 +108,11 @@ impl Buffer {
         
         let staging_memory_flags = MPF::HOST_VISIBLE | MPF::HOST_COHERENT;
         
-        let (mut staging, staging_size) = Self::create_buffer(state, p_device, device, raw_size, BUF::TRANSFER_SRC, staging_memory_flags)?;
+        let (staging, staging_size) = Self::create_buffer(state, p_device, device, raw_size, BUF::TRANSFER_SRC, staging_memory_flags)?;
         
         let memory_ptr = unsafe{device.map_memory(staging.memory, 0, staging_size, vk::MemoryMapFlags::empty())}?;
         
-        let mut vert_align = unsafe{ash::util::Align::new(memory_ptr, align_of::<u16>() as u64, staging_size)};
+        let mut vert_align = unsafe{ash::util::Align::new(memory_ptr, align_of::<u16>() as u64, raw_size)};
         
         vert_align.copy_from_slice(&VERTEX_INDEX);
         /*
@@ -127,41 +121,38 @@ impl Buffer {
         */
         unsafe{device.unmap_memory(staging.memory)};
         
-        let vertex_buffer_usage = BUF::INDEX_BUFFER | BUF::TRANSFER_DST;
-        let vertex_memory_flags = MPF::HOST_VISIBLE | MPF::HOST_COHERENT;
+        let buffer_usage = BUF::INDEX_BUFFER | BUF::TRANSFER_DST;
+        let memory_flags = MPF::HOST_VISIBLE | MPF::HOST_COHERENT;
         
         
-        let (holder, _) = Self::create_buffer(state, p_device, device, raw_size, vertex_buffer_usage, vertex_memory_flags)?;
+        let (mut holder, _) = Self::create_buffer(state, p_device, device, raw_size, buffer_usage, memory_flags)?;
         
-        Self::copy_buffer(state, device, command.staging_buffer, &staging, &holder, raw_size);
+        memory::copy_buffer_2_buffer(state, device, command, &staging, &mut holder, raw_size);
         
-        if state.v_exp() {
-            println!("deleting stage buffer");
-        }
-        staging.silent_drop(device);
+        staging.staging_drop(state, device);
         Ok(holder)
     }
     
     
-    fn create_buffer(
+    pub fn create_buffer(
         state: &State, 
         p_device: &PDevice, 
         device: &Device, 
         size: u64, 
-        usage: vk::BufferUsageFlags, 
+        usage_flags: vk::BufferUsageFlags, 
         memory_flags: vk::MemoryPropertyFlags,
     ) -> VkResult<(Self, u64)> {
         
         let create_info = vk::BufferCreateInfo::builder()
             .size(size)
-            .usage(usage)
+            .usage(usage_flags)
             .sharing_mode(vk::SharingMode::EXCLUSIVE);
         
         let buffer = unsafe{device.create_buffer(&create_info, None)}?;
         
         let memory_requirements = unsafe{device.get_buffer_memory_requirements(buffer)};
         
-        let index_holder = Self::find_memory_type_index(state, p_device, &memory_requirements, memory_flags).expect("required memory type is not present");
+        let index_holder = memory::find_memory_type_index(state, p_device, &memory_requirements, memory_flags).expect("required memory type is not present");
         
         let allocate_info = ash::vk::MemoryAllocateInfo::builder()
             .allocation_size(memory_requirements.size)
@@ -174,77 +165,14 @@ impl Buffer {
         Ok((Self{buffer:buffer, memory:memory}, memory_requirements.size))
     }
     
-    pub fn copy_buffer(
-        state:&State, 
-        device:&Device, 
-        buffer:vk::CommandBuffer, 
-        src_buff:&Buffer, 
-        dst_buff:&Buffer, 
-        size:vk::DeviceSize,
-    ) {
+    pub fn staging_drop(mut self, state:&State, device:&Device) {
         if state.v_exp() {
-            println!("copying buffer");
+            println!("deleting staging buffer")
         }
-        
-        unsafe{device.reset_command_buffer(buffer, vk::CommandBufferResetFlags::empty())}.expect("reseting buffer should not fail");
-        
-        let begin_info = ash::vk::CommandBufferBeginInfo::builder()
-            .flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
-        
-        unsafe{device.begin_command_buffer(buffer, &begin_info)}.expect("should not fail");
-        
-        let buffer_copy = [
-            vk::BufferCopy::builder()
-                .size(size)
-                .build()
-        ];
-        
-        unsafe{device.cmd_copy_buffer(buffer, src_buff.buffer, dst_buff.buffer, &buffer_copy)};
-        unsafe{device.end_command_buffer(buffer)}.expect("should not fail");
-        
-        let buffer_slice = unsafe{from_raw_parts(addr_of!(buffer), 1)};
-        
-        let submit_info = [
-            vk::SubmitInfo::builder()
-                .command_buffers(buffer_slice)
-                .build(),
-        ];
-        
-        unsafe{device.queue_submit(device.queue_handles.graphics, &submit_info[..], vk::Fence::null())}.expect("should not fail");
-        unsafe{device.device_wait_idle()}.expect("waiting for iddle should not fail");
+        self.drop_internal(device);
     }
     
-    pub fn find_memory_type_index(
-        state:&State, 
-        p_device:&PDevice, 
-        memory_requirements:&vk::MemoryRequirements, 
-        flags:vk::MemoryPropertyFlags,
-    ) -> Result<u32, AAError> { 
-        
-        if state.v_exp() {
-            println!("finding memory");
-        }
-        let memory_prop = &p_device.memory_properties;
-        let memory_type_count = usize::try_from(memory_prop.memory_type_count).expect("GPUs doesn't have that much memory types");
-        
-        if state.v_dmp() {
-            println!("{:#?}", memory_prop);
-            println!("{:#?}", memory_requirements);
-        }
-        
-        if state.v_dmp() {
-            println!("{:#?}", memory_prop);
-        }
-        memory_prop.memory_types[..memory_type_count]
-        .iter() .enumerate()
-        .find(|(index, memory_type)| {
-            (1 << index) & memory_requirements.memory_type_bits != 0 && memory_type.property_flags & flags == flags
-        }).map(|(index, _memory_type)| {
-            index as _
-        }).ok_or(AAError::NoSuitableMemory)
-    }
-    
-    fn silent_drop(&mut self, device:&Device) {
+    fn drop_internal(&mut self, device:&Device) {
         unsafe{device.destroy_buffer(self.buffer, None)}
         unsafe{device.free_memory(self.memory, None)}
     }
@@ -255,7 +183,7 @@ impl DeviceDrop for Buffer {
         if state.v_nor() {
             println!("[0]:deleting buffer");
         }
-        self.silent_drop(device);
+        self.drop_internal(device);
     }
 }
 
@@ -387,9 +315,8 @@ impl DeviceDrop for UniformBuffer {
         if state.v_dmp() {
             println!("[0]:deleting buffer");
         }
-        
         unsafe{device.unmap_memory(self.buffer.memory)};
-        self.buffer.silent_drop(device);
+        self.buffer.drop_internal(device);
     }
 }
 

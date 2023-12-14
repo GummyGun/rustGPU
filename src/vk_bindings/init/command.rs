@@ -20,15 +20,12 @@ use crate::{
     graphics::VERTEX_INDEX,
 };
 
-use std::{
-    slice::from_raw_parts,
-    ptr::addr_of,
-};
+use std::slice::from_ref;
 
 pub struct CommandControl{
     pub pool: vk::CommandPool,
     pub buffer: [vk::CommandBuffer; constants::fif::USIZE],
-    pub staging_buffer: vk::CommandBuffer,
+    s_u_buffer: vk::CommandBuffer,
 }
 
 
@@ -63,7 +60,7 @@ impl CommandControl {
             .level(vk::CommandBufferLevel::PRIMARY)
             .command_buffer_count(1);
         
-        let staging_buffer = unsafe{device.allocate_command_buffers(&sb_create_info)}?;
+        let s_u_buffer = unsafe{device.allocate_command_buffers(&sb_create_info)}?;
         
         let mut buffer_arr = [vk::CommandBuffer::null(); fif::USIZE];
         for (index, buffer) in buffer_vec.into_iter().enumerate() {
@@ -73,8 +70,34 @@ impl CommandControl {
         Ok(Self{
             pool: command_pool,
             buffer: buffer_arr,
-            staging_buffer: staging_buffer[0],
+            s_u_buffer: s_u_buffer[0],
         })
+    }
+    
+    pub fn setup_su_buffer(&self, device:&Device) -> vk::CommandBuffer {
+        
+        unsafe{device.reset_command_buffer(self.s_u_buffer, vk::CommandBufferResetFlags::empty())}.expect("reseting buffer should not fail");
+        
+        let begin_info = ash::vk::CommandBufferBeginInfo::builder()
+            .flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
+        
+        unsafe{device.begin_command_buffer(self.s_u_buffer, &begin_info)}.expect("should not fail");
+        
+        self.s_u_buffer
+    }
+    
+    pub fn submit_su_buffer(&self, device:&Device) {
+        
+        unsafe{device.end_command_buffer(self.s_u_buffer)}.expect("should not fail");
+        
+        let submit_info = [
+            vk::SubmitInfo::builder()
+                .command_buffers(from_ref(&self.s_u_buffer))
+                .build(),
+        ];
+        
+        unsafe{device.queue_submit(device.queue_handles.graphics, &submit_info[..], vk::Fence::null())}.expect("should not fail");
+        unsafe{device.device_wait_idle()}.expect("waiting for iddle should not fail");
     }
     
     pub fn record_command_buffer(
@@ -100,23 +123,19 @@ impl CommandControl {
         
         unsafe{device.begin_command_buffer(self.buffer[frame_index], &command_buffer_begin)}.unwrap();
         
-        let scissor = [
-            vk::Rect2D::builder()
+        let scissor = vk::Rect2D::builder()
                 .offset(*vk::Offset2D::builder().x(0).y(0))
                 .extent(swapchain.extent)
-                .build()
-        ];
+                .build();
         
-        let viewport = [
-            ash::vk::Viewport::builder()
-                .x(0f32)
-                .y(0f32)
-                .width(swapchain.extent.width as f32)
-                .height(swapchain.extent.height as f32)
-                .min_depth(0f32)
-                .max_depth(0f32)
-                .build()
-        ];
+        let viewport = ash::vk::Viewport::builder()
+            .x(0f32)
+            .y(0f32)
+            .width(swapchain.extent.width as f32)
+            .height(swapchain.extent.height as f32)
+            .min_depth(0f32)
+            .max_depth(0f32)
+            .build();
         
         let clear_color = [
             vk::ClearValue{
@@ -127,11 +146,9 @@ impl CommandControl {
         let render_pass_begin = vk::RenderPassBeginInfo::builder()
             .render_pass(render_pass.as_inner())
             .framebuffer(swapchain.framebuffers[image_index_usize])
-            .render_area(scissor[0])
+            .render_area(scissor)
             .clear_values(&clear_color[..]);
         
-        let device_size:[vk::DeviceSize;1] = [0];
-        let vertex_buffer_slice = unsafe{from_raw_parts(addr_of!(vertex_buffer.buffer), 1)};
         
         //initialize the command buffer
         unsafe{device.cmd_begin_render_pass(self.buffer[frame_index], &render_pass_begin, vk::SubpassContents::INLINE)};
@@ -140,10 +157,10 @@ impl CommandControl {
         unsafe{device.cmd_bind_pipeline(self.buffer[frame_index], vk::PipelineBindPoint::GRAPHICS, pipeline.as_inner())};
         
         
-        unsafe{device.cmd_set_viewport(self.buffer[frame_index], 0, &viewport[..])};
-        unsafe{device.cmd_set_scissor(self.buffer[frame_index], 0, &scissor[..])};
+        unsafe{device.cmd_set_viewport(self.buffer[frame_index], 0, from_ref(&viewport))};
+        unsafe{device.cmd_set_scissor(self.buffer[frame_index], 0, from_ref(&scissor))};
         
-        unsafe{device.cmd_bind_vertex_buffers(self.buffer[frame_index], 0, vertex_buffer_slice, &device_size)};
+        unsafe{device.cmd_bind_vertex_buffers(self.buffer[frame_index], 0, from_ref(&vertex_buffer.buffer), &[0])};
         unsafe{device.cmd_bind_index_buffer(self.buffer[frame_index], index_buffer.buffer, 0, vk::IndexType::UINT16)};
         
         unsafe{device.cmd_bind_descriptor_sets(self.buffer[frame_index], vk::PipelineBindPoint::GRAPHICS, pipeline.layout, 0, std::slice::from_ref(&descriptor_control.sets[frame_index]), &[])};
