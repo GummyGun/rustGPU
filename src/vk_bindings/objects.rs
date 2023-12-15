@@ -25,7 +25,7 @@ pub struct VkObjDevDep<T:DeviceDrop>(Option<T>);
 impl<T:ActiveDrop> Drop for VkObj<T> {
     fn drop(&mut self) {
         match self.0.as_mut() {
-            Some(_) => {eprintln!("{:?}", NON_ACT_DROPED_ERR_TEXT)}
+            Some(_) => {eprintln!("{}", NON_ACT_DROPED_ERR_TEXT)}
             None => {}
         }
     }
@@ -62,7 +62,7 @@ impl<T:ActiveDrop> VkObj<T> {
 impl<T:DeviceDrop> Drop for VkObjDevDep<T> {
     fn drop(&mut self) {
         match self.0.as_mut() {
-            Some(_) => {eprintln!("{:?}", NON_DEV_DROPED_ERR_TEXT)}
+            Some(_) => {eprintln!("{}", NON_DEV_DROPED_ERR_TEXT)}
             None => {}
         }
     }

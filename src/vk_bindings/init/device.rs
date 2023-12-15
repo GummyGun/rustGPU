@@ -60,6 +60,7 @@ impl Device {
             println!("device extensions available");
         }
         
+        
         let device_create_info = vk::DeviceCreateInfo::builder()
             .queue_create_infos(&queue_create_info[..])
             .enabled_features(&p_device.features)
@@ -82,6 +83,18 @@ impl Device {
             device: device,
             queue_handles: queue_handles
         })
+    }
+    
+    pub fn populate_features(state:&State, features:&mut vk::PhysicalDeviceFeatures) {        
+        
+        if state.v_exp() {
+            println!("\t[X]:enabling sampleranisotropy");
+        }
+        features.sampler_anisotropy = vk::TRUE;
+        
+        if state.v_dmp() {
+            println!("{:#?}", features);
+        }
     }
     
     

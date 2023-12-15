@@ -7,7 +7,8 @@ use super::{
     DeviceDrop,
     device::Device,
     buffers::UniformBuffers,
-    
+    image::Image,
+    sampler::Sampler,
 };
 
 use crate::{
@@ -38,13 +39,22 @@ impl DescriptorControl {
             println!("\nCREATING:\tDESCRIPTOR SET LAYOUT");
         }
         
-        let d_s_layout_binding = vk::DescriptorSetLayoutBinding::builder()
-            .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
-            .descriptor_count(1)
-            .stage_flags(vk::ShaderStageFlags::VERTEX);
+        let d_s_layout_binding = [
+            vk::DescriptorSetLayoutBinding::builder()
+                .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
+                .descriptor_count(1)
+                .stage_flags(vk::ShaderStageFlags::VERTEX)
+                .build(),
+            vk::DescriptorSetLayoutBinding::builder()
+                .binding(1)
+                .descriptor_count(1)
+                .descriptor_type(vk::DescriptorType::COMBINED_IMAGE_SAMPLER)
+                .stage_flags(vk::ShaderStageFlags::FRAGMENT)
+                .build(),
+        ];
         
         let create_info = vk::DescriptorSetLayoutCreateInfo::builder()
-            .bindings(from_ref(&d_s_layout_binding));
+            .bindings(&d_s_layout_binding[..]);
         
         let layout = unsafe{device.create_descriptor_set_layout(&create_info, None)}?;
         Ok(DescriptorControlLayout{
@@ -52,7 +62,14 @@ impl DescriptorControl {
         })
     }
 
-    pub fn complete(state:&State, device:&Device, layout:DescriptorControlLayout, uniform_buffers:&UniformBuffers) -> VkResult<Self> {
+    pub fn complete(
+        state:&State, 
+        device:&Device, 
+        layout:DescriptorControlLayout, 
+        sampler: &Sampler,
+        texture: &Image,
+        uniform_buffers:&UniformBuffers,
+    ) -> VkResult<Self> {
         use constants::fif;
         
         let layout = layout.layout;
@@ -61,12 +78,19 @@ impl DescriptorControl {
             println!("\nCREATING:\tDESCRIPTOR POOL AND SETS");
         }
         
-        let pool_size = vk::DescriptorPoolSize::builder()
-            .ty(vk::DescriptorType::UNIFORM_BUFFER)
-            .descriptor_count(fif::U32);
+        let pool_size = [
+            vk::DescriptorPoolSize::builder()
+                .ty(vk::DescriptorType::UNIFORM_BUFFER)
+                .descriptor_count(fif::U32)
+                .build(),
+            vk::DescriptorPoolSize::builder()
+                .ty(vk::DescriptorType::COMBINED_IMAGE_SAMPLER)
+                .descriptor_count(fif::U32)
+                .build(),
+        ];
         
         let create_info = vk::DescriptorPoolCreateInfo::builder()
-            .pool_sizes(from_ref(&pool_size))
+            .pool_sizes(&pool_size[..])
             .max_sets(fif::U32);
         
         
@@ -86,18 +110,34 @@ impl DescriptorControl {
         for (index, set) in sets_vec.into_iter().enumerate() {
             sets_arr[index] = set;
             
-            let descriptor = vk::DescriptorBufferInfo::builder()
-                .buffer(uniform_buffers[index].buffer.buffer)//TODO: this line is horrible
+            let uniform_descriptor = vk::DescriptorBufferInfo::builder()
+                .buffer(uniform_buffers[index].buffer)
                 .range(graphics::UniformBufferObject::size_u64());
             
-            let write_descriptor = vk::WriteDescriptorSet::builder()
-                .dst_set(set)
-                .dst_binding(0)
-                .dst_array_element(0)
-                .descriptor_type(ash::vk::DescriptorType::UNIFORM_BUFFER)
-                .buffer_info(from_ref(&descriptor));
+            let image_descriptor = vk::DescriptorImageInfo::builder()
+                .image_layout(vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL)
+                .image_view(texture.view)
+                .sampler(sampler.sampler);
             
-            unsafe{device.update_descriptor_sets(from_ref(&write_descriptor), &[])}
+            let write_descriptor = [
+                vk::WriteDescriptorSet::builder()
+                    .dst_set(set)
+                    .dst_binding(0)
+                    .dst_array_element(0)
+                    .descriptor_type(ash::vk::DescriptorType::UNIFORM_BUFFER)
+                    .buffer_info(from_ref(&uniform_descriptor))
+                    .build(),
+                    
+                vk::WriteDescriptorSet::builder()
+                    .dst_set(set)
+                    .dst_binding(1)
+                    .dst_array_element(0)
+                    .descriptor_type(ash::vk::DescriptorType::COMBINED_IMAGE_SAMPLER)
+                    .image_info(from_ref(&image_descriptor))
+                    .build(),
+            ];
+            
+            unsafe{device.update_descriptor_sets(&write_descriptor[..], &[])}
         }
         
         Ok(Self{

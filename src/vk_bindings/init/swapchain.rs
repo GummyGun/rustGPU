@@ -110,7 +110,7 @@ impl Swapchain {
         
         let images = unsafe{swapchain_loader.get_swapchain_images(swapchain)?};
         
-        let image_views = SwapchainBasic::create_image_views(state, &device, &images, &surface_format.format)?;
+        let image_views = SwapchainBasic::create_image_views(state, &device, &images, surface_format.format)?;
         
         Ok(SwapchainBasic{
             image_views:image_views,
@@ -167,7 +167,7 @@ impl Swapchain {
 
 impl SwapchainBasic {
     
-    fn create_image_views(state:&State, device:&Device, images:&Vec<vk::Image>, format:&vk::Format) -> VkResult<Vec<vk::ImageView>> {
+    fn create_image_views(state:&State, device:&Device, images:&Vec<vk::Image>, format:vk::Format) -> VkResult<Vec<vk::ImageView>> {
         
         let mut image_views_holder:Vec<vk::ImageView> = Vec::with_capacity(images.len());
         
@@ -175,7 +175,13 @@ impl SwapchainBasic {
             if state.v_exp() {
                 println!("creating swapchain image {index}");
             }
-            let holder = Image::create_image_view(state, device, image, format)?;
+            let holder = Image::create_image_view(
+                state, 
+                device, 
+                image, 
+                format, 
+                vk::ImageAspectFlags::COLOR
+            )?;
             image_views_holder.push(holder);
         }
         

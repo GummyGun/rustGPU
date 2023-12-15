@@ -44,3 +44,8 @@ pub use descriptor::*;
 mod image;
 pub use image::*;
 
+mod sampler;
+pub use sampler::*;
+
+mod depth_buffer;
+pub use depth_buffer::*;

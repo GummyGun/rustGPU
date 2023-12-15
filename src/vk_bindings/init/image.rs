@@ -52,8 +52,8 @@ impl Image {
         //println!("{:?}", img.as_bytes().len()/(img.width()*img.height()) as usize);
         let raw_size = u64::try_from(img.as_bytes().len()).expect("image size should fit in a u64");
         
-        let staging_memory_flags = MPF::HOST_VISIBLE | MPF::HOST_COHERENT;
-        let (staging, staging_size) = Buffer::create_buffer(state, p_device, device, raw_size, BUF::TRANSFER_SRC, staging_memory_flags)?;
+        let staging_memory_properties = MPF::HOST_VISIBLE | MPF::HOST_COHERENT;
+        let (staging, staging_size) = Buffer::create_buffer(state, p_device, device, raw_size, BUF::TRANSFER_SRC, staging_memory_properties)?;
         
         let memory_ptr = unsafe{device.map_memory(staging.memory, 0, raw_size, vk::MemoryMapFlags::empty())}?;
         let mut vert_align = unsafe{ash::util::Align::new(memory_ptr, align_of::<u8>() as u64, staging_size)};
@@ -62,7 +62,7 @@ impl Image {
         unsafe{device.unmap_memory(staging.memory)};
         
         let usage_flags = IUF::TRANSFER_DST | IUF::SAMPLED;
-        let memory_flags = MPF::DEVICE_LOCAL;
+        let memory_properties = MPF::DEVICE_LOCAL;
         let extent = vk::Extent3D::builder()
             .width(img.width())
             .height(img.height())
@@ -73,8 +73,10 @@ impl Image {
             p_device,
             device,
             &extent,
+            vk::Format::R8G8B8A8_SRGB,
+            vk::ImageTiling::OPTIMAL,
             usage_flags,
-            memory_flags,
+            memory_properties,
         )?;
         
         Self::transition_image_layout(
@@ -82,7 +84,7 @@ impl Image {
             device, 
             command,
             &image.0,
-            //VK_FORMAT_R8G8B8A8_SRGB, 
+            vk::Format::R8G8B8A8_SRGB, 
             vk::ImageLayout::UNDEFINED, 
             vk::ImageLayout::TRANSFER_DST_OPTIMAL,
         )?;
@@ -105,14 +107,14 @@ impl Image {
             device, 
             command,
             &image.0,
-            //VK_FORMAT_R8G8B8A8_SRGB, 
+            vk::Format::R8G8B8A8_SRGB, 
             vk::ImageLayout::TRANSFER_DST_OPTIMAL,
             vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL, 
         )?;
         
         staging.staging_drop(state, device);
         
-        let image_view = Self::create_image_view(state, device, &image.0, &vk::Format::R8G8B8A8_SRGB)?;
+        let image_view = Self::create_image_view(state, device, &image.0, vk::Format::R8G8B8A8_SRGB, vk::ImageAspectFlags::COLOR)?;
         
         Ok(Self::from((image, image_view)))
     }
@@ -122,8 +124,10 @@ impl Image {
         p_device: &PDevice, 
         device: &Device, 
         extent: &vk::Extent3D,
+        format: vk::Format,
+        tiling: vk::ImageTiling,
         usage_flags: vk::ImageUsageFlags, 
-        memory_flags: vk::MemoryPropertyFlags,
+        memory_properties: vk::MemoryPropertyFlags,
     ) -> VkResult<((vk::Image, vk::DeviceMemory), u64)> {
         
         let create_info = vk::ImageCreateInfo::builder()
@@ -131,8 +135,8 @@ impl Image {
             .extent(*extent)
             .mip_levels(1)
             .array_layers(1)
-            .format(vk::Format::R8G8B8A8_SRGB)
-            .tiling(vk::ImageTiling::OPTIMAL)
+            .format(format)
+            .tiling(tiling)
             .initial_layout(vk::ImageLayout::UNDEFINED)
             .usage(usage_flags)
             .sharing_mode(vk::SharingMode::EXCLUSIVE)
@@ -142,7 +146,7 @@ impl Image {
         
         let memory_requirements = unsafe{device.get_image_memory_requirements(image)};
         
-        let index_holder = memory::find_memory_type_index(state, p_device, &memory_requirements, memory_flags).expect("required memory type is not present");
+        let index_holder = memory::find_memory_type_index(state, p_device, &memory_requirements, memory_properties).expect("required memory type is not present");
         
         let allocate_info = ash::vk::MemoryAllocateInfo::builder()
             .allocation_size(memory_requirements.size)
@@ -160,7 +164,7 @@ impl Image {
         device: &Device,
         command: &CommandControl,
         image: &vk::Image,
-        //format: vk::Format,
+        format: vk::Format,
         old_layout: vk::ImageLayout,
         new_layout: vk::ImageLayout,
     ) -> Result<(), AAError> {
@@ -170,12 +174,25 @@ impl Image {
             println!("moving image from {:?} {:?}", old_layout, new_layout);
         }
         
+        let aspect_mask = if new_layout == IL::DEPTH_STENCIL_ATTACHMENT_OPTIMAL {
+            if Self::has_stencil_component(format) {
+                vk::ImageAspectFlags::DEPTH | vk::ImageAspectFlags::STENCIL
+            } else {
+                vk::ImageAspectFlags::DEPTH
+            }
+        } else {
+            vk::ImageAspectFlags::COLOR
+        };
+        
         let (src_access_mask, dst_access_maks, src_stage, dst_stage) = match (old_layout, new_layout) {
             (IL::UNDEFINED, IL::TRANSFER_DST_OPTIMAL) => {
                 (vk::AccessFlags::empty(), vk::AccessFlags::TRANSFER_WRITE, vk::PipelineStageFlags::TOP_OF_PIPE, vk::PipelineStageFlags::TRANSFER)
             }
             (IL::TRANSFER_DST_OPTIMAL, IL::SHADER_READ_ONLY_OPTIMAL) => {
                 (vk::AccessFlags::TRANSFER_WRITE, vk::AccessFlags::SHADER_READ, vk::PipelineStageFlags::TRANSFER, vk::PipelineStageFlags::FRAGMENT_SHADER)
+            }
+            (IL::UNDEFINED, IL::DEPTH_STENCIL_ATTACHMENT_OPTIMAL) => {
+                (vk::AccessFlags::empty(), vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_READ |vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE, vk::PipelineStageFlags::TOP_OF_PIPE, vk::PipelineStageFlags::EARLY_FRAGMENT_TESTS)
             }
             (_, _) => {
                 return Err(AAError::ImageLayoutUnsuported);
@@ -185,7 +202,7 @@ impl Image {
         let buffer = command.setup_su_buffer(device);
         
         let subresource = vk::ImageSubresourceRange::builder()
-            .aspect_mask(vk::ImageAspectFlags::COLOR)
+            .aspect_mask(aspect_mask)
             .base_mip_level(0)
             .level_count(1)
             .base_array_layer(0)
@@ -220,7 +237,8 @@ impl Image {
         state: &State,
         device: &Device,
         image: &vk::Image,
-        format: &vk::Format,
+        format: vk::Format,
+        aspect: vk::ImageAspectFlags,
     ) -> VkResult<vk::ImageView> {
         
         if state.v_exp() {
@@ -238,10 +256,11 @@ impl Image {
             .base_mip_level(0)
             .level_count(1)
             .base_array_layer(0)
+            .aspect_mask(aspect)
             .layer_count(1);
         
         let create_info = vk::ImageViewCreateInfo::builder()
-            .format(*format)
+            .format(format)
             .view_type(vk::ImageViewType::TYPE_2D)
             .components(*component_create_info)
             .subresource_range(*subresource_range_create_info)
@@ -251,6 +270,12 @@ impl Image {
         
         Ok(holder)
     }
+    
+    
+    fn has_stencil_component(format: vk::Format) -> bool {
+        format == vk::Format::D32_SFLOAT_S8_UINT || format == vk::Format::D24_UNORM_S8_UINT
+    }
+    
 }
 
 impl From<((vk::Image, vk::DeviceMemory), vk::ImageView)> for Image {

@@ -12,6 +12,7 @@ use super::{
     instance::Instance,
     surface::Surface,
     swapchain::SwapchainSupportDetails,
+    device::Device,
 };
 
 use std::{
@@ -25,6 +26,7 @@ pub struct PDevice {
     pub features: vk::PhysicalDeviceFeatures,
     pub swapchain_details: SwapchainSupportDetails,
     pub memory_properties: vk::PhysicalDeviceMemoryProperties,
+    pub properties: vk::PhysicalDeviceProperties,
 }
 
 #[derive(Debug, Default, Clone, Copy)]
@@ -51,16 +53,18 @@ impl PDevice {
         let mut best = vk::PhysicalDevice::null();
         let mut best_queue = QueueFamilyOptionalIndices::default();
         let mut best_sc_details = SwapchainSupportDetails::default();
+        let mut best_properties = vk::PhysicalDeviceProperties::default();
         let mut best_score = 0;
         
         
         for p_device in p_devices.into_iter() {
             
-            if let Ok((current_score, current_queue, sc_support_details)) = Self::rate(state, instance, surface, p_device) {
+            if let Ok((current_score, current_queue, sc_support_details, properties)) = Self::rate(state, instance, surface, p_device) {
                 if current_score > best_score {
                     best_score = current_score;
                     best_queue = current_queue;
                     best_sc_details = sc_support_details;
+                    best_properties = properties;
                     best = p_device;
                 }
             }
@@ -76,18 +80,24 @@ impl PDevice {
             assert!(!queue.different_families(), "queues should be the same");
             
             let memory_properties = unsafe{instance.get_physical_device_memory_properties(best)};
+            
             if state.v_exp() {
                 println!("getting memory properties");
             }
             if state.v_dmp() {
                 println!("{:?}", &memory_properties);
             }
+            
+            let mut features = vk::PhysicalDeviceFeatures::default();
+            Device::populate_features(state, &mut features);
+            
             Ok(Self{
                 p_device: best,
                 queues: queue,
-                features: vk::PhysicalDeviceFeatures::default(),
+                features: features,
                 swapchain_details: best_sc_details,
                 memory_properties: memory_properties,
+                properties: best_properties,
             })
         } else {
             Err(AAError::NoGPU)
@@ -98,7 +108,7 @@ impl PDevice {
         instance:&Instance, 
         surface:&Surface, 
         p_device:vk::PhysicalDevice
-    ) -> Result<(i64, QueueFamilyOptionalIndices, SwapchainSupportDetails), ()> {
+    ) -> Result<(i64, QueueFamilyOptionalIndices, SwapchainSupportDetails, vk::PhysicalDeviceProperties), ()> {
         
         let queues = Self::find_queue_families(state, instance, surface, p_device);
         if !queues.complete() && !Self::check_device_support(instance, p_device) {
@@ -108,11 +118,14 @@ impl PDevice {
         if !swapchain_support.min_requirements() {
             return Err(());
         }
+        let features = unsafe{instance.get_physical_device_features(p_device)};
+        if features.sampler_anisotropy != vk::TRUE {
+            panic!("si");
+        }
         
         
         let mut score:i64 = 0;
         let properties = unsafe{instance.get_physical_device_properties(p_device)};
-        let features = unsafe{instance.get_physical_device_features(p_device)};
         
         if state.v_dmp() {
             println!("{:#?}", properties);
@@ -128,7 +141,7 @@ impl PDevice {
         if features.geometry_shader<=0 {
             Err(()) 
         } else {
-            Ok((score, queues, swapchain_support))
+            Ok((score, queues, swapchain_support, properties))
         }
     }
     

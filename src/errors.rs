@@ -20,12 +20,14 @@ pub enum Error {
     NoSuitableMemory,
     #[error("Decoding error")]
     DecodeError,
-    #[error("image transition")]
+    #[error("Image transition")]
     ImageLayoutUnsuported,
     #[error("VK error")]
     VkError(#[from] vk::Result),
     #[error("IO error")]
     IOError(#[from] io::Error),
+    #[error("format not supported")]
+    UnsuportedFormat,
     
 }
 

@@ -34,6 +34,7 @@ pub struct VInit {
     pub command_control: VkObjDevDep<CommandControl>,
     pub sync_objects: VkObjDevDep<SyncObjects>,
     pub texture: VkObjDevDep<Image>,
+    pub sampler: VkObjDevDep<Sampler>,
     pub vertex_buffer: VkObjDevDep<Buffer>,
     pub index_buffer: VkObjDevDep<Buffer>,
     pub uniform_buffers: VkObjDevDep<UniformBuffers>,
@@ -72,11 +73,15 @@ impl VInit {
         let pipeline = vk_create_interpreter(state, Pipeline::create(state, &device, &render_pass, &layout), "pipeline");
         let command_control = vk_create_interpreter(state, CommandControl::create(state, &p_device, &device), "command_control");
         let sync_objects = vk_create_interpreter(state, SyncObjects::create(state, &device), "sync_objects");
+        let sampler = vk_create_interpreter(state, Sampler::create(state, &p_device, &device), "sampler");
         let texture = vk_create_interpreter(state, Image::create(state, &p_device, &device, &command_control, "ssrc/texture.jpg"), "texture_image");
         let vertex_buffer = vk_create_interpreter(state, Buffer::create_vertex(state, &p_device, &device, &command_control), "vertex_buffer");
         let index_buffer = vk_create_interpreter(state, Buffer::create_index(state, &p_device, &device, &command_control), "index_buffer");
         let uniform_buffers = vk_create_interpreter(state, UniformBuffers::create(state, &p_device, &device), "uniform_buffer");
-        let descriptor_control = vk_create_interpreter(state, DescriptorControl::complete(state, &device, layout, &uniform_buffers), "descriptor_control");
+        let descriptor_control = vk_create_interpreter(state, DescriptorControl::complete(state, &device, layout, &sampler, &texture, &uniform_buffers), "descriptor_control");
+        
+        let holder = DepthBuffer::create(state, &instance, &p_device, &device, &swapchain);
+        
         
         
         
@@ -97,6 +102,7 @@ impl VInit {
             command_control: VkObjDevDep::new(command_control),
             sync_objects: VkObjDevDep::new(sync_objects),
             texture: VkObjDevDep::new(texture),
+            sampler: VkObjDevDep::new(sampler),
             vertex_buffer: VkObjDevDep::new(vertex_buffer),
             index_buffer: VkObjDevDep::new(index_buffer),
             uniform_buffers: VkObjDevDep::new(uniform_buffers),
@@ -139,6 +145,7 @@ impl Drop for VInit {
         self.uniform_buffers.device_drop(&self.state, &self.device);
         self.index_buffer.device_drop(&self.state, &self.device);
         self.vertex_buffer.device_drop(&self.state, &self.device);
+        self.sampler.device_drop(&self.state, &self.device);
         self.texture.device_drop(&self.state, &self.device);
         self.sync_objects.device_drop(&self.state, &self.device);
         self.command_control.device_drop(&self.state, &self.device);

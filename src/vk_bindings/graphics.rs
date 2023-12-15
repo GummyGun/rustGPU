@@ -50,11 +50,11 @@ impl Vertex {
             panic!("Vertex size is too big");
         }
         
-        const HOLDER:[vk::VertexInputAttributeDescription; 2] = [
+        const HOLDER:[vk::VertexInputAttributeDescription; 3] = [
             vk::VertexInputAttributeDescription{
                 binding: 0,
                 location: 0,
-                format: vk::Format::R32G32_SFLOAT,
+                format: vk::Format::R32G32B32_SFLOAT,
                 offset: offset_of!(Vertex, position) as u32
             },
             vk::VertexInputAttributeDescription{
@@ -62,7 +62,14 @@ impl Vertex {
                 location: 1,
                 format: vk::Format::R32G32B32_SFLOAT,
                 offset: offset_of!(Vertex, color) as u32
+            },
+            vk::VertexInputAttributeDescription{
+                binding: 0,
+                location: 2,
+                format: vk::Format::R32G32_SFLOAT,
+                offset: offset_of!(Vertex, coordenates) as u32
             }
+            
         ];
         &HOLDER
     }

@@ -32,7 +32,6 @@ use std::{
     },
     ops::{
         Deref,
-        DerefMut,
     },
 };
 
@@ -43,7 +42,9 @@ pub struct Buffer {
 }
 
 pub struct UniformBuffer {
-    pub buffer: Buffer,
+    //pub buffer: Buffer,
+    pub buffer: vk::Buffer,
+    pub memory: vk::DeviceMemory,
     pub map: *mut c_void,
     pub align: ash::util::Align<UniformBufferObject>,
 }
@@ -290,23 +291,19 @@ impl UniformBuffer {
         
         let uniform_align:ash::util::Align<UniformBufferObject> = unsafe{ash::util::Align::new(uniform_ptr, align_of::<UniformBufferObject>() as u64, uniform_size)};
         
-        Ok(UniformBuffer{
-            buffer: uniform, 
-            map: uniform_ptr,
-            align: uniform_align,
-        })
+        Ok(UniformBuffer::from((uniform, uniform_ptr, uniform_align)))
     }
 }
 
-impl Deref for UniformBuffer {
-    type Target = Buffer;
-    fn deref(&self) -> &Self::Target {
-        &self.buffer
-    }
-}
-impl DerefMut for UniformBuffer {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.buffer
+
+impl From<(Buffer, *mut c_void, ash::util::Align<UniformBufferObject>)> for UniformBuffer {   
+    fn from(base:(Buffer, *mut c_void, ash::util::Align<UniformBufferObject>)) -> Self {
+        Self{
+            buffer:base.0.buffer, 
+            memory:base.0.memory,
+            map:base.1,
+            align:base.2,
+        }
     }
 }
 
@@ -315,8 +312,10 @@ impl DeviceDrop for UniformBuffer {
         if state.v_dmp() {
             println!("[0]:deleting buffer");
         }
-        unsafe{device.unmap_memory(self.buffer.memory)};
-        self.buffer.drop_internal(device);
+        
+        unsafe{device.unmap_memory(self.memory)};
+        unsafe{device.destroy_buffer(self.buffer, None)}
+        unsafe{device.free_memory(self.memory, None)}
     }
 }
 
@@ -330,6 +329,7 @@ impl DeviceDrop for UniformBuffers {
         }
     }
 }
+
 
 impl Deref for UniformBuffers {
     type Target = [UniformBuffer; constants::fif::USIZE]; 

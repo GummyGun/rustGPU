@@ -13,6 +13,10 @@ use crate::{
     State,
 };
 
+use std::{
+    slice::from_ref,
+};
+
 
 pub struct RenderPass(vk::RenderPass);
 
@@ -22,21 +26,19 @@ impl RenderPass {
             println!("\nCREATING:\tRENDER PASS");
         }
         
-        let subpass_dependency = [
-            vk::SubpassDependency::builder()
-                .src_subpass(vk::SUBPASS_EXTERNAL)
-                .dst_subpass(0)
-                .src_stage_mask(vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT)
-                .src_access_mask(vk::AccessFlags::empty())
-                .dst_stage_mask(vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT)
-                .dst_access_mask(vk::AccessFlags::COLOR_ATTACHMENT_WRITE)
-                .build()
-        ];
+        let subpass_dependency = vk::SubpassDependency::builder()
+            .src_subpass(vk::SUBPASS_EXTERNAL)
+            .dst_subpass(0)
+            .src_stage_mask(vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT)
+            .src_access_mask(vk::AccessFlags::empty())
+            .dst_stage_mask(vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT)
+            .dst_access_mask(vk::AccessFlags::COLOR_ATTACHMENT_WRITE);
         
         if state.v_exp() {
             println!("initial layout:\tundefined");
             println!("final layout:  \tpresent");
         }
+        
         
         let attachment_description = [
             vk::AttachmentDescription::builder()
@@ -48,28 +50,31 @@ impl RenderPass {
                 .stencil_store_op(vk::AttachmentStoreOp::DONT_CARE)
                 .initial_layout(vk::ImageLayout::UNDEFINED)
                 .final_layout(vk::ImageLayout::PRESENT_SRC_KHR)
-                .build()
-        ];
-            
-        
-        let color_attachment_reference = [
-            vk::AttachmentReference::builder()
-                .attachment(0)
-                .layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL)
-                .build()
+                .build(),
+            vk::AttachmentDescription::builder()
+                .final_layout(vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
+                //TODO: fill depth buffer stencil
+                .build(),
         ];
         
-        let subpass_description = [
-            vk::SubpassDescription::builder()
-                .pipeline_bind_point(vk::PipelineBindPoint::GRAPHICS)
-                .color_attachments(&color_attachment_reference[..])
-                .build()
-        ];
+        
+        let color_attachment_reference = vk::AttachmentReference::builder()
+            .attachment(0)
+            .layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL);
+        
+        let depth_attachment_reference = vk::AttachmentReference::builder()
+            .attachment(1)
+            .layout(vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+        
+        let subpass_description = vk::SubpassDescription::builder()
+            .pipeline_bind_point(vk::PipelineBindPoint::GRAPHICS)
+            .color_attachments(from_ref(&color_attachment_reference))
+            .depth_stencil_attachment(&depth_attachment_reference);
         
         let create_info = vk::RenderPassCreateInfo::builder()
             .attachments(&attachment_description[..])
-            .subpasses(&subpass_description[..])
-            .dependencies(&subpass_dependency[..]);
+            .subpasses(from_ref(&subpass_description))
+            .dependencies(from_ref(&subpass_dependency));
         
         let render_pass = unsafe{device.create_render_pass(&create_info, None)?};
         

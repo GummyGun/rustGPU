@@ -8,15 +8,22 @@ use na::{
 
 use std::mem::size_of;
 
-pub const VERTEX_ARR:[Vertex; 4] = [
-    Vertex{position:Vector2::<f32>::new(-0.5f32, -0.5f32), color:Vector3::<f32>::new(1f32, 1f32, 1f32)},
-    Vertex{position:Vector2::<f32>::new(0.5f32, -0.5f32), color:Vector3::<f32>::new(1f32, 0f32, 0f32)},
-    Vertex{position:Vector2::<f32>::new(0.5f32, 0.5f32), color:Vector3::<f32>::new(0f32, 1f32, 0f32)},
-    Vertex{position:Vector2::<f32>::new(-0.7f32, 0.5f32), color:Vector3::<f32>::new(0f32, 0f32, 1f32)},
+pub const VERTEX_ARR:[Vertex; 8] = [
+    Vertex{position:Vector3::new(-0.5f32, -0.5f32, 0.5f32), color:Vector3::new(1f32, 0f32, 0f32), coordenates:Vector2::new(0.0f32, 0.0f32)},
+    Vertex{position:Vector3::new(0.5f32, -0.5f32, 0.5f32), color:Vector3::new(0f32, 1f32, 0f32), coordenates:Vector2::new(1.0f32, 0.0f32)},
+    Vertex{position:Vector3::new(0.5f32, 0.5f32, 0.5f32), color:Vector3::new(0f32, 0f32, 1f32), coordenates:Vector2::new(1.0f32, 1.0f32)},
+    Vertex{position:Vector3::new(-0.5f32, 0.5f32, 0.5f32), color:Vector3::new(1f32, 1f32, 1f32), coordenates:Vector2::new(0.0f32, 1.0f32)},
+    
+    Vertex{position:Vector3::new(-0.5f32, -0.5f32, 0.0f32), color:Vector3::new(1f32, 0f32, 0f32), coordenates:Vector2::new(0.0f32, 0.0f32)},
+    Vertex{position:Vector3::new(0.5f32, -0.5f32, 0.0f32), color:Vector3::new(0f32, 1f32, 0f32), coordenates:Vector2::new(1.0f32, 0.0f32)},
+    Vertex{position:Vector3::new(0.5f32, 0.5f32, 0.0f32), color:Vector3::new(0f32, 0f32, 1f32), coordenates:Vector2::new(1.0f32, 1.0f32)},
+    Vertex{position:Vector3::new(-0.5f32, 0.5f32, 0.0f32), color:Vector3::new(1f32, 1f32, 1f32), coordenates:Vector2::new(0.0f32, 1.0f32)},
 ];
 
-pub const VERTEX_INDEX:[u16; 6] = [
-    1, 0, 2, 3, 2, 0, //3, 1, 4
+pub const VERTEX_INDEX:[u16; 12] = [
+    //1, 0, 2, 3, 2, 0, //3, 1, 4
+    0, 1, 2, 2, 3, 0, 
+    4, 5, 6, 6, 7, 4, 
 ];
 
 #[repr(C)]
@@ -41,8 +48,9 @@ impl UniformBufferObject {
 #[repr(C)]
 #[derive(Debug, Default, Clone, Copy)]
 pub struct Vertex{
-    pub position: Vector2<f32>,
+    pub position: Vector3<f32>,
     pub color: Vector3<f32>,
+    pub coordenates: Vector2<f32>,
 }
 #[allow(dead_code)]
 impl Vertex {
