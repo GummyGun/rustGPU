@@ -10,6 +10,7 @@ use super::{
     surface::Surface,
     p_device::PDevice,
     render_pass::RenderPass,
+    image::Image,
 };
 
 use crate::{
@@ -109,7 +110,7 @@ impl Swapchain {
         
         let images = unsafe{swapchain_loader.get_swapchain_images(swapchain)?};
         
-        let image_views = SwapchainBasic::create_image_views(&device, &images, &surface_format.format)?;
+        let image_views = SwapchainBasic::create_image_views(state, &device, &images, &surface_format.format)?;
         
         Ok(SwapchainBasic{
             image_views:image_views,
@@ -166,33 +167,18 @@ impl Swapchain {
 
 impl SwapchainBasic {
     
-    fn create_image_views(device:&Device, images:&Vec<vk::Image>, format:&vk::Format) -> VkResult<Vec<vk::ImageView>> {
+    fn create_image_views(state:&State, device:&Device, images:&Vec<vk::Image>, format:&vk::Format) -> VkResult<Vec<vk::ImageView>> {
+        
         let mut image_views_holder:Vec<vk::ImageView> = Vec::with_capacity(images.len());
         
-        let component_create_info = vk::ComponentMapping::builder()
-            .r(vk::ComponentSwizzle::IDENTITY)
-            .g(vk::ComponentSwizzle::IDENTITY)
-            .b(vk::ComponentSwizzle::IDENTITY)
-            .a(vk::ComponentSwizzle::IDENTITY);
-        
-        let subresource_range_create_info = vk::ImageSubresourceRange::builder()
-            .aspect_mask(vk::ImageAspectFlags::COLOR)
-            .base_mip_level(0)
-            .level_count(1)
-            .base_array_layer(0)
-            .layer_count(1);
-        
-        let mut create_info = vk::ImageViewCreateInfo::builder()
-            .format(*format)
-            .view_type(vk::ImageViewType::TYPE_2D)
-            .components(*component_create_info)
-            .subresource_range(*subresource_range_create_info);
-        
-        for image in images {
-            create_info = create_info.image(*image);
-            let holder = unsafe{device.create_image_view(&create_info, None)?};
+        for (index, image) in images.iter().enumerate() {
+            if state.v_exp() {
+                println!("creating swapchain image {index}");
+            }
+            let holder = Image::create_image_view(state, device, image, format)?;
             image_views_holder.push(holder);
         }
+        
         Ok(image_views_holder)
     }
     

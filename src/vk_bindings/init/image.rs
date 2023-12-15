@@ -28,6 +28,7 @@ use std::{
 pub struct Image {
     pub image: vk::Image,
     pub memory: vk::DeviceMemory,
+    pub view: vk::ImageView,
 }
 
 impl Image {
@@ -76,10 +77,11 @@ impl Image {
             memory_flags,
         )?;
         
-        image.transition_image_layout(
+        Self::transition_image_layout(
             state,
             device, 
             command,
+            &image.0,
             //VK_FORMAT_R8G8B8A8_SRGB, 
             vk::ImageLayout::UNDEFINED, 
             vk::ImageLayout::TRANSFER_DST_OPTIMAL,
@@ -94,14 +96,15 @@ impl Image {
             device,
             command,
             &staging,
-            &mut image,
+            &mut image.0,
             &extent,
         );
         
-        image.transition_image_layout(
+        Self::transition_image_layout(
             state,
             device, 
             command,
+            &image.0,
             //VK_FORMAT_R8G8B8A8_SRGB, 
             vk::ImageLayout::TRANSFER_DST_OPTIMAL,
             vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL, 
@@ -109,7 +112,9 @@ impl Image {
         
         staging.staging_drop(state, device);
         
-        Ok(image)
+        let image_view = Self::create_image_view(state, device, &image.0, &vk::Format::R8G8B8A8_SRGB)?;
+        
+        Ok(Self::from((image, image_view)))
     }
     
     pub fn create_image (
@@ -119,7 +124,7 @@ impl Image {
         extent: &vk::Extent3D,
         usage_flags: vk::ImageUsageFlags, 
         memory_flags: vk::MemoryPropertyFlags,
-    ) -> VkResult<(Self, u64)> {
+    ) -> VkResult<((vk::Image, vk::DeviceMemory), u64)> {
         
         let create_info = vk::ImageCreateInfo::builder()
             .image_type(vk::ImageType::TYPE_2D)
@@ -147,14 +152,14 @@ impl Image {
         
         unsafe{device.bind_image_memory(image, memory, 0)}?;
         
-        Ok((Self{image:image, memory:memory}, memory_requirements.size))
+        Ok(((image, memory), memory_requirements.size))
     }
     
     fn transition_image_layout(
-        &self,
         state: &State,
         device: &Device,
         command: &CommandControl,
+        image: &vk::Image,
         //format: vk::Format,
         old_layout: vk::ImageLayout,
         new_layout: vk::ImageLayout,
@@ -191,7 +196,7 @@ impl Image {
             .new_layout(new_layout)
             .src_queue_family_index(vk::QUEUE_FAMILY_IGNORED)
             .dst_queue_family_index(vk::QUEUE_FAMILY_IGNORED)
-            .image(self.image)
+            .image(*image)
             .subresource_range(*subresource)
             .src_access_mask(src_access_mask)
             .dst_access_mask(dst_access_maks);
@@ -209,6 +214,49 @@ impl Image {
         command.submit_su_buffer(device);
         Ok(())
     }
+    
+    
+    pub fn create_image_view(
+        state: &State,
+        device: &Device,
+        image: &vk::Image,
+        format: &vk::Format,
+    ) -> VkResult<vk::ImageView> {
+        
+        if state.v_exp() {
+            println!("creating image views");
+        }
+        
+        let component_create_info = vk::ComponentMapping::builder()
+            .r(vk::ComponentSwizzle::IDENTITY)
+            .g(vk::ComponentSwizzle::IDENTITY)
+            .b(vk::ComponentSwizzle::IDENTITY)
+            .a(vk::ComponentSwizzle::IDENTITY);
+        
+        let subresource_range_create_info = vk::ImageSubresourceRange::builder()
+            .aspect_mask(vk::ImageAspectFlags::COLOR)
+            .base_mip_level(0)
+            .level_count(1)
+            .base_array_layer(0)
+            .layer_count(1);
+        
+        let create_info = vk::ImageViewCreateInfo::builder()
+            .format(*format)
+            .view_type(vk::ImageViewType::TYPE_2D)
+            .components(*component_create_info)
+            .subresource_range(*subresource_range_create_info)
+            .image(*image);
+        
+        let holder = unsafe{device.create_image_view(&create_info, None)?};
+        
+        Ok(holder)
+    }
+}
+
+impl From<((vk::Image, vk::DeviceMemory), vk::ImageView)> for Image {
+    fn from(base:((vk::Image, vk::DeviceMemory), vk::ImageView)) -> Self {
+        Self{image:base.0.0, memory:base.0.1, view: base.1}
+    }
 }
 
 impl DeviceDrop for Image {
@@ -216,6 +264,7 @@ impl DeviceDrop for Image {
         if state.v_nor() {
             println!("[0]:deleting texture image");
         }
+        unsafe{device.destroy_image_view(self.view, None)}
         unsafe{device.destroy_image(self.image, None)}
         unsafe{device.free_memory(self.memory, None)}
     }

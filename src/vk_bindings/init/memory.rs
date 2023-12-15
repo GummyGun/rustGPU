@@ -7,8 +7,6 @@ use super::{
     p_device::PDevice,
     command::CommandControl,
     buffers::Buffer,
-    image::Image,
-    
 };
 
 use crate::{
@@ -76,7 +74,7 @@ pub fn copy_buffer_2_image(
     device: &Device, 
     command: &CommandControl,
     src_buf: &Buffer, 
-    dst_img: &mut Image, 
+    dst_img: &mut vk::Image, 
     extent: &vk::Extent3D,
 ) {
     if state.v_exp() {
@@ -102,12 +100,11 @@ pub fn copy_buffer_2_image(
     unsafe{device.cmd_copy_buffer_to_image(
         buffer,
         src_buf.buffer,
-        dst_img.image,
+        *dst_img,
         vk::ImageLayout::TRANSFER_DST_OPTIMAL,
         from_ref(&image_copy)
     )};
     
     command.submit_su_buffer(device);
 }
-
 

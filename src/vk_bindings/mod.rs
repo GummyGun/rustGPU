@@ -158,7 +158,6 @@ impl Drop for VInit {
                 }
             }
         }
-        
         self.instance.active_drop(&self.state);
     }
 }
