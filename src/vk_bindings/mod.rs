@@ -16,8 +16,8 @@ use super::{
 use objects::{
     VkObj,
     VkObjDevDep,
-    DeviceDrop,
-    ActiveDrop,
+    DeviceDestroy,
+    ActiveDestroy,
 };
 
 pub struct VInit {
@@ -28,6 +28,7 @@ pub struct VInit {
     pub surface: VkObj<Surface>,
     pub p_device: PDevice,
     pub device: VkObj<Device>,
+    pub depth_buffer: VkObjDevDep<DepthBuffer>,
     pub render_pass: VkObjDevDep<RenderPass>,
     pub swapchain: VkObjDevDep<Swapchain>,
     pub pipeline: VkObjDevDep<Pipeline>,
@@ -67,8 +68,9 @@ impl VInit {
         let p_device = vk_create_interpreter(state, PDevice::chose(state, &instance, &surface), "p_device selected"); 
         let device = vk_create_interpreter(state, Device::create(state, &instance, &p_device), "device"); 
         let swapchain_basic = vk_create_interpreter(state, Swapchain::create(state, &window, &instance, &surface, &p_device, &device), "swapchain");
-        let render_pass = vk_create_interpreter(state, RenderPass::create(state, &device, &swapchain_basic), "render_pass");
-        let swapchain = vk_create_interpreter(state, Swapchain::complete(state, &device, swapchain_basic, &render_pass), "framebuffer");
+        let depth_buffer = vk_create_interpreter(state, DepthBuffer::create(state, &instance, &p_device, &device, &swapchain_basic), "depth_buffer");
+        let render_pass = vk_create_interpreter(state, RenderPass::create(state, &device, &swapchain_basic, &depth_buffer), "render_pass");
+        let swapchain = vk_create_interpreter(state, Swapchain::complete(state, &device, swapchain_basic, &depth_buffer, &render_pass), "framebuffer");
         let layout = vk_create_interpreter(state, DescriptorControl::create(state, &device), "descriptor_set_layout");
         let pipeline = vk_create_interpreter(state, Pipeline::create(state, &device, &render_pass, &layout), "pipeline");
         let command_control = vk_create_interpreter(state, CommandControl::create(state, &p_device, &device), "command_control");
@@ -80,7 +82,6 @@ impl VInit {
         let uniform_buffers = vk_create_interpreter(state, UniformBuffers::create(state, &p_device, &device), "uniform_buffer");
         let descriptor_control = vk_create_interpreter(state, DescriptorControl::complete(state, &device, layout, &sampler, &texture, &uniform_buffers), "descriptor_control");
         
-        let holder = DepthBuffer::create(state, &instance, &p_device, &device, &swapchain);
         
         
         
@@ -96,6 +97,7 @@ impl VInit {
             p_device: p_device,
             surface: VkObj::new(surface),
             device: VkObj::new(device),
+            depth_buffer: VkObjDevDep::new(depth_buffer),
             render_pass: VkObjDevDep::new(render_pass),
             pipeline: VkObjDevDep::new(pipeline),
             swapchain: VkObjDevDep::new(swapchain),
@@ -151,6 +153,7 @@ impl Drop for VInit {
         self.command_control.device_drop(&self.state, &self.device);
         self.pipeline.device_drop(&self.state, &self.device);
         self.render_pass.device_drop(&self.state, &self.device);
+        self.depth_buffer.device_drop(&self.state, &self.device);
         self.swapchain.device_drop(&self.state, &self.device);
         self.device.active_drop(&self.state);
         self.surface.active_drop(&self.state);

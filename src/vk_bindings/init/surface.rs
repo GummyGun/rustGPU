@@ -4,7 +4,7 @@ use ash::{
 };
 
 use super::{
-    ActiveDrop,
+    ActiveDestroy,
     instance::Instance,
 };
 
@@ -48,7 +48,7 @@ impl Deref for Surface {
     }
 }
 
-impl ActiveDrop for Surface {
+impl ActiveDestroy for Surface {
     fn active_drop(&mut self, state:&State) {
         if state.v_nor() {
             println!("[0]:deleting surface");

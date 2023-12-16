@@ -4,7 +4,7 @@ use ash::{
 };
 
 use super::{
-    DeviceDrop,
+    DeviceDestroy,
     device::Device,
     buffers::UniformBuffers,
     image::Image,
@@ -148,7 +148,7 @@ impl DescriptorControl {
     }
 }
 
-impl DeviceDrop for DescriptorControl {
+impl DeviceDestroy for DescriptorControl {
     fn device_drop(&mut self, state:&State, device:&Device) {
         if state.v_nor() {
             println!("[0]:deleting uniform buffers");

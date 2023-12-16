@@ -4,7 +4,7 @@ use ash::{
 };
 
 use super::{
-    ActiveDrop,
+    ActiveDestroy,
     instance::Instance,
     p_device::PDevice,
     p_device::QueueFamilyIndices,
@@ -118,7 +118,7 @@ impl Deref for Device {
     }
 }
 
-impl ActiveDrop for Device {
+impl ActiveDestroy for Device {
     fn active_drop(&mut self, state:&State) {
         if state.v_nor() {
             println!("[0]:deleting device");

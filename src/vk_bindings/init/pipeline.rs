@@ -4,7 +4,7 @@ use ash::{
 };
 
 use super::{
-    DeviceDrop,
+    DeviceDestroy,
     device::Device,
     render_pass::RenderPass,
     //d_s_layout::DSLayout,
@@ -111,6 +111,12 @@ impl Pipeline {
         
         let pipeline_layout = unsafe{device.create_pipeline_layout(&pipeline_layout_create_info, None)?};
         
+        let depth_stencil_state_create_info = vk::PipelineDepthStencilStateCreateInfo::builder()
+            .depth_test_enable(true)
+            .depth_write_enable(true)
+            .depth_compare_op(vk::CompareOp::LESS)
+            .depth_bounds_test_enable(false)
+            .stencil_test_enable(false);
         
         let create_info = [
             vk::GraphicsPipelineCreateInfo::builder()
@@ -121,6 +127,7 @@ impl Pipeline {
                 .rasterization_state(&rasterization_state_create_info)
                 .multisample_state(&multisample_state_create_info)
                 .color_blend_state(&color_blend_state_create_info)
+                .depth_stencil_state(&depth_stencil_state_create_info)
                 .dynamic_state(&dynamic_state_create_info)
                 .layout(pipeline_layout)
                 .render_pass(render_pass.as_inner())
@@ -159,7 +166,7 @@ impl Pipeline {
     }
 }
 
-impl DeviceDrop for Pipeline {
+impl DeviceDestroy for Pipeline {
     fn device_drop(&mut self, state:&State, device:&Device) {
         if state.v_nor() {
             println!("[0]:deleting pipeline");

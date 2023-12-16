@@ -1,6 +1,6 @@
 use super::{
-    ActiveDrop,
-    DeviceDrop,
+    ActiveDestroy,
+    DeviceDestroy,
 };
 
 pub mod memory;

@@ -5,7 +5,7 @@ use ash::{
 
 use super::{
     //memory,
-    DeviceDrop,
+    DeviceDestroy,
     device::Device,
     p_device::PDevice,
     //command::CommandControl,
@@ -62,7 +62,7 @@ impl Sampler{
     }
 }
 
-impl DeviceDrop for Sampler {
+impl DeviceDestroy for Sampler {
     fn device_drop(&mut self, state:&State, device:&Device) {
         if state.v_nor() {
             println!("[0]:deleting sampler");

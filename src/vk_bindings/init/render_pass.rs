@@ -4,9 +4,10 @@ use ash::{
 };
 
 use super::{
-    DeviceDrop,
+    DeviceDestroy,
     device::Device,
     swapchain::SwapchainBasic,
+    depth_buffer::DepthBuffer,
 };
 
 use crate::{
@@ -21,7 +22,12 @@ use std::{
 pub struct RenderPass(vk::RenderPass);
 
 impl RenderPass {
-    pub fn create(state:&State, device:&Device, swapchain:&SwapchainBasic) -> VkResult<Self> {
+    pub fn create(state:&State, device:&Device, swapchain:&SwapchainBasic, depth:&DepthBuffer) -> VkResult<Self> {
+        
+        use vk::PipelineStageFlags as PSF;
+        use vk::AccessFlags as AF;
+        
+        
         if state.v_exp() {
             println!("\nCREATING:\tRENDER PASS");
         }
@@ -29,10 +35,10 @@ impl RenderPass {
         let subpass_dependency = vk::SubpassDependency::builder()
             .src_subpass(vk::SUBPASS_EXTERNAL)
             .dst_subpass(0)
-            .src_stage_mask(vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT)
-            .src_access_mask(vk::AccessFlags::empty())
-            .dst_stage_mask(vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT)
-            .dst_access_mask(vk::AccessFlags::COLOR_ATTACHMENT_WRITE);
+            .src_access_mask(AF::empty())
+            .src_stage_mask(PSF::COLOR_ATTACHMENT_OUTPUT | PSF::EARLY_FRAGMENT_TESTS)
+            .dst_access_mask(AF::COLOR_ATTACHMENT_WRITE | AF::DEPTH_STENCIL_ATTACHMENT_WRITE)
+            .dst_stage_mask(PSF::COLOR_ATTACHMENT_OUTPUT | PSF::EARLY_FRAGMENT_TESTS);
         
         if state.v_exp() {
             println!("initial layout:\tundefined");
@@ -52,8 +58,15 @@ impl RenderPass {
                 .final_layout(vk::ImageLayout::PRESENT_SRC_KHR)
                 .build(),
             vk::AttachmentDescription::builder()
+                .format(depth.format)
                 .final_layout(vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
-                //TODO: fill depth buffer stencil
+                .samples(vk::SampleCountFlags::TYPE_1)
+                .load_op(vk::AttachmentLoadOp::CLEAR)
+                .store_op(vk::AttachmentStoreOp::DONT_CARE)
+                .stencil_load_op(vk::AttachmentLoadOp::DONT_CARE)
+                .stencil_store_op(vk::AttachmentStoreOp::DONT_CARE)
+                .initial_layout(vk::ImageLayout::UNDEFINED)
+                .final_layout(vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
                 .build(),
         ];
         
@@ -95,7 +108,7 @@ impl Deref for RenderPass {
 }
 */
 
-impl DeviceDrop for RenderPass {
+impl DeviceDestroy for RenderPass {
     fn device_drop(&mut self, state:&State, device:&Device) {
         if state.v_nor() {
             println!("[0]:deleting render pass");

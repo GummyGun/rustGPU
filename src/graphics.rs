@@ -9,15 +9,16 @@ use na::{
 use std::mem::size_of;
 
 pub const VERTEX_ARR:[Vertex; 8] = [
-    Vertex{position:Vector3::new(-0.5f32, -0.5f32, 0.5f32), color:Vector3::new(1f32, 0f32, 0f32), coordenates:Vector2::new(0.0f32, 0.0f32)},
-    Vertex{position:Vector3::new(0.5f32, -0.5f32, 0.5f32), color:Vector3::new(0f32, 1f32, 0f32), coordenates:Vector2::new(1.0f32, 0.0f32)},
-    Vertex{position:Vector3::new(0.5f32, 0.5f32, 0.5f32), color:Vector3::new(0f32, 0f32, 1f32), coordenates:Vector2::new(1.0f32, 1.0f32)},
-    Vertex{position:Vector3::new(-0.5f32, 0.5f32, 0.5f32), color:Vector3::new(1f32, 1f32, 1f32), coordenates:Vector2::new(0.0f32, 1.0f32)},
-    
     Vertex{position:Vector3::new(-0.5f32, -0.5f32, 0.0f32), color:Vector3::new(1f32, 0f32, 0f32), coordenates:Vector2::new(0.0f32, 0.0f32)},
     Vertex{position:Vector3::new(0.5f32, -0.5f32, 0.0f32), color:Vector3::new(0f32, 1f32, 0f32), coordenates:Vector2::new(1.0f32, 0.0f32)},
     Vertex{position:Vector3::new(0.5f32, 0.5f32, 0.0f32), color:Vector3::new(0f32, 0f32, 1f32), coordenates:Vector2::new(1.0f32, 1.0f32)},
     Vertex{position:Vector3::new(-0.5f32, 0.5f32, 0.0f32), color:Vector3::new(1f32, 1f32, 1f32), coordenates:Vector2::new(0.0f32, 1.0f32)},
+    
+    Vertex{position:Vector3::new(-0.5f32, -0.5f32, -0.5f32), color:Vector3::new(1f32, 0f32, 0f32), coordenates:Vector2::new(0.0f32, 0.0f32)},
+    Vertex{position:Vector3::new(0.5f32, -0.5f32, -0.5f32), color:Vector3::new(0f32, 1f32, 0f32), coordenates:Vector2::new(1.0f32, 0.0f32)},
+    Vertex{position:Vector3::new(0.5f32, 0.5f32, -0.5f32), color:Vector3::new(0f32, 0f32, 1f32), coordenates:Vector2::new(1.0f32, 1.0f32)},
+    Vertex{position:Vector3::new(-0.5f32, 0.5f32, -0.5f32), color:Vector3::new(1f32, 1f32, 1f32), coordenates:Vector2::new(0.0f32, 1.0f32)},
+    
 ];
 
 pub const VERTEX_INDEX:[u16; 12] = [

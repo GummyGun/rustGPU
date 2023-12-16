@@ -4,7 +4,7 @@ use ash::{
 };
 
 use super::{
-    DeviceDrop,
+    DeviceDestroy,
     Device,
 };
 
@@ -53,7 +53,7 @@ impl SyncObjects {
     }
 }
 
-impl DeviceDrop for SyncObjects {
+impl DeviceDestroy for SyncObjects {
     fn device_drop(&mut self, state:&State, device:&Device) {
         use constants::fif;
         if state.v_nor() {

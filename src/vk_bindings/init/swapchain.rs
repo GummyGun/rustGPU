@@ -4,13 +4,14 @@ use ash::{
 };
 
 use super::{
-    DeviceDrop,
+    DeviceDestroy,
     device::Device,
     instance::Instance,
     surface::Surface,
     p_device::PDevice,
     render_pass::RenderPass,
     image::Image,
+    depth_buffer::DepthBuffer,
 };
 
 use crate::{
@@ -123,7 +124,13 @@ impl Swapchain {
         })
     }
     
-    pub fn complete(state:&State, device:&Device, swapchain:SwapchainBasic, render_pass:&RenderPass) -> VkResult<Self> {
+    pub fn complete(
+        state:&State, 
+        device:&Device, 
+        swapchain:SwapchainBasic, 
+        depth:&DepthBuffer,
+        render_pass:&RenderPass, 
+    ) -> VkResult<Self> {
         if state.v_exp() {
             println!("\nCREATING:\tFRAME BUFFER");
         }
@@ -132,7 +139,10 @@ impl Swapchain {
         
         for image_view in &swapchain.image_views {
             
-            let attachments = [*image_view];
+            let attachments = [
+                *image_view,
+                depth.image.view,
+            ];
             let create_info = vk::FramebufferCreateInfo::builder()
                 .render_pass(render_pass.as_inner())
                 .attachments(&attachments[..])
@@ -157,9 +167,18 @@ impl Swapchain {
     
     
     #[allow(dead_code)]
-    pub fn direct_create(state:&State, window:&Window, instance:&Instance, surface:&Surface, p_device:&PDevice, device:&Device, render_pass:&RenderPass) -> VkResult<Self> {
+    pub fn direct_create(
+        state:&State, 
+        window:&Window, 
+        instance:&Instance, 
+        surface:&Surface,
+        p_device:&PDevice, 
+        device:&Device, 
+        render_pass:&RenderPass,
+        depth:&DepthBuffer,
+    ) -> VkResult<Self> {
         let holder = Self::create(state, window, instance, surface, p_device, device)?;
-        Self::complete(state, device, holder, render_pass)
+        Self::complete(state, device, holder, depth, render_pass)
     }
     
 }
@@ -191,7 +210,7 @@ impl SwapchainBasic {
 }
 
 
-impl DeviceDrop for Swapchain {
+impl DeviceDestroy for Swapchain {
     fn device_drop(&mut self, state:&State, device:&Device) {
         if state.v_nor() {
             println!("[0]:deleting swapchain framebuffers");

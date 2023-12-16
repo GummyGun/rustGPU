@@ -4,7 +4,7 @@ use ash::{
 };
 
 use super::{
-    DeviceDrop,
+    DeviceDestroy,
     device::Device,
     p_device::PDevice,
     swapchain::Swapchain,
@@ -140,7 +140,13 @@ impl CommandControl {
         let clear_color = [
             vk::ClearValue{
                 color: vk::ClearColorValue{float32:[0.0f32; 4]},
-            }
+            },
+            vk::ClearValue{
+                depth_stencil: vk::ClearDepthStencilValue::builder()
+                    .depth(1f32)
+                    .stencil(0)
+                    .build()
+            },
         ];
         
         let render_pass_begin = vk::RenderPassBeginInfo::builder()
@@ -173,7 +179,7 @@ impl CommandControl {
     
 }
 
-impl DeviceDrop for CommandControl {
+impl DeviceDestroy for CommandControl {
     fn device_drop(&mut self, state:&State, device:&Device) {
         if state.v_nor() {
             println!("[0]:deallocating command buffer");

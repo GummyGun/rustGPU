@@ -4,7 +4,7 @@ use ash::{
 };
 
 use super::{
-    ActiveDrop,
+    ActiveDestroy,
     d_messenger::DMessenger
 };
 
@@ -78,7 +78,7 @@ impl Instance {
 
 }
 
-impl ActiveDrop for Instance {
+impl ActiveDestroy for Instance {
     fn active_drop(&mut self, state:&State) {
         if state.v_nor() {
             println!("[0]:deleting instance");

@@ -7,7 +7,7 @@ use image::EncodableLayout;
 
 use super::{
     memory,
-    DeviceDrop,
+    DeviceDestroy,
     device::Device,
     p_device::PDevice,
     command::CommandControl,
@@ -276,6 +276,12 @@ impl Image {
         format == vk::Format::D32_SFLOAT_S8_UINT || format == vk::Format::D24_UNORM_S8_UINT
     }
     
+    pub fn silent_drop(&mut self, device:&Device) {
+        unsafe{device.destroy_image_view(self.view, None)};
+        unsafe{device.destroy_image(self.image, None)};
+        unsafe{device.free_memory(self.memory, None)};
+    }
+    
 }
 
 impl From<((vk::Image, vk::DeviceMemory), vk::ImageView)> for Image {
@@ -284,14 +290,12 @@ impl From<((vk::Image, vk::DeviceMemory), vk::ImageView)> for Image {
     }
 }
 
-impl DeviceDrop for Image {
+impl DeviceDestroy for Image {
     fn device_drop(&mut self, state:&State, device:&Device) {
         if state.v_nor() {
             println!("[0]:deleting texture image");
         }
-        unsafe{device.destroy_image_view(self.view, None)}
-        unsafe{device.destroy_image(self.image, None)}
-        unsafe{device.free_memory(self.memory, None)}
+        self.silent_drop(device);
     }
 }
 

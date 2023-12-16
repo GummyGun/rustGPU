@@ -5,7 +5,7 @@ use ash::{
 
 use super::{
     memory,
-    DeviceDrop,
+    DeviceDestroy,
     device::Device,
     p_device::PDevice,
     command::CommandControl,
@@ -179,7 +179,7 @@ impl Buffer {
     }
 }
 
-impl DeviceDrop for Buffer {
+impl DeviceDestroy for Buffer {
     fn device_drop(&mut self, state:&State, device:&Device) {
         if state.v_nor() {
             println!("[0]:deleting buffer");
@@ -307,7 +307,7 @@ impl From<(Buffer, *mut c_void, ash::util::Align<UniformBufferObject>)> for Unif
     }
 }
 
-impl DeviceDrop for UniformBuffer {
+impl DeviceDestroy for UniformBuffer {
     fn device_drop(&mut self, state:&State, device:&Device) {
         if state.v_dmp() {
             println!("[0]:deleting buffer");
@@ -319,7 +319,7 @@ impl DeviceDrop for UniformBuffer {
     }
 }
 
-impl DeviceDrop for UniformBuffers {
+impl DeviceDestroy for UniformBuffers {
     fn device_drop(&mut self, state:&State, device:&Device) {
         if state.v_nor() {
             println!("[0]:deleting uniform buffers");

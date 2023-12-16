@@ -4,11 +4,12 @@ use ash::{
 };
 
 use super::{
+    DeviceDestroy,
+    device::Device,
     instance::Instance,
     p_device::PDevice,
-    device::Device,
     image::Image,
-    swapchain::Swapchain,
+    swapchain::SwapchainBasic,
 };
 
 use crate::{
@@ -16,7 +17,10 @@ use crate::{
     errors::Error as AAError,
 };
 
-pub struct DepthBuffer();
+pub struct DepthBuffer{
+    pub image: Image,
+    pub format: vk::Format,
+}
 
 
 impl DepthBuffer {
@@ -25,8 +29,8 @@ impl DepthBuffer {
         instance: &Instance, 
         p_device: &PDevice,
         device: &Device,
-        swapchain: &Swapchain,
-    ) -> VkResult<Image> {
+        swapchain: &SwapchainBasic,
+    ) -> VkResult<Self> {
         
         let target_tiling = vk::ImageTiling::OPTIMAL;
         let depth_format = Self::find_depth_format(state, instance, p_device, target_tiling);
@@ -42,7 +46,10 @@ impl DepthBuffer {
             vk::MemoryPropertyFlags::DEVICE_LOCAL,
         )?;
         let image_view = Image::create_image_view(state, device, &image.0, depth_format, vk::ImageAspectFlags::DEPTH)?;
-        Ok(Image::from((image, image_view)))
+        Ok(Self{
+            image: Image::from((image, image_view)),
+            format: depth_format,
+        })
     }
     
     
@@ -89,5 +96,14 @@ impl DepthBuffer {
             
         }
         Err(AAError::UnsuportedFormat)
+    }
+}
+
+impl DeviceDestroy for DepthBuffer {
+    fn device_drop(&mut self, state:&State, device:&Device) {
+        if state.v_nor() {
+            println!("[0]:deleting depth buffer");
+        }
+        self.image.silent_drop(device);
     }
 }
