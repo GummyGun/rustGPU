@@ -149,17 +149,13 @@ impl Extensions {
     }
     
     fn handle_logic(&self, state:&State, window:&Window) -> Vec<*const c_char> {
-        if constants::VALIDATION {
-            match (state.v_exp(), self.validate(window)) {
-                (true, Ok(holder)) => {
-                    println!("all extensions layers found");
-                    holder
-                }
-                (false, Ok(holder)) => {holder}
-                (_, Err(err)) => {panic!("Extensions required by window and validation extensions should be available: {:?}", err);}
+        match (state.v_exp(), self.validate(window)) {
+            (true, Ok(holder)) => {
+                println!("all extensions layers found");
+                holder
             }
-        } else {
-            Vec::new()
+            (false, Ok(holder)) => {holder}
+            (_, Err(err)) => {panic!("Extensions required by window and validation extensions should be available: {:?}", err);}
         }
     }
 }
