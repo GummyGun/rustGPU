@@ -2,5 +2,5 @@ all:
 	cargo build
 
 shader:
-	glslang -V ssrc/sh.vert -o ssrc/sh.vert.spv
-	glslang -V ssrc/sh.frag -o ssrc/sh.frag.spv
+	glslang -V src/ssrc/sh.vert -o res/shaders/sh.vert.spv
+	glslang -V src/ssrc/sh.frag -o res/shaders/sh.frag.spv
