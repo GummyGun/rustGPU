@@ -266,13 +266,19 @@ impl SwapchainSupportDetails {
         }
         
         for format in &self.surface_formats {
-            if format.format == vk::Format::R8G8B8A8_SRGB && format.color_space == vk::ColorSpaceKHR::SRGB_NONLINEAR {
-                if state.v_exp() {
-                    println!("found target {:#?}", &format);
+            match (format.format, format.color_space) {
+                (vk::Format::R8G8B8A8_SRGB, vk::ColorSpaceKHR::SRGB_NONLINEAR) => {}
+                (vk::Format::B8G8R8A8_SRGB, vk::ColorSpaceKHR::SRGB_NONLINEAR) => {}
+                (_,_) => { 
+                    continue;
                 }
-                return *format;
             }
+            if state.v_exp() {
+                println!("found target {:#?}", &format);
+            }
+            return *format;
         }
+        
         if state.v_exp() {
             println!("didn't found target settling for {:#?}", &self.surface_formats[0]);
         }

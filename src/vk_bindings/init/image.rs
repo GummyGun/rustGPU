@@ -73,7 +73,6 @@ impl Image {
             p_device,
             device,
             &extent,
-            //vk::Format::B8G8R8A8_SRGB,
             vk::Format::R8G8B8A8_SRGB,
             vk::ImageTiling::OPTIMAL,
             usage_flags,
@@ -85,7 +84,6 @@ impl Image {
             device, 
             command,
             &image.0,
-            //vk::Format::B8G8R8A8_SRGB,
             vk::Format::R8G8B8A8_SRGB, 
             vk::ImageLayout::UNDEFINED, 
             vk::ImageLayout::TRANSFER_DST_OPTIMAL,
@@ -109,7 +107,6 @@ impl Image {
             device, 
             command,
             &image.0,
-            //vk::Format::B8G8R8A8_SRGB,
             vk::Format::R8G8B8A8_SRGB, 
             vk::ImageLayout::TRANSFER_DST_OPTIMAL,
             vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL, 
@@ -121,7 +118,6 @@ impl Image {
             state, 
             device, 
             &image.0, 
-            //vk::Format::B8G8R8A8_SRGB,
             vk::Format::R8G8B8A8_SRGB, 
             vk::ImageAspectFlags::COLOR
         )?;
