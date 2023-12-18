@@ -22,13 +22,16 @@ pub enum Error {
     DecodeError,
     #[error("Image transition")]
     ImageLayoutUnsuported,
+    #[error("format not supported")]
+    UnsuportedFormat,
+    #[error("only simple obj are supported")]
+    ComplexObj,
+    #[error("Lobj error")]
+    LobjError(#[from] tobj::LoadError),
     #[error("VK error")]
     VkError(#[from] vk::Result),
     #[error("IO error")]
-    IOError(#[from] io::Error),
-    #[error("format not supported")]
-    UnsuportedFormat,
-    
+    IoError(#[from] io::Error),
 }
 
 /*

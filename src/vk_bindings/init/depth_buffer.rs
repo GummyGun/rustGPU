@@ -30,10 +30,17 @@ impl DepthBuffer {
         p_device: &PDevice,
         device: &Device,
         swapchain: &SwapchainBasic,
+        
     ) -> VkResult<Self> {
+        if state.v_exp() {
+            println!("\nCREATING:\tDEPTH BUFFER");
+        }
         
         let target_tiling = vk::ImageTiling::OPTIMAL;
         let depth_format = Self::find_depth_format(state, instance, p_device, target_tiling);
+        if state.v_exp() {
+            println!("depth buffer format is: {:?}", depth_format);
+        }
         let extent = vk::Extent3D::from(swapchain.extent);
         let (image, _image_size) = Image::create_image(
             state, 

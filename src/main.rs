@@ -29,13 +29,21 @@ fn main() {
     
     let mut window = window::Window::init(state);
     let mut v_init = vk_bindings::VInit::init(state, &window);
+    
+    //let mut last_time = state.secs_from_start();
     println!("===========\n===========");
     //v_init.test();
     while !window.should_close() {
         window.poll_events();
         v_init.tick();
         v_init.draw_frame();
+        /*
+        let current_time = state.secs_from_start();
+        //println!("{:?}", 1f32/(current_time-last_time));
+        last_time = current_time;
+        */
     }
+    println!("===========\n===========");
     v_init.wait_idle();
 }
 
@@ -67,6 +75,10 @@ impl State {
             Verbosity::Dump => true,
             _ => false,
         }
+    }
+    
+    fn secs_from_start(&self) -> f32 {
+        self.time.elapsed().unwrap().as_secs_f32()
     }
     
     /*

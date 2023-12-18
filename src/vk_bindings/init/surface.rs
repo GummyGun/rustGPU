@@ -10,6 +10,7 @@ use super::{
 
 use crate::{
     State,
+    constants,
     window::{
         Window,
     },
@@ -29,6 +30,12 @@ impl Surface {
         if state.v_exp() {
             println!("\nCREATING:\tSURFACE");
         }
+        
+        if state.v_exp() {
+            println!("{:?}", constants::EXTENSIONS);
+            println!("{:?}", constants::LAYERS);
+        }
+        
         let surface = unsafe{window.create_surface(instance, None)?};
         let surface_loader = ash::extensions::khr::Surface::new(&instance.entry, instance);
         

@@ -12,4 +12,6 @@ memoffset = "0.9.0"
 nalgebra = "0.32.3"
 static_assertions = "1.1.0"
 thiserror = "1.0.50"
+tobj = "4.0.0"
+zerocopy = "0.7.31"
 

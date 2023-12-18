@@ -10,6 +10,9 @@ use super::{
     },
     constants,
     State,
+    graphics::{
+        Model
+    }
 };
 
 
@@ -21,8 +24,14 @@ use objects::{
 };
 
 pub struct VInit {
+    
     state: State,
+    
     current_frame:usize,
+    
+    
+    pub model: Model,
+
     pub instance: VkObj<Instance>,
     pub messenger: Option<VkObj<DMessenger>>,
     pub surface: VkObj<Surface>,
@@ -45,14 +54,16 @@ pub struct VInit {
 
 impl VInit {
     pub fn init(state:State, window:&Window) -> VInit {
-        let state = &state;
+        let state_ref = &state;
         
-        let instance = vk_create_interpreter(state, Instance::create(state, window), "instance"); 
+        let viking_house = Model::load(state_ref, constants::path::VIKING_MODEL, constants::path::VIKING_TEXTURE).expect("should not crash");
+        
+        let instance = vk_create_interpreter(state_ref, Instance::create(state_ref, window), "instance"); 
         
         let messenger = if constants::VALIDATION {
-            Some(match DMessenger::create(state, &instance) {
+            Some(match DMessenger::create(state_ref, &instance) {
                 Ok(messenger) => {
-                    if state.v_nor() {
+                    if state_ref.v_nor() {
                         println!("[0]:messenger");
                     }
                     messenger
@@ -64,31 +75,32 @@ impl VInit {
             None
         };
         
-        let surface =  vk_create_interpreter(state, Surface::create(state, &window, &instance), "surface"); 
-        let p_device = vk_create_interpreter(state, PDevice::chose(state, &instance, &surface), "p_device selected"); 
-        let device = vk_create_interpreter(state, Device::create(state, &instance, &p_device), "device"); 
-        let swapchain_basic = vk_create_interpreter(state, Swapchain::create(state, &window, &instance, &surface, &p_device, &device), "swapchain");
-        let depth_buffer = vk_create_interpreter(state, DepthBuffer::create(state, &instance, &p_device, &device, &swapchain_basic), "depth_buffer");
-        let render_pass = vk_create_interpreter(state, RenderPass::create(state, &device, &swapchain_basic, &depth_buffer), "render_pass");
-        let swapchain = vk_create_interpreter(state, Swapchain::complete(state, &device, swapchain_basic, &depth_buffer, &render_pass), "framebuffer");
-        let layout = vk_create_interpreter(state, DescriptorControl::create(state, &device), "descriptor_set_layout");
-        let pipeline = vk_create_interpreter(state, Pipeline::create(state, &device, &render_pass, &layout), "pipeline");
-        let command_control = vk_create_interpreter(state, CommandControl::create(state, &p_device, &device), "command_control");
-        let sync_objects = vk_create_interpreter(state, SyncObjects::create(state, &device), "sync_objects");
-        let sampler = vk_create_interpreter(state, Sampler::create(state, &p_device, &device), "sampler");
-        let texture = vk_create_interpreter(state, Image::create(state, &p_device, &device, &command_control, "ssrc/texture.jpg"), "texture_image");
-        let vertex_buffer = vk_create_interpreter(state, Buffer::create_vertex(state, &p_device, &device, &command_control), "vertex_buffer");
-        let index_buffer = vk_create_interpreter(state, Buffer::create_index(state, &p_device, &device, &command_control), "index_buffer");
-        let uniform_buffers = vk_create_interpreter(state, UniformBuffers::create(state, &p_device, &device), "uniform_buffer");
-        let descriptor_control = vk_create_interpreter(state, DescriptorControl::complete(state, &device, layout, &sampler, &texture, &uniform_buffers), "descriptor_control");
+        let surface =  vk_create_interpreter(state_ref, Surface::create(state_ref, &window, &instance), "surface"); 
+        let p_device = vk_create_interpreter(state_ref, PDevice::chose(state_ref, &instance, &surface), "p_device selected"); 
+        let device = vk_create_interpreter(state_ref, Device::create(state_ref, &instance, &p_device), "device"); 
+        let swapchain_basic = vk_create_interpreter(state_ref, Swapchain::create(state_ref, &window, &instance, &surface, &p_device, &device), "swapchain");
+        let depth_buffer = vk_create_interpreter(state_ref, DepthBuffer::create(state_ref, &instance, &p_device, &device, &swapchain_basic), "depth_buffer");
+        let render_pass = vk_create_interpreter(state_ref, RenderPass::create(state_ref, &device, &swapchain_basic, &depth_buffer), "render_pass");
+        let swapchain = vk_create_interpreter(state_ref, Swapchain::complete(state_ref, &device, swapchain_basic, &depth_buffer, &render_pass), "framebuffer");
+        let layout = vk_create_interpreter(state_ref, DescriptorControl::create(state_ref, &device), "descriptor_set_layout");
+        let pipeline = vk_create_interpreter(state_ref, Pipeline::create(state_ref, &device, &render_pass, &layout), "pipeline");
+        let command_control = vk_create_interpreter(state_ref, CommandControl::create(state_ref, &p_device, &device), "command_control");
+        let sync_objects = vk_create_interpreter(state_ref, SyncObjects::create(state_ref, &device), "sync_objects");
+        let sampler = vk_create_interpreter(state_ref, Sampler::create(state_ref, &p_device, &device), "sampler");
+        let texture = vk_create_interpreter(state_ref, Image::create(state_ref, &p_device, &device, &command_control, &viking_house.image), "texture_image");
+        let vertex_buffer = vk_create_interpreter(state_ref, Buffer::create_vertex(state_ref, &p_device, &device, &command_control, &viking_house.vertices[..]), "vertex_buffer");
+        let index_buffer = vk_create_interpreter(state_ref, Buffer::create_index(state_ref, &p_device, &device, &command_control, &viking_house.indices[..]), "index_buffer");
+        let uniform_buffers = vk_create_interpreter(state_ref, UniformBuffers::create(state_ref, &p_device, &device), "uniform_buffer");
+        let descriptor_control = vk_create_interpreter(state_ref, DescriptorControl::complete(state_ref, &device, layout, &sampler, &texture, &uniform_buffers), "descriptor_control");
         
         
         
         
         
         VInit{
-            state: *state,
+            state: state,
             current_frame: 0,
+            model: viking_house,
             instance: VkObj::new(instance),
             messenger: match messenger {
                 Some(holder) => {Some(VkObj::new(holder))}

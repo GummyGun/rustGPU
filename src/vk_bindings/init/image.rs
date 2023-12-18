@@ -2,8 +2,8 @@ use ash::{
     vk,
     prelude::VkResult,
 };
-use image::io::Reader as ImageReader;
-use image::EncodableLayout;
+
+use zerocopy::AsBytes;
 
 use super::{
     memory,
@@ -37,8 +37,9 @@ impl Image {
         p_device:&PDevice,
         device:&Device, 
         command:&CommandControl, 
-        file_name:&str
+        image_data:&image::RgbaImage,
     ) -> Result<Self, AAError> {
+        
         use vk::BufferUsageFlags as BUF;
         use vk::MemoryPropertyFlags as MPF;
         use vk::ImageUsageFlags as IUF;
@@ -47,25 +48,24 @@ impl Image {
             println!("\nCREATING:\tIMAGE");
         }
         
-        let img = ImageReader::open(file_name)?.decode().map_err(|_| AAError::DecodeError)?.into_rgba8();
+        //let image:image::RgbaImage = image::io::Reader::open(crate::constants::path::TEST_TEXTURE)?.decode().map_err(|_| AAError::DecodeError)?.into_rgba8();
+        //let image_data = &image;
         
-        //println!("{:?}", img.as_bytes().len()/(img.width()*img.height()) as usize);
-        let raw_size = u64::try_from(img.as_bytes().len()).expect("image size should fit in a u64");
-        
+        let raw_size = u64::try_from(image_data.as_bytes().len()).expect("image size should fit in a u64");
         let staging_memory_properties = MPF::HOST_VISIBLE | MPF::HOST_COHERENT;
         let (staging, staging_size) = Buffer::create_buffer(state, p_device, device, raw_size, BUF::TRANSFER_SRC, staging_memory_properties)?;
         
         let memory_ptr = unsafe{device.map_memory(staging.memory, 0, raw_size, vk::MemoryMapFlags::empty())}?;
         let mut vert_align = unsafe{ash::util::Align::new(memory_ptr, align_of::<u8>() as u64, staging_size)};
-        vert_align.copy_from_slice(&img.as_bytes());
+        vert_align.copy_from_slice(&image_data.as_bytes());
         
         unsafe{device.unmap_memory(staging.memory)};
         
         let usage_flags = IUF::TRANSFER_DST | IUF::SAMPLED;
         let memory_properties = MPF::DEVICE_LOCAL;
         let extent = vk::Extent3D::builder()
-            .width(img.width())
-            .height(img.height())
+            .width(image_data.width())
+            .height(image_data.height())
             .depth(1);
         
         let (mut image, _image_size) = Self::create_image(
@@ -73,6 +73,7 @@ impl Image {
             p_device,
             device,
             &extent,
+            //vk::Format::B8G8R8A8_SRGB,
             vk::Format::R8G8B8A8_SRGB,
             vk::ImageTiling::OPTIMAL,
             usage_flags,
@@ -84,6 +85,7 @@ impl Image {
             device, 
             command,
             &image.0,
+            //vk::Format::B8G8R8A8_SRGB,
             vk::Format::R8G8B8A8_SRGB, 
             vk::ImageLayout::UNDEFINED, 
             vk::ImageLayout::TRANSFER_DST_OPTIMAL,
@@ -107,6 +109,7 @@ impl Image {
             device, 
             command,
             &image.0,
+            //vk::Format::B8G8R8A8_SRGB,
             vk::Format::R8G8B8A8_SRGB, 
             vk::ImageLayout::TRANSFER_DST_OPTIMAL,
             vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL, 
@@ -114,7 +117,14 @@ impl Image {
         
         staging.staging_drop(state, device);
         
-        let image_view = Self::create_image_view(state, device, &image.0, vk::Format::R8G8B8A8_SRGB, vk::ImageAspectFlags::COLOR)?;
+        let image_view = Self::create_image_view(
+            state, 
+            device, 
+            &image.0, 
+            //vk::Format::B8G8R8A8_SRGB,
+            vk::Format::R8G8B8A8_SRGB, 
+            vk::ImageAspectFlags::COLOR
+        )?;
         
         Ok(Self::from((image, image_view)))
     }

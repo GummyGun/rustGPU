@@ -10,7 +10,6 @@ macro_rules! const_array{
 
 
 use std::ffi::CStr;
-
 use ash::extensions::khr::Swapchain;
 use ash::extensions::ext::DebugUtils;
 
@@ -20,10 +19,20 @@ pub mod fif {
     pub const U32:u32 = super::FIF as u32;
 }
 
-pub const WIDTH:u32 = 600;
-pub const HEIGTH:u32 = 600;
+pub const WIDTH:u32 = 1000;
+pub const HEIGTH:u32 = 1000;
 pub const VALIDATION:bool = true;
 
+#[allow(dead_code)]
+pub mod path {
+    pub const VERT_SHADER:&str = "res/shaders/sh.vert.spv";
+    pub const FRAG_SHADER:&str = "res/shaders/sh.frag.spv";
+    //pub const TEST_TEXTURE:&str = "res/textures/texture.jpg";
+    pub const TEST_TEXTURE:&str = "res/textures/white.jpg";
+    
+    pub const VIKING_MODEL:&str = "res/objs/viking.obj";
+    pub const VIKING_TEXTURE:&str = "res/textures/viking.png";
+}
 
 pub const LAYERS:[&'static str; 1] = ["VK_LAYER_KHRONOS_validation"];
 pub const EXTENSIONS:[&'static str; EXTENSIONS_LEN_PLUS_VAL] = extension_logic();

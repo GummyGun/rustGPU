@@ -17,7 +17,7 @@ use super::{
 use crate::{
     State,
     constants,
-    graphics::VERTEX_INDEX,
+    //graphics::VERTEX_INDEX,
 };
 
 use std::slice::from_ref;
@@ -112,6 +112,7 @@ impl CommandControl {
         descriptor_control:&DescriptorControl,
         image_index:u32, 
         frame_index:usize,
+        triangles_to_draw:u32,
     ) {
         
         if state.v_dmp() {
@@ -134,7 +135,7 @@ impl CommandControl {
             .width(swapchain.extent.width as f32)
             .height(swapchain.extent.height as f32)
             .min_depth(0f32)
-            .max_depth(0f32)
+            .max_depth(1f32)
             .build();
         
         let clear_color = [
@@ -167,11 +168,19 @@ impl CommandControl {
         unsafe{device.cmd_set_scissor(self.buffer[frame_index], 0, from_ref(&scissor))};
         
         unsafe{device.cmd_bind_vertex_buffers(self.buffer[frame_index], 0, from_ref(&vertex_buffer.buffer), &[0])};
-        unsafe{device.cmd_bind_index_buffer(self.buffer[frame_index], index_buffer.buffer, 0, vk::IndexType::UINT16)};
+        unsafe{device.cmd_bind_index_buffer(self.buffer[frame_index], index_buffer.buffer, 0, vk::IndexType::UINT32)};
         
         unsafe{device.cmd_bind_descriptor_sets(self.buffer[frame_index], vk::PipelineBindPoint::GRAPHICS, pipeline.layout, 0, std::slice::from_ref(&descriptor_control.sets[frame_index]), &[])};
         
-        unsafe{device.cmd_draw_indexed(self.buffer[frame_index], u32::try_from(VERTEX_INDEX.len()).expect("vertex to draw should fit in u32"), 1, 0, 0, 0)};
+        unsafe{device.cmd_draw_indexed(
+            self.buffer[frame_index], 
+            //12,
+            triangles_to_draw, 
+            1, 
+            0, 
+            0, 
+            0
+            )};
         unsafe{device.cmd_end_render_pass(self.buffer[frame_index])};
         
         unsafe{device.end_command_buffer(self.buffer[frame_index])}.unwrap();

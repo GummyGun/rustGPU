@@ -15,8 +15,8 @@ use crate::{
     State,
     graphics::{
         Vertex,
-        VERTEX_ARR,
-        VERTEX_INDEX,
+        //VERTEX_ARR,
+        //VERTEX_INDEX,
         UniformBufferObject,
     },
     constants,
@@ -42,7 +42,6 @@ pub struct Buffer {
 }
 
 pub struct UniformBuffer {
-    //pub buffer: Buffer,
     pub buffer: vk::Buffer,
     pub memory: vk::DeviceMemory,
     pub map: *mut c_void,
@@ -59,11 +58,12 @@ impl Buffer {
         p_device:&PDevice, 
         device:&Device, 
         command:&CommandControl,
+        vertices:&[Vertex],
     ) -> VkResult<Self> {
         use vk::BufferUsageFlags as BUF;
         use vk::MemoryPropertyFlags as MPF;
         
-        let raw_size = u64::try_from(size_of::<Vertex>()*VERTEX_ARR.len()).expect("vertex buffer size should fit in u64");
+        let raw_size = u64::try_from(size_of::<Vertex>()*vertices.len()).expect("vertex buffer size should fit in u64");
         if state.v_exp() {
             println!("\nCREATING:\tVERTEX BUFFER");
             println!("vertex_buffer size in bytes {:?}", raw_size);
@@ -76,7 +76,7 @@ impl Buffer {
         
         let memory_ptr = unsafe{device.map_memory(staging.memory, 0, staging_size, vk::MemoryMapFlags::empty())}?;
         let mut vert_align = unsafe{ash::util::Align::new(memory_ptr, align_of::<Vertex>() as u64, raw_size)};
-        vert_align.copy_from_slice(&VERTEX_ARR);
+        vert_align.copy_from_slice(&vertices);
         
         unsafe{device.unmap_memory(staging.memory)};
         
@@ -96,11 +96,12 @@ impl Buffer {
         p_device:&PDevice, 
         device:&Device, 
         command:&CommandControl,
+        indices:&[u32],
     ) -> VkResult<Self> {
         use vk::BufferUsageFlags as BUF;
         use vk::MemoryPropertyFlags as MPF;
         
-        let raw_size = u64::try_from(size_of::<u16>()*VERTEX_INDEX.len()).expect("index buffer size should fit in u64");
+        let raw_size = u64::try_from(size_of::<u32>()*indices.len()).expect("index buffer size should fit in u64");
         
         if state.v_exp() {
             println!("\nCREATING:\tINDEX BUFFER");
@@ -115,7 +116,7 @@ impl Buffer {
         
         let mut vert_align = unsafe{ash::util::Align::new(memory_ptr, align_of::<u16>() as u64, raw_size)};
         
-        vert_align.copy_from_slice(&VERTEX_INDEX);
+        vert_align.copy_from_slice(&indices);
         /*
         let tmp = unsafe{from_raw_parts(memory_ptr as *const u16, VERTEX_INDEX .len())};
         println!("hola {:#?}", tmp);

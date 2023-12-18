@@ -14,8 +14,6 @@ use crate::{
     },
 };
 
-//use nalgebra as na;
-
 use memoffset::offset_of;
 
 use std::{
@@ -55,6 +53,7 @@ impl Vertex {
                 binding: 0,
                 location: 0,
                 format: vk::Format::R32G32B32_SFLOAT,
+                //format: vk::Format::B8G8R8A8_SRGB,
                 offset: offset_of!(Vertex, position) as u32
             },
             vk::VertexInputAttributeDescription{
@@ -73,6 +72,7 @@ impl Vertex {
         ];
         &HOLDER
     }
+    
 }
 
 impl VInit {
@@ -104,7 +104,8 @@ impl VInit {
             &self.index_buffer, 
             &self.descriptor_control,
             image_index, 
-            self.current_frame
+            self.current_frame,
+            u32::try_from(self.model.vertices.len()).unwrap(),
         );
         
         let wait_stages = [vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT];
@@ -135,7 +136,7 @@ impl VInit {
         use nalgebra as na;
         
         //self.uniform_buffers.update_buffer(&self.state, 0);
-        let delta = self.state.time.elapsed().unwrap().as_secs_f32();
+        let delta = self.state.secs_from_start();
         
         
         let rotation:f32 = na::RealField::frac_pi_4();
@@ -164,6 +165,7 @@ impl VInit {
         ];
         
         self.uniform_buffers.buffers[self.current_frame].align.copy_from_slice(&current_ubo[..]);
+        
     }
     
     

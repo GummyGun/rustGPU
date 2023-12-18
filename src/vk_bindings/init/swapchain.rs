@@ -72,6 +72,10 @@ impl Swapchain {
         }
         
         let surface_format = p_device.swapchain_details.choose_surface_format(&state);
+        /*
+        println!("{:?}", p_device.swapchain_details.surface_formats);
+        println!("{:?}", surface_format);
+        */
         let present_mode = p_device.swapchain_details.choose_present_mode(&state);
         let swap_extent = p_device.swapchain_details.choose_swap_extent(&state, window);
         let queue_indices = p_device.queues.queue_indices();
@@ -112,6 +116,8 @@ impl Swapchain {
         let images = unsafe{swapchain_loader.get_swapchain_images(swapchain)?};
         
         let image_views = SwapchainBasic::create_image_views(state, &device, &images, surface_format.format)?;
+        //let image_views = SwapchainBasic::create_image_views(state, &device, &images, vk::Format::B8G8R8A8_SRGB)?;
+        //println!("------------------------------{:?}", surface_format.format);
         
         Ok(SwapchainBasic{
             image_views:image_views,
@@ -143,6 +149,7 @@ impl Swapchain {
                 *image_view,
                 depth.image.view,
             ];
+            
             let create_info = vk::FramebufferCreateInfo::builder()
                 .render_pass(render_pass.as_inner())
                 .attachments(&attachments[..])

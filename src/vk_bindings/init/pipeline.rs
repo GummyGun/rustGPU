@@ -14,6 +14,7 @@ use super::{
 use crate::{
     State,
     graphics::Vertex,
+    constants,
 };
 
 use std::{
@@ -35,8 +36,8 @@ impl Pipeline {
             println!("\nCREATING:\tPIPELINE");
         }
         
-        let frag_sm = Self::create_shader_module(state, device, "ssrc/sh.frag.spv").unwrap();
-        let vert_sm = Self::create_shader_module(state, device, "ssrc/sh.vert.spv").unwrap();
+        let frag_sm = Self::create_shader_module(state, device, constants::path::FRAG_SHADER).unwrap();
+        let vert_sm = Self::create_shader_module(state, device, constants::path::VERT_SHADER).unwrap();
         
         let shader_name = unsafe{CStr::from_bytes_with_nul_unchecked(b"main\0")};
         
@@ -116,7 +117,10 @@ impl Pipeline {
             .depth_write_enable(true)
             .depth_compare_op(vk::CompareOp::LESS)
             .depth_bounds_test_enable(false)
-            .stencil_test_enable(false);
+            .stencil_test_enable(false)
+            .min_depth_bounds(0f32)
+            .max_depth_bounds(1f32);
+        
         
         let create_info = [
             vk::GraphicsPipelineCreateInfo::builder()
