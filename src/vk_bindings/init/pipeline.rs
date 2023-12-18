@@ -78,6 +78,7 @@ impl Pipeline {
             .polygon_mode(vk::PolygonMode::FILL)
             .line_width(1f32)
             .cull_mode(vk::CullModeFlags::BACK)
+            //.front_face(vk::FrontFace::CLOCKWISE)
             .front_face(vk::FrontFace::COUNTER_CLOCKWISE)
             .depth_bias_enable(false);
             //.depth_bias_slope_factor(0f32);

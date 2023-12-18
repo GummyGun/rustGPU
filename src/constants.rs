@@ -19,8 +19,8 @@ pub mod fif {
     pub const U32:u32 = super::FIF as u32;
 }
 
-pub const WIDTH:u32 = 1000;
-pub const HEIGTH:u32 = 1000;
+pub const WIDTH:u32 = 400;
+pub const HEIGTH:u32 = 400;
 pub const VALIDATION:bool = true;
 
 #[allow(dead_code)]

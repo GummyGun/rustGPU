@@ -11,19 +11,22 @@ use crate::{
 };
 
 
-use std::mem::size_of;
+use std::{
+    mem::size_of,
+    collections::HashMap,
+};
 
 #[allow(dead_code)]
 pub const VERTEX_ARR:[Vertex; 8] = [
-    Vertex{position:Vector3::new(-0.5f32, -0.5f32, 0.0f32), color:Vector3::new(1f32, 0f32, 0f32), coordenates:Vector2::new(0.0f32, 0.0f32)},
-    Vertex{position:Vector3::new(0.5f32, -0.5f32, 0.0f32), color:Vector3::new(0f32, 1f32, 0f32), coordenates:Vector2::new(1.0f32, 0.0f32)},
-    Vertex{position:Vector3::new(0.5f32, 0.5f32, 0.0f32), color:Vector3::new(0f32, 0f32, 1f32), coordenates:Vector2::new(1.0f32, 1.0f32)},
-    Vertex{position:Vector3::new(-0.5f32, 0.5f32, 0.0f32), color:Vector3::new(1f32, 1f32, 1f32), coordenates:Vector2::new(0.0f32, 1.0f32)},
+    Vertex{position:Vector3::new(-0.5f32, -0.5f32, 0.0f32), color:Vector3::new(1f32, 0f32, 0f32), texcoord:Vector2::new(0.0f32, 0.0f32)},
+    Vertex{position:Vector3::new(0.5f32, -0.5f32, 0.0f32), color:Vector3::new(0f32, 1f32, 0f32), texcoord:Vector2::new(1.0f32, 0.0f32)},
+    Vertex{position:Vector3::new(0.5f32, 0.5f32, 0.0f32), color:Vector3::new(0f32, 0f32, 1f32), texcoord:Vector2::new(1.0f32, 1.0f32)},
+    Vertex{position:Vector3::new(-0.5f32, 0.5f32, 0.0f32), color:Vector3::new(1f32, 1f32, 1f32), texcoord:Vector2::new(0.0f32, 1.0f32)},
     
-    Vertex{position:Vector3::new(-0.5f32, -0.5f32, -0.5f32), color:Vector3::new(1f32, 0f32, 0f32), coordenates:Vector2::new(0.0f32, 0.0f32)},
-    Vertex{position:Vector3::new(0.5f32, -0.5f32, -0.5f32), color:Vector3::new(0f32, 1f32, 0f32), coordenates:Vector2::new(1.0f32, 0.0f32)},
-    Vertex{position:Vector3::new(0.5f32, 0.5f32, -0.5f32), color:Vector3::new(0f32, 0f32, 1f32), coordenates:Vector2::new(1.0f32, 1.0f32)},
-    Vertex{position:Vector3::new(-0.5f32, 0.5f32, -0.5f32), color:Vector3::new(1f32, 1f32, 1f32), coordenates:Vector2::new(0.0f32, 1.0f32)},
+    Vertex{position:Vector3::new(-0.5f32, -0.5f32, -0.5f32), color:Vector3::new(1f32, 0f32, 0f32), texcoord:Vector2::new(0.0f32, 0.0f32)},
+    Vertex{position:Vector3::new(0.5f32, -0.5f32, -0.5f32), color:Vector3::new(0f32, 1f32, 0f32), texcoord:Vector2::new(1.0f32, 0.0f32)},
+    Vertex{position:Vector3::new(0.5f32, 0.5f32, -0.5f32), color:Vector3::new(0f32, 0f32, 1f32), texcoord:Vector2::new(1.0f32, 1.0f32)},
+    Vertex{position:Vector3::new(-0.5f32, 0.5f32, -0.5f32), color:Vector3::new(1f32, 1f32, 1f32), texcoord:Vector2::new(0.0f32, 1.0f32)},
 ];
 
 #[allow(dead_code)]
@@ -40,12 +43,19 @@ pub struct UniformBufferObject {
     pub proj: Matrix4<f32>,
 }
 
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
+struct DedupHelper {
+    pub position: Vector3<i32>,
+    pub color: Vector3<i32>,
+    pub texcoord: Vector2<i32>,
+}
+
 #[repr(C)]
-#[derive(Debug, Default, Clone, Copy)]
+#[derive(Debug, Default, Clone, Copy, PartialEq)]
 pub struct Vertex {
     pub position: Vector3<f32>,
     pub color: Vector3<f32>,
-    pub coordenates: Vector2<f32>,
+    pub texcoord: Vector2<f32>,
 }
 
 #[repr(C)]
@@ -96,41 +106,53 @@ impl Model {
         }
         
         let model = model_vec.pop().unwrap();
-        println!("{:?}", model.name);
-        println!("{:?}", model.mesh.positions.len());
-        println!("{:?}", model.mesh.positions.len());
-        
         let mesh = model.mesh;
         
         
-        
+        let mut deduping_vertex_helper:HashMap<DedupHelper, u32> = HashMap::new();
         let mut index_vec:Vec<u32> = Vec::new();
         let mut vertex_vec:Vec<Vertex> = Vec::new();
         
-        for (index, current_u32) in mesh.indices.iter().enumerate() {
-            let mut vertex = Vertex::default();
+        for current_u32 in mesh.indices.iter() {
+            let next_len = u32::try_from(vertex_vec.len()).unwrap();
             
+            let mut vertex = Vertex::default();
             let current = usize::try_from(*current_u32).unwrap();
             
             vertex.position = Self::vector3_from_index(&mesh.positions, current);
-            vertex.coordenates = Self::vector2_from_index(&mesh.texcoords, current);
-            
+            vertex.texcoord = Self::vector2_from_index(&mesh.texcoords, current);
             vertex.color = Vector3::new(1f32, 1f32, 1f32);
             
-            let index_u32 = u32::try_from(index).expect("models cant have more than u^32 vertices");
+            let dedup = DedupHelper::from(&vertex);
+            match deduping_vertex_helper.get(&dedup) {
+                Some(vertex_index) => {
+                    index_vec.push(*vertex_index);
+                }
+                None => {
+                    deduping_vertex_helper.insert(dedup, next_len);
+                    index_vec.push(next_len);
+                    vertex_vec.push(vertex);
+                }
+            }
             
-            //println!("{:?}", vertex);
-            vertex_vec.push(vertex);
-            index_vec.push(index_u32);
         }
+        
+        
+        /*
+        for (index, (guide, real)) in guide.into_iter().zip(index_vec.clone().into_iter().map(|number|{vertex_vec[usize::try_from(number).unwrap()]})).enumerate() {
+            if guide != real {
+                println!("=================================== {}", index);
+            }
+        }
+        */
         
         let image_holder = ImageReader::open(texture_file).unwrap().decode().map_err(|_| AAError::DecodeError).unwrap().into_rgba8();
         
-        /*
-        println!("{:?}", index_vec);
-        println!("{:?}", vertex_vec);
-        panic!("{:#?} {:#?}", models, materials);
-        */
+        if state.v_exp() {
+            println!("amount of indices: {}", index_vec.len());
+            println!("amount of vertices:  {}", vertex_vec.len());
+        }
+        
         
         Ok(Self{
             vertices: vertex_vec,
@@ -140,8 +162,7 @@ impl Model {
     }
     
     #[inline(always)]
-    fn vector3_from_index<T:Copy>(vec:&Vec<T>, index:usize) -> Vector3<T> {
-        
+    fn vector3_from_index(vec:&Vec<f32>, index:usize) -> Vector3<f32> {
         Vector3::new(
             vec[index*3+0],
             vec[index*3+1],
@@ -161,3 +182,29 @@ impl Model {
     
 }
 
+impl From<&Vertex> for DedupHelper {
+    fn from(base:&Vertex) -> Self {
+        let holder = base.position*10_000_000f32;
+        let position = Vector3::new(
+            holder[0] as i32,
+            holder[1] as i32,
+            holder[2] as i32,
+        );
+        let holder = base.color*10_000_000f32;
+        let color = Vector3::new(
+            holder[0] as i32,
+            holder[1] as i32,
+            holder[2] as i32,
+        );
+        let holder = base.texcoord*10_000_000f32;
+        let texcoord = Vector2::new(
+            holder[0] as i32,
+            holder[1] as i32,
+        );
+        Self{
+            texcoord:texcoord,
+            color:color,
+            position:position,
+        }
+    }
+}

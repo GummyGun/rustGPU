@@ -45,7 +45,6 @@ pub struct SwapchainSupportDetails {
 }
 
 pub struct Swapchain {
-    //pub swapchain_basic: SwapchainBasic,
     pub image_views: Vec<vk::ImageView>,
     pub images: Vec<vk::Image>,
     pub extent: vk::Extent2D,
@@ -71,9 +70,9 @@ impl Swapchain {
             println!("\nCREATING:\tSWAPCHAIN");
         }
         
+        //println!("{:?}", p_device.swapchain_details.surface_formats);
         let surface_format = p_device.swapchain_details.choose_surface_format(&state);
         /*
-        println!("{:?}", p_device.swapchain_details.surface_formats);
         println!("{:?}", surface_format);
         */
         let present_mode = p_device.swapchain_details.choose_present_mode(&state);
@@ -116,8 +115,6 @@ impl Swapchain {
         let images = unsafe{swapchain_loader.get_swapchain_images(swapchain)?};
         
         let image_views = SwapchainBasic::create_image_views(state, &device, &images, surface_format.format)?;
-        //let image_views = SwapchainBasic::create_image_views(state, &device, &images, vk::Format::B8G8R8A8_SRGB)?;
-        //println!("------------------------------{:?}", surface_format.format);
         
         Ok(SwapchainBasic{
             image_views:image_views,

@@ -66,7 +66,7 @@ impl Vertex {
                 binding: 0,
                 location: 2,
                 format: vk::Format::R32G32_SFLOAT,
-                offset: offset_of!(Vertex, coordenates) as u32
+                offset: offset_of!(Vertex, texcoord) as u32
             }
             
         ];
@@ -105,7 +105,7 @@ impl VInit {
             &self.descriptor_control,
             image_index, 
             self.current_frame,
-            u32::try_from(self.model.vertices.len()).unwrap(),
+            u32::try_from(self.model.indices.len()).unwrap(),
         );
         
         let wait_stages = [vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT];
@@ -151,7 +151,10 @@ impl VInit {
         
         let lookat = na::Matrix4::look_at_rh(&eye, &center, &up);
         
-        let mut perspective = na::Matrix4::new_perspective(na::RealField::frac_pi_4(), self.swapchain.extent.width as f32/self.swapchain.extent.width as f32, 0.1, 10.0);
+        let mut perspective = na::Matrix4::new_perspective(na::RealField::frac_pi_4(), self.swapchain.extent.width as f32/self.swapchain.extent.height as f32, 0.1, 10.0);
+        
+        //println!("{}", self.swapchain.extent.width as f32/self.swapchain.extent.height as f32);
+        //println!("{:?}", perspective);
         //let mut perspective = na::Matrix4::new_perspective(1f32, 1.0f32, 0.1, 10.0);
         
         perspective[5] *= -1f32;
