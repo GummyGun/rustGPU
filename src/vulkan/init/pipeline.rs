@@ -20,7 +20,6 @@ use crate::{
 use std::{
     fs::File,
     ffi::CStr,
-    slice::from_ref,
 };
 
 
@@ -31,7 +30,11 @@ pub struct Pipeline {
 
 impl Pipeline {
     
-    pub fn create(state:&State, device:&Device, render_pass:&RenderPass, layout:&DescriptorControlLayout) -> VkResult<Self> {
+    pub fn create(state:&State, 
+        device:&Device, 
+        render_pass:&RenderPass, 
+        layout:&DescriptorControlLayout
+    ) -> VkResult<Self> {
         if state.v_exp() {
             println!("\nCREATING:\tPIPELINE");
         }
@@ -75,11 +78,15 @@ impl Pipeline {
         let rasterization_state_create_info = vk::PipelineRasterizationStateCreateInfo::builder()
             .depth_clamp_enable(false)
             .rasterizer_discard_enable(false)
+            /*
             .polygon_mode(vk::PolygonMode::FILL)
             .line_width(1f32)
+            */
+            .polygon_mode(vk::PolygonMode::LINE)
+            .line_width(1f32)
             .cull_mode(vk::CullModeFlags::BACK)
-            //.front_face(vk::FrontFace::CLOCKWISE)
             .front_face(vk::FrontFace::COUNTER_CLOCKWISE)
+            //.front_face(vk::FrontFace::CLOCKWISE)
             .depth_bias_enable(false);
             //.depth_bias_slope_factor(0f32);
         
@@ -109,7 +116,7 @@ impl Pipeline {
         
         
         let pipeline_layout_create_info = vk::PipelineLayoutCreateInfo::builder()
-            .set_layouts(from_ref(&layout.layout));
+            .set_layouts(&layout.layouts[..]);
         
         let pipeline_layout = unsafe{device.create_pipeline_layout(&pipeline_layout_create_info, None)?};
         

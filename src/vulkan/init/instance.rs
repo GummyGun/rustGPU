@@ -46,13 +46,13 @@ impl Instance {
             .engine_version(vk::make_api_version(1, 0, 0, 0))
             .api_version(vk::API_VERSION_1_0);
         
-        let av_extensions = Extensions::gets(&entry);
+        let av_extensions = Extensions::get(&entry);
         av_extensions.debug_print(state);
         let extensions_ptr = av_extensions.handle_logic(state, window);
         
         
         
-        let av_layers = Layers::gets(&entry);
+        let av_layers = Layers::get(&entry);
         av_layers.debug_print(state);
         let layers_ptr = av_layers.handle_logic(state);
         
@@ -99,7 +99,7 @@ struct Extensions(Vec<vk::ExtensionProperties>);
 
 impl Extensions {
     
-    fn gets(entry:&ash::Entry) -> Self {
+    fn get(entry:&ash::Entry) -> Self {
         let extension_list = entry.enumerate_instance_extension_properties(None).unwrap();
         Self(
             extension_list
@@ -165,7 +165,7 @@ struct Layers(Vec<vk::LayerProperties>);
 
 impl Layers {
     
-    fn gets(entry:&ash::Entry) -> Self {
+    fn get(entry:&ash::Entry) -> Self {
         let av_layers = entry.enumerate_instance_layer_properties().unwrap();
         Self(av_layers)
     }

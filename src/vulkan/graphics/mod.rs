@@ -1,6 +1,8 @@
-use ash::{
-    vk,
-};
+mod types;
+mod model;
+pub use model::Model;
+
+use ash::vk;
 
 use super::{
     VInit,
@@ -9,71 +11,15 @@ use super::{
 
 use crate::{
     graphics::{
-        Vertex,
         UniformBufferObject,
     },
 };
 
-use memoffset::offset_of;
-
-use std::{
-    mem::size_of,
-};
 
 use std::{
     slice::from_ref,
 };
 
-impl Vertex {
-    
-    pub const fn binding_description() -> &'static[vk::VertexInputBindingDescription] {
-        if size_of::<Vertex>() > u32::MAX as usize {
-            panic!("Vertex size is too big");
-        }
-        const HOLDER:[vk::VertexInputBindingDescription; 1] = [
-            vk::VertexInputBindingDescription{
-                binding: 0,
-                stride: size_of::<Vertex>() as u32,
-                input_rate: vk::VertexInputRate::VERTEX,
-            },
-        ];
-        &HOLDER
-    }
-    
-    pub const fn attribute_description() -> &'static[vk::VertexInputAttributeDescription] {
-        if offset_of!(Vertex, position) > u32::MAX as usize {
-            panic!("Vertex size is too big");
-        }
-        if offset_of!(Vertex, color) > u32::MAX as usize {
-            panic!("Vertex size is too big");
-        }
-        
-        const HOLDER:[vk::VertexInputAttributeDescription; 3] = [
-            vk::VertexInputAttributeDescription{
-                binding: 0,
-                location: 0,
-                format: vk::Format::R32G32B32_SFLOAT,
-                //format: vk::Format::B8G8R8A8_SRGB,
-                offset: offset_of!(Vertex, position) as u32
-            },
-            vk::VertexInputAttributeDescription{
-                binding: 0,
-                location: 1,
-                format: vk::Format::R32G32B32_SFLOAT,
-                offset: offset_of!(Vertex, color) as u32
-            },
-            vk::VertexInputAttributeDescription{
-                binding: 0,
-                location: 2,
-                format: vk::Format::R32G32_SFLOAT,
-                offset: offset_of!(Vertex, texcoord) as u32
-            }
-            
-        ];
-        &HOLDER
-    }
-    
-}
 
 impl VInit {
     
@@ -100,12 +46,13 @@ impl VInit {
             &self.swapchain, 
             &self.render_pass, 
             &self.pipeline, 
-            &self.vertex_buffer, 
-            &self.index_buffer, 
+            //&self.vertex_buffer, 
+            //&self.index_buffer, 
             &self.descriptor_control,
             image_index, 
             self.current_frame,
-            u32::try_from(self.model.indices.len()).unwrap(),
+            //u32::try_from(self.model.indices.len()).unwrap(),
+            &self.model_vec,
         );
         
         let wait_stages = [vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT];
@@ -143,15 +90,49 @@ impl VInit {
         let rotation:f32 = rotation * delta;
         let axis = na::Vector3::<f32>::new(0.0,0.0,1.0);
         let norm_axis = na::Unit::new_normalize(axis);
-        let rotation = na::Matrix4::from_axis_angle(&norm_axis, rotation);
+        let rotation_mat = na::Matrix4::from_axis_angle(&norm_axis, rotation);
+        /*
         
-        let eye = na::Point3::<f32>::new(2.0, 2.0, 2.0);
+        let quat = na::Unit::from_axis_angle(&norm_axis, rotation);
+        println!("quat\t{:?}", quat);
+        
+        let mat_quat = na::Matrix4::from(quat);
+        println!("rm  \t{:?}", rotation_mat);
+        println!("mq  \t{:?}", mat_quat);
+        
+        let vector = na::Vector4::<f32>::new(1.0,2.0,3.0,0.0);
+        
+        let result =  rotation_mat * vector;
+        
+        println!("{:?}", result);
+        
+        let quat_conj = quat.conjugate();
+        let vector_quat = na::Quaternion::from([1.0f32,2.0,3.0,0.0]);
+        
+        let result_mq = quat.quaternion() * vector_quat * quat_conj.quaternion();
+        
+        println!("{:?}", result_mq);
+        
+        panic!();
+        */
+        
+        let eye = na::Point3::<f32>::new(2.0, 0.0, 2.0);
         let center = na::Point3::<f32>::new(0.0, 0.0, 0.0);
         let up = na::Vector3::<f32>::new(0.0, 0.0, 1.0);
         
+        /*
+        let eye = na::Point3::<f32>::new(2.0, 2.0, 2.0);
+        let helper = na::Vector3::<f32>::new((delta*1.5).sin(), (delta*1.5).cos(), -0.0);
+        let center = eye + helper;
+        println!("{:?}", center);
+        let up = na::Vector3::<f32>::new(0.0, 0.0, 1.0);
+        */
+        
         let lookat = na::Matrix4::look_at_rh(&eye, &center, &up);
         
-        let mut perspective = na::Matrix4::new_perspective(na::RealField::frac_pi_4(), self.swapchain.extent.width as f32/self.swapchain.extent.height as f32, 0.1, 10.0);
+        let mut perspective = na::Matrix4::new_perspective(na::RealField::frac_pi_2(), self.swapchain.extent.width as f32/self.swapchain.extent.height as f32, 0.1, 10.0);
+        
+        //println!("{:?}", perspective);
         
         //println!("{}", self.swapchain.extent.width as f32/self.swapchain.extent.height as f32);
         //println!("{:?}", perspective);
@@ -161,7 +142,7 @@ impl VInit {
         
         let current_ubo = [
             UniformBufferObject{
-                model: rotation,
+                model: rotation_mat,
                 view: lookat,
                 proj: perspective,
             },

@@ -18,6 +18,7 @@ use crate::{
 use std::{
     ops::Deref,
     collections::HashSet,
+    ffi::CStr,
 };
 
 pub struct Device {
@@ -51,6 +52,9 @@ impl Device {
             queue_create_info.push(*holder);
             
         }
+        
+        let extensions = Extensions::get(instance, p_device);
+        extensions.debug_print(state);
         
         let extensions:Vec<_> = constants::DEVICE_EXTENSIONS_CSTR[..].iter().map(|extension|{
             extension.as_ptr()
@@ -106,6 +110,27 @@ impl Device {
             presentation: presentation,
         }
     }
+    
+}
+
+struct Extensions(Vec<vk::ExtensionProperties>);
+
+impl Extensions {
+    fn get(instance:&Instance, p_device:&PDevice) -> Self {
+        let holder = unsafe{instance.enumerate_device_extension_properties(p_device.p_device)}.expect("simple vulkan functions should not fail");
+        Self(holder)
+    }
+    
+    fn debug_print(&self, state:&State) {
+        if state.v_exp() {
+            println!("Device Layers:");
+            for layer in &self.0 {
+                let name_holder = unsafe{CStr::from_ptr(layer.extension_name.as_ptr())};
+                println!("\t{:?}", name_holder);
+            }
+        }
+    }
+    
     
 }
 

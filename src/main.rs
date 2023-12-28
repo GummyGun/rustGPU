@@ -1,9 +1,11 @@
 mod window;
-mod vk_bindings;
+mod vulkan;
 mod errors;
+pub use errors::Error as AAError;
 mod constants;
 mod utility;
 mod graphics;
+mod player;
 
 use std::time::SystemTime;
 
@@ -17,24 +19,27 @@ pub struct State {
 #[derive(Default, Debug, Clone, Copy)]
 enum Verbosity {
     Silent,
-    #[default]
     Normal,
+    #[default]
     Expresive,
     Dump,
 }
 
 
 fn main() {
+    //let model = graphics::Model::load_gltf();
+    
     let state = State{time:SystemTime::now(), verbosity:Verbosity::default()};
     
     let mut window = window::Window::init(state);
-    let mut v_init = vk_bindings::VInit::init(state, &window);
+    let mut v_init = vulkan::VInit::init(state, &window);
     
     //let mut last_time = state.secs_from_start();
     println!("===========\n===========");
     //v_init.test();
     while !window.should_close() {
         window.poll_events();
+        
         v_init.tick();
         v_init.draw_frame();
         /*
@@ -49,12 +54,6 @@ fn main() {
 
 
 impl State {
-    
-    /*
-    fn v_all(&self) -> bool {
-        true
-    }
-    */
     
     fn v_nor(&self) -> bool {
         match self.verbosity {
@@ -80,16 +79,6 @@ impl State {
     fn secs_from_start(&self) -> f32 {
         self.time.elapsed().unwrap().as_secs_f32()
     }
-    
-    /*
-    fn v_exp_only(&self) -> bool {
-        if let Verbosity::Expresive = self.verbosity {
-            true
-        } else {
-            false
-        }
-    }
-    */
     
 }
 

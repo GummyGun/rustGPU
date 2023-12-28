@@ -54,7 +54,7 @@ impl DepthBuffer {
         )?;
         let image_view = Image::create_image_view(state, device, &image.0, depth_format, vk::ImageAspectFlags::DEPTH)?;
         Ok(Self{
-            image: Image::from((image, image_view)),
+            image: Image::from((image, image_view, 0)),
             format: depth_format,
         })
     }

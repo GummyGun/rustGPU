@@ -29,6 +29,7 @@ pub struct Image {
     pub image: vk::Image,
     pub memory: vk::DeviceMemory,
     pub view: vk::ImageView,
+    pub mip_level: i32,
 }
 
 impl Image {
@@ -122,7 +123,7 @@ impl Image {
             vk::ImageAspectFlags::COLOR
         )?;
         
-        Ok(Self::from((image, image_view)))
+        Ok(Self::from((image, image_view, 0)))
     }
     
     pub fn create_image (
@@ -290,9 +291,9 @@ impl Image {
     
 }
 
-impl From<((vk::Image, vk::DeviceMemory), vk::ImageView)> for Image {
-    fn from(base:((vk::Image, vk::DeviceMemory), vk::ImageView)) -> Self {
-        Self{image:base.0.0, memory:base.0.1, view: base.1}
+impl From<((vk::Image, vk::DeviceMemory), vk::ImageView, i32)> for Image {
+    fn from(base:((vk::Image, vk::DeviceMemory), vk::ImageView, i32)) -> Self {
+        Self{image:base.0.0, memory:base.0.1, view: base.1, mip_level:base.2}
     }
 }
 

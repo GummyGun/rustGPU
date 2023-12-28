@@ -8,7 +8,6 @@ macro_rules! const_array{
     }
 }
 
-
 use std::ffi::CStr;
 use ash::extensions::khr::Swapchain;
 use ash::extensions::ext::DebugUtils;
@@ -19,19 +18,78 @@ pub mod fif {
     pub const U32:u32 = super::FIF as u32;
 }
 
-pub const WIDTH:u32 = 400;
-pub const HEIGTH:u32 = 400;
+pub const WIDTH:u32 = 1200;
+pub const HEIGTH:u32 = 800;
 pub const VALIDATION:bool = true;
 
 #[allow(dead_code)]
 pub mod path {
     pub const VERT_SHADER:&str = "res/shaders/sh.vert.spv";
     pub const FRAG_SHADER:&str = "res/shaders/sh.frag.spv";
-    //pub const TEST_TEXTURE:&str = "res/textures/texture.jpg";
     pub const TEST_TEXTURE:&str = "res/textures/white.jpg";
     
-    pub const VIKING_MODEL:&str = "res/objs/viking.obj";
-    pub const VIKING_TEXTURE:&str = "res/textures/viking.png";
+    
+    pub mod viking {
+        use crate::graphics::FileType;
+        pub const TYPE:FileType = FileType::Obj;
+        pub const MODEL:&str = "res/objs/viking.obj";
+        pub const TEXTURE:&str = "res/textures/viking.png";
+        
+        pub const fn metadata() -> (&'static str, &'static str, FileType) {
+            (MODEL, TEXTURE, TYPE)
+        }
+        
+    }
+    pub mod cube {
+        use crate::graphics::FileType;
+        pub const TYPE:FileType = FileType::Obj;
+        pub const MODEL:&str = "res/objs/cube.obj";
+        pub const TEXTURE:&str = "res/textures/cube.png";
+        pub const fn metadata() -> (&'static str, &'static str, FileType) {
+            (MODEL, TEXTURE, TYPE)
+        }
+    }
+    
+    pub mod simple_box{
+        use crate::graphics::FileType;
+        pub const TYPE:FileType = FileType::Gltf;
+        pub const MODEL:&str = "res/gltf/box/Box.gltf";
+        pub const TEXTURE:&str = "res/textures/cube.png";
+        
+        pub const fn metadata() -> (&'static str, &'static str, FileType) {
+            (MODEL, TEXTURE, TYPE)
+        }
+    }
+    
+    pub mod suzanne{
+        use crate::graphics::FileType;
+        pub const TYPE:FileType = FileType::Gltf;
+        pub const MODEL:&str = "res/gltf/suzanne/Suzanne.gltf";
+        pub const TEXTURE:&str = "res/gltf/suzanne/Suzanne_BaseColor.png";
+        pub const fn metadata() -> (&'static str, &'static str, FileType) {
+            (MODEL, TEXTURE, TYPE)
+        }
+    }
+    
+    pub mod fox{
+        use crate::graphics::FileType;
+        pub const TYPE:FileType = FileType::Gltf;
+        pub const MODEL:&str = "res/gltf/fox/Fox.gltf";
+        pub const TEXTURE:&str = "res/gltf/fox/Texture.png";
+        pub const fn metadata() -> (&'static str, &'static str, FileType) {
+            (MODEL, TEXTURE, TYPE)
+        }
+    }
+    
+    pub mod avocado{
+        use crate::graphics::FileType;
+        pub const TYPE:FileType = FileType::Gltf;
+        pub const MODEL:&str = "res/gltf/avocado/Avocado.gltf";
+        pub const TEXTURE:&str = "res/gltf/fox/Texture.png";
+        pub const fn metadata() -> (&'static str, &'static str, FileType) {
+            (MODEL, TEXTURE, TYPE)
+        }
+    }
 }
 
 pub const LAYERS:[&'static str; 1] = ["VK_LAYER_KHRONOS_validation"];
@@ -39,6 +97,7 @@ pub const EXTENSIONS:[&'static str; EXTENSIONS_LEN_PLUS_VAL] = extension_logic()
 
 pub const DEVICE_EXTENSIONS_CSTR:[&'static CStr; 1] = [Swapchain::name()];
 pub const DEVICE_EXTENSIONS:[&'static str; 1] = const_array!(Swapchain::name());
+
 
 
 const BASE_EXTENSIONS:[&'static str; 0] = [];

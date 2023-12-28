@@ -26,6 +26,8 @@ pub enum Error {
     UnsuportedFormat,
     #[error("only simple obj are supported")]
     ComplexObj,
+    #[error("only simple gltf are supported")]
+    ComplexGltf,
     #[error("Lobj error")]
     LobjError(#[from] tobj::LoadError),
     #[error("VK error")]

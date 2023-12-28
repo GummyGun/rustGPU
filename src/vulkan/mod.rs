@@ -2,17 +2,16 @@ mod init;
 pub use init::*;
 
 mod graphics;
+use graphics::*;
 
 mod objects;
+
 use super::{
     window::{
         Window,
     },
     constants,
     State,
-    graphics::{
-        Model
-    }
 };
 
 
@@ -28,10 +27,9 @@ pub struct VInit {
     state: State,
     
     current_frame:usize,
+    pub mip_level: usize,
     
-    
-    pub model: Model,
-
+    //pub model: Model,
     pub instance: VkObj<Instance>,
     pub messenger: Option<VkObj<DMessenger>>,
     pub surface: VkObj<Surface>,
@@ -43,12 +41,14 @@ pub struct VInit {
     pub pipeline: VkObjDevDep<Pipeline>,
     pub command_control: VkObjDevDep<CommandControl>,
     pub sync_objects: VkObjDevDep<SyncObjects>,
-    pub texture: VkObjDevDep<Image>,
     pub sampler: VkObjDevDep<Sampler>,
-    pub vertex_buffer: VkObjDevDep<Buffer>,
-    pub index_buffer: VkObjDevDep<Buffer>,
+    //pub texture: VkObjDevDep<Image>,
+    //pub vertex_buffer: VkObjDevDep<Buffer>,
+    //pub index_buffer: VkObjDevDep<Buffer>,
     pub uniform_buffers: VkObjDevDep<UniformBuffers>,
     pub descriptor_control: VkObjDevDep<DescriptorControl>,
+    
+    pub model_vec: VkObjDevDep<Vec<Model>>,
 }
 
 
@@ -56,7 +56,8 @@ impl VInit {
     pub fn init(state:State, window:&Window) -> VInit {
         let state_ref = &state;
         
-        let viking_house = Model::load(state_ref, constants::path::VIKING_MODEL, constants::path::VIKING_TEXTURE).expect("should not crash");
+        //let viking_house = Model::load_model(state_ref).expect("should not crash");
+        //
         
         let instance = vk_create_interpreter(state_ref, Instance::create(state_ref, window), "instance"); 
         
@@ -87,20 +88,26 @@ impl VInit {
         let command_control = vk_create_interpreter(state_ref, CommandControl::create(state_ref, &p_device, &device), "command_control");
         let sync_objects = vk_create_interpreter(state_ref, SyncObjects::create(state_ref, &device), "sync_objects");
         let sampler = vk_create_interpreter(state_ref, Sampler::create(state_ref, &p_device, &device), "sampler");
-        let texture = vk_create_interpreter(state_ref, Image::create(state_ref, &p_device, &device, &command_control, &viking_house.image), "texture_image");
-        let vertex_buffer = vk_create_interpreter(state_ref, Buffer::create_vertex(state_ref, &p_device, &device, &command_control, &viking_house.vertices[..]), "vertex_buffer");
-        let index_buffer = vk_create_interpreter(state_ref, Buffer::create_index(state_ref, &p_device, &device, &command_control, &viking_house.indices[..]), "index_buffer");
+        //let texture = vk_create_interpreter(state_ref, Image::create(state_ref, &p_device, &device, &command_control, &viking_house.image), "texture_image");
+        //let vertex_buffer = vk_create_interpreter(state_ref, Buffer::create_vertex(state_ref, &p_device, &device, &command_control, &viking_house.vertices[..]), "vertex_buffer");
+        //let index_buffer = vk_create_interpreter(state_ref, Buffer::create_index(state_ref, &p_device, &device, &command_control, &viking_house.indices[..]), "index_buffer");
         let uniform_buffers = vk_create_interpreter(state_ref, UniformBuffers::create(state_ref, &p_device, &device), "uniform_buffer");
-        let descriptor_control = vk_create_interpreter(state_ref, DescriptorControl::complete(state_ref, &device, layout, &sampler, &texture, &uniform_buffers), "descriptor_control");
         
+        let mut model_vec = VkObjDevDep::new(Vec::new());
+        let model = vk_create_interpreter(state_ref, Model::vk_load(state_ref, &p_device, &device, &command_control, constants::path::avocado::metadata()), "Model");
+        //model_vec.push(model);
+        //let model = vk_create_interpreter(state_ref, Model::vk_load(state_ref, &p_device, &device, &command_control, constants::path::cube::MODEL, constants::path::cube::TEXTURE), "Model");
+        model_vec.push(model);
         
+        let descriptor_control = vk_create_interpreter(state_ref, DescriptorControl::complete(state_ref, &device, layout, &sampler, &mut model_vec[..], &uniform_buffers), "descriptor_control");
         
         
         
         VInit{
             state: state,
             current_frame: 0,
-            model: viking_house,
+            mip_level: 1,
+            //model: viking_house,
             instance: VkObj::new(instance),
             messenger: match messenger {
                 Some(holder) => {Some(VkObj::new(holder))}
@@ -115,12 +122,13 @@ impl VInit {
             swapchain: VkObjDevDep::new(swapchain),
             command_control: VkObjDevDep::new(command_control),
             sync_objects: VkObjDevDep::new(sync_objects),
-            texture: VkObjDevDep::new(texture),
             sampler: VkObjDevDep::new(sampler),
-            vertex_buffer: VkObjDevDep::new(vertex_buffer),
-            index_buffer: VkObjDevDep::new(index_buffer),
+            //texture: VkObjDevDep::new(texture),
+            //vertex_buffer: VkObjDevDep::new(vertex_buffer),
+            //index_buffer: VkObjDevDep::new(index_buffer),
             uniform_buffers: VkObjDevDep::new(uniform_buffers),
             descriptor_control: VkObjDevDep::new(descriptor_control),
+            model_vec: model_vec,
         }
     }
     
@@ -155,12 +163,14 @@ fn vk_create_interpreter<T, A:std::fmt::Debug>(state:&State, result:Result<T, A>
 impl Drop for VInit {
     fn drop(&mut self) {
         
+        self.model_vec.device_drop(&self.state, &self.device);
+        
         self.descriptor_control.device_drop(&self.state, &self.device);
         self.uniform_buffers.device_drop(&self.state, &self.device);
-        self.index_buffer.device_drop(&self.state, &self.device);
-        self.vertex_buffer.device_drop(&self.state, &self.device);
+        //self.index_buffer.device_drop(&self.state, &self.device);
+        //self.vertex_buffer.device_drop(&self.state, &self.device);
+        //self.texture.device_drop(&self.state, &self.device);
         self.sampler.device_drop(&self.state, &self.device);
-        self.texture.device_drop(&self.state, &self.device);
         self.sync_objects.device_drop(&self.state, &self.device);
         self.command_control.device_drop(&self.state, &self.device);
         self.pipeline.device_drop(&self.state, &self.device);
@@ -183,5 +193,4 @@ impl Drop for VInit {
         self.instance.active_drop(&self.state);
     }
 }
-
 

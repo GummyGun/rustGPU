@@ -10,14 +10,17 @@ use super::{
     swapchain::Swapchain,
     render_pass::RenderPass,
     pipeline::Pipeline,
-    buffers::Buffer,
     descriptor::DescriptorControl,
+    
+};
+
+use super::super::{
+    Model,
 };
 
 use crate::{
     State,
     constants,
-    //graphics::VERTEX_INDEX,
 };
 
 use std::slice::from_ref;
@@ -107,12 +110,13 @@ impl CommandControl {
         swapchain:&Swapchain, 
         render_pass:&RenderPass, 
         pipeline:&Pipeline, 
-        vertex_buffer:&Buffer, 
-        index_buffer:&Buffer,
+        //vertex_buffer:&Buffer, 
+        //index_buffer:&Buffer,
         descriptor_control:&DescriptorControl,
         image_index:u32, 
         frame_index:usize,
-        triangles_to_draw:u32,
+        //triangles_to_draw:u32,
+        model_vec:&[Model],
     ) {
         
         if state.v_dmp() {
@@ -166,21 +170,33 @@ impl CommandControl {
         
         unsafe{device.cmd_set_viewport(self.buffer[frame_index], 0, from_ref(&viewport))};
         unsafe{device.cmd_set_scissor(self.buffer[frame_index], 0, from_ref(&scissor))};
+        unsafe{device.cmd_bind_descriptor_sets(self.buffer[frame_index], vk::PipelineBindPoint::GRAPHICS, pipeline.layout, 0, from_ref(&descriptor_control.sets[frame_index]), &[])};
         
+        /*
         unsafe{device.cmd_bind_vertex_buffers(self.buffer[frame_index], 0, from_ref(&vertex_buffer.buffer), &[0])};
         unsafe{device.cmd_bind_index_buffer(self.buffer[frame_index], index_buffer.buffer, 0, vk::IndexType::UINT32)};
-        
-        unsafe{device.cmd_bind_descriptor_sets(self.buffer[frame_index], vk::PipelineBindPoint::GRAPHICS, pipeline.layout, 0, std::slice::from_ref(&descriptor_control.sets[frame_index]), &[])};
-        
         unsafe{device.cmd_draw_indexed(
             self.buffer[frame_index], 
-            //12,
             triangles_to_draw, 
-            1, 
-            0, 
-            0, 
-            0
+            1, 0, 0, 0
+        )};
+        */
+        
+        for model in model_vec {
+            let (vertex_buffer, index_buffer, texture_descriptor, index_count) = model.render(state);
+            
+            unsafe{device.cmd_bind_vertex_buffers(self.buffer[frame_index], 0, from_ref(&vertex_buffer), &[0])};
+            unsafe{device.cmd_bind_index_buffer(self.buffer[frame_index], index_buffer, 0, vk::IndexType::UINT32)};
+            
+            unsafe{device.cmd_bind_descriptor_sets(self.buffer[frame_index], vk::PipelineBindPoint::GRAPHICS, pipeline.layout, 1, from_ref(&texture_descriptor), &[])};
+            
+            unsafe{device.cmd_draw_indexed(
+                self.buffer[frame_index],
+                index_count, 
+                1, 0, 0, 0
             )};
+        }
+        
         unsafe{device.cmd_end_render_pass(self.buffer[frame_index])};
         
         unsafe{device.end_command_buffer(self.buffer[frame_index])}.unwrap();

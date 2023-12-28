@@ -1,10 +1,12 @@
-use ash::vk;
+mod vk_win;
 
 use super::{
     constants,
     State,
     Verbosity,
-    vk_bindings,
+    player::{
+        Movement,
+    },
 };
 
 use std::{
@@ -13,8 +15,10 @@ use std::{
 
 #[derive(Debug)]
 pub struct Window {
-    state: State,
-    window: glfw::PWindow,
+    pub state: State,
+    pub window: glfw::PWindow,
+    pub events_queue: glfw::GlfwReceiver<(f64, glfw::WindowEvent)>,
+    pub main: glfw::Glfw,
 }
 
 impl Window {
@@ -26,10 +30,13 @@ impl Window {
         glfw.window_hint(glfw::WindowHint::Resizable(false));
         glfw.window_hint(glfw::WindowHint::Resizable(false));
         glfw.window_hint(glfw::WindowHint::ClientApi(glfw::ClientApiHint::NoApi));
-        let (window, _other_thing_that_i_do_not_know_what_is) = glfw.create_window(constants::WIDTH, constants::HEIGTH, "ADASTRA", glfw::WindowMode::Windowed).unwrap();
+        let (mut window, _other_thing_that_i_do_not_know_what_is) = glfw.create_window(constants::WIDTH, constants::HEIGTH, "ADASTRA", glfw::WindowMode::Windowed).unwrap();
+        window.set_key_polling(true);
         Window{
             state:state,
             window:window,
+            events_queue:_other_thing_that_i_do_not_know_what_is,
+            main:glfw,
         }
     }
     
@@ -37,8 +44,42 @@ impl Window {
         self.window.should_close()
     }
     
-    pub fn poll_events(&mut self) {
-        self.window.glfw.poll_events()
+    pub fn poll_events(&mut self) -> Movement {
+        use glfw::{Key, flush_messages, Action, WindowEvent};
+        
+        self.window.glfw.poll_events();
+        for (_, event) in flush_messages(&self.events_queue) {
+            println!("{:?}", event);
+            match event {
+                WindowEvent::Key(Key::Escape, _, Action::Press, _) => {
+                    self.window.set_should_close(true)
+                },
+                WindowEvent::Key(Key::Q, _, Action::Press, _) => {
+                    self.window.set_should_close(true)
+                }
+                WindowEvent::Key(Key::E, _, Action::Press, _) => {
+                    self.window.set_should_close(true)
+                }
+                WindowEvent::Key(Key::D, _, Action::Press, _) => {
+                    self.window.set_should_close(true)
+                }
+                WindowEvent::Key(Key::F, _, Action::Press, _) => {
+                    self.window.set_should_close(true)
+                }
+                WindowEvent::Key(Key::S, _, Action::Press, _) => {
+                    self.window.set_should_close(true)
+                }
+                WindowEvent::Key(Key::Space, _, Action::Press, _) => {
+                    self.window.set_should_close(true)
+                }
+                WindowEvent::Key(Key::A, _, Action::Press, _) => {
+                    self.window.set_should_close(true)
+                }
+                _ => {},
+            }
+        }
+        Movement::Up
+
     }
     
     pub fn get_required_instance_extentions(&self) -> Vec<&'static str> {
@@ -62,16 +103,6 @@ impl Window {
                 .collect()
         }
         
-    }
-    
-    pub unsafe fn create_surface(&self, instance:&vk_bindings::Instance, allocator:Option<&vk::AllocationCallbacks>) -> ash::prelude::VkResult<vk::SurfaceKHR> {
-        use ash::RawPtr;
-        let mut holder:vk::SurfaceKHR = Default::default();
-        let instance = instance.handle();
-        let holder_ptr = &mut holder as *mut _;
-        
-        self.create_window_surface(instance, allocator.as_raw_ptr(), holder_ptr).result()?;
-        Ok(holder)
     }
     
     pub fn get_pixel_dimensions(&self) -> (i32,i32) {
