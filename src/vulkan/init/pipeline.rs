@@ -78,12 +78,12 @@ impl Pipeline {
         let rasterization_state_create_info = vk::PipelineRasterizationStateCreateInfo::builder()
             .depth_clamp_enable(false)
             .rasterizer_discard_enable(false)
-            /*
             .polygon_mode(vk::PolygonMode::FILL)
             .line_width(1f32)
-            */
+            /*
             .polygon_mode(vk::PolygonMode::LINE)
             .line_width(1f32)
+            */
             .cull_mode(vk::CullModeFlags::BACK)
             .front_face(vk::FrontFace::COUNTER_CLOCKWISE)
             //.front_face(vk::FrontFace::CLOCKWISE)

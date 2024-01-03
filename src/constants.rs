@@ -52,12 +52,23 @@ pub mod path {
     
     pub mod simple_box{
         use crate::graphics::FileType;
+        use crate::graphics::SizeTransformation;
+        //use nalgebra::RealField;
+        
         pub const TYPE:FileType = FileType::Gltf;
         pub const MODEL:&str = "res/gltf/box/Box.gltf";
         pub const TEXTURE:&str = "res/textures/cube.png";
         
+        pub const ROTATIONS_TRANSFORMATION:Option<((f32,f32,f32), f32)> = Some(((1f32, 0f32, 0f32), 1.5707964f32));
+        //pub const ROTATIONS_TRANSFORMATION:Option<((f32,f32,f32), f32)> = Some(((1f32, 0f32, 0f32), RealField::frac_pi_2()));
+        pub const SIZE_TRANSFORMATION:Option<(SizeTransformation, f32)> = Some((SizeTransformation::Enlarge, 16f32));
+        pub const TRANSLATION_TRANSFORMATION:Option<(f32, f32, f32)> = Some((0f32, 0f32, 0f32));
+        
         pub const fn metadata() -> (&'static str, &'static str, FileType) {
             (MODEL, TEXTURE, TYPE)
+        }
+        pub const fn load_transformations() -> (Option<((f32,f32,f32), f32)>, Option<(f32,f32,f32)>, Option<(SizeTransformation, f32)>) {
+            (ROTATIONS_TRANSFORMATION, TRANSLATION_TRANSFORMATION, SIZE_TRANSFORMATION)
         }
     }
     
@@ -83,12 +94,24 @@ pub mod path {
     
     pub mod avocado{
         use crate::graphics::FileType;
+        use crate::graphics::SizeTransformation;
+        
         pub const TYPE:FileType = FileType::Gltf;
         pub const MODEL:&str = "res/gltf/avocado/Avocado.gltf";
-        pub const TEXTURE:&str = "res/gltf/fox/Texture.png";
+        pub const TEXTURE:&str = "res/gltf/avocado/Avocado_baseColor.png";
+        
+        pub const ROTATIONS_TRANSFORMATION:Option<((f32,f32,f32), f32)> = Some(((1f32, 0f32, 0f32), std::f32::consts::PI/2f32));
+        //pub const ROTATIONS_TRANSFORMATION:Option<((f32,f32,f32), f32)> = Some(((1f32, 0f32, 0f32), RealField::frac_pi_2()));
+        pub const SIZE_TRANSFORMATION:Option<(SizeTransformation, f32)> = Some((SizeTransformation::Enlarge, 16f32));
+        pub const TRANSLATION_TRANSFORMATION:Option<(f32, f32, f32)> = Some((0f32, 0f32, 0f32));
+        
         pub const fn metadata() -> (&'static str, &'static str, FileType) {
             (MODEL, TEXTURE, TYPE)
         }
+        pub const fn load_transformations() -> (Option<((f32,f32,f32), f32)>, Option<(f32,f32,f32)>, Option<(SizeTransformation, f32)>) {
+            (ROTATIONS_TRANSFORMATION, TRANSLATION_TRANSFORMATION, SIZE_TRANSFORMATION)
+        }
+        
     }
 }
 

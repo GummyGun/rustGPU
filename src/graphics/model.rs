@@ -5,11 +5,12 @@ use na::{
     Vector3,
 };
 
-
 use super::{
     Model,
     Vertex,
     FileType,
+    LoadTransformation,
+    LoadSizeTransformation,
 };
 
 use crate::{
@@ -35,11 +36,12 @@ impl Model {
     
     pub fn load(
         state: &State,
-        metadata: (&'static str, &'static str, FileType)
+        metadata: (&'static str, &'static str, FileType),
+        transformation: LoadTransformation,
     ) -> Result<Self, AAError> {
         match metadata.2 {
             FileType::Obj => Self::load_obj(state, metadata.0, metadata.1),
-            FileType::Gltf => Self::load_gltf(state, metadata.0, metadata.1),
+            FileType::Gltf => Self::load_gltf(state, metadata.0, metadata.1, transformation),
         }
     }
     
@@ -47,6 +49,7 @@ impl Model {
         state: &State,
         obj_file:&'static str,
         texture_file:&'static str,
+        transformation: LoadTransformation,
     ) -> Result<Self, AAError> {
         use image::io::Reader as ImageReader;
         
@@ -73,7 +76,7 @@ impl Model {
         let model = scenes[0].models[0].triangles().unwrap();
         println!("triangle count: {:#?}", model.len());
         
-        let iterable = model.iter().map(|a|a.iter()).flatten().map(|a|a);
+        let iterable = model.iter().map(|a|a.iter()).flatten().map(|raw_vertex|Self::apply_transform(raw_vertex, &transformation));
         let (vertex_vec, index_vec) = Self::dedup_vertices(iterable);//::<std::slice::Iter<'_, u32>, &u32, _>(iterable);
         
         let image_holder = ImageReader::open(texture_file).unwrap().decode().map_err(|_| AAError::DecodeError).unwrap().into_rgba8();
@@ -188,6 +191,25 @@ impl Model {
         )
     }
     
+    fn apply_transform(vertex:&GLTFVertex, transform:&LoadTransformation) -> Vertex {
+        let mut holder = Vertex::from(vertex);
+        
+        let quaternion = match transform.size {
+            Some(LoadSizeTransformation::Enlarge(factor)) => holder.position*factor,   
+            Some(LoadSizeTransformation::Shrink(factor)) => holder.position/factor,   
+            None => holder.position,
+        };
+        
+        let quat_holder = na::Quaternion::from_parts(0f32, quaternion);
+        
+        let quat_conj = transform.rotation_translation.rotation().conjugate();
+        
+        let tmp = transform.rotation_translation.rotation().quaternion() * quat_holder * quat_conj.quaternion();
+        
+        holder .position = tmp.imag() + transform.rotation_translation.translation().vector;
+        
+        holder 
+    }
     
 }
 

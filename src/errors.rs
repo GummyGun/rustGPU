@@ -28,6 +28,10 @@ pub enum Error {
     ComplexObj,
     #[error("only simple gltf are supported")]
     ComplexGltf,
+    
+    #[error("invalid load transform")]
+    InvalidLoadTransform,
+    
     #[error("Lobj error")]
     LobjError(#[from] tobj::LoadError),
     #[error("VK error")]

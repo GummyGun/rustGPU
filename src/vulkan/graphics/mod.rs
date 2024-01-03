@@ -91,8 +91,9 @@ impl VInit {
         let axis = na::Vector3::<f32>::new(0.0,0.0,1.0);
         let norm_axis = na::Unit::new_normalize(axis);
         let rotation_mat = na::Matrix4::from_axis_angle(&norm_axis, rotation);
-        /*
         
+        /*
+        TODO: DELLETE
         let quat = na::Unit::from_axis_angle(&norm_axis, rotation);
         println!("quat\t{:?}", quat);
         
@@ -109,14 +110,14 @@ impl VInit {
         let quat_conj = quat.conjugate();
         let vector_quat = na::Quaternion::from([1.0f32,2.0,3.0,0.0]);
         
-        let result_mq = quat.quaternion() * vector_quat * quat_conj.quaternion();
+        let result_mq = quat.quaternion() * vector_quat;// * quat_conj.quaternion();
         
-        println!("{:?}", result_mq);
+        println!("result mq: - : {:?}", result_mq);
         
         panic!();
         */
         
-        let eye = na::Point3::<f32>::new(2.0, 0.0, 2.0);
+        let eye = na::Point3::<f32>::new(3.0, 0.0, 0.0);
         let center = na::Point3::<f32>::new(0.0, 0.0, 0.0);
         let up = na::Vector3::<f32>::new(0.0, 0.0, 1.0);
         

@@ -1,4 +1,5 @@
 use ash::vk;
+use nalgebra as na;
 
 use super::super::{
     DeviceDestroy,
@@ -13,6 +14,7 @@ use crate::{
     State,
     graphics,
     AAError,
+    
 };
 
 
@@ -32,13 +34,42 @@ impl Model {
         p_device:&PDevice,
         device:&Device,
         command_control:&CommandControl,
-        metadata:(&'static str, &'static str, graphics::FileType)
+        metadata:(&'static str, &'static str, graphics::FileType),
+        load_transformations:(Option<((f32,f32,f32), f32)>, Option<(f32,f32,f32)>, Option<(graphics::SizeTransformation, f32)>),
     ) -> Result<Self, AAError> { 
         
         if state.v_exp() {
             println!("\nCREATING:\tMODEL with obj file {} and texture {}", metadata.0, metadata.1);
         }
-        let model_raw = graphics::Model::load(state, metadata).unwrap();
+        
+        let transformation = graphics::LoadTransformation::default();
+        
+        let transformation = if let Some((axis, rotation)) = load_transformations.0 {
+            transformation.load_rotation((axis.0, axis.1, axis.2), rotation)
+        } else {
+            transformation
+        };
+        
+        let transformation = if let Some((operation, factor)) = load_transformations.2 {
+            transformation.load_size_transformation(operation, factor).expect("tranformation should be bigger than 1")
+        } else {
+            transformation
+        };
+        
+        let transformation = if let Some((x,y,z)) = load_transformations.1 {
+            transformation.load_translation((x,y,z))   
+        } else {
+            transformation
+        };
+        
+        
+        
+        
+        if state.v_exp() {
+            println!("load modification {:?}", transformation);
+        }
+        
+        let model_raw = graphics::Model::load(state, metadata, transformation).unwrap();
         
         let texture = Image::create(state, &p_device, &device, &command_control, &model_raw.image)?;
         let vertex_buffer = Buffer::create_vertex(state, &p_device, &device, &command_control, &model_raw.vertices)?;

@@ -1,10 +1,15 @@
 mod model;
 
 use nalgebra as na;
+
 use na::{
     Vector2,
     Vector3,
     Matrix4,
+};
+
+use crate::{
+    errors::Error as AAError,
 };
 
 #[repr(C)]
@@ -59,6 +64,78 @@ pub struct Vertex {
     pub position: Vector3<f32>,
     pub color: Vector3<f32>,
     pub texcoord: Vector2<f32>,
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct LoadTransformation {
+    rotation_translation: nalgebra::UnitDualQuaternion<f32>,
+    size: Option<LoadSizeTransformation>,
+}
+
+#[derive(Debug, Clone)]
+enum LoadSizeTransformation {
+    Enlarge(f32),
+    Shrink(f32),
+}
+
+#[derive(Debug, Clone, Copy)]
+#[allow(dead_code)]
+pub enum SizeTransformation {
+    Enlarge,
+    Shrink,
+}
+
+impl From<(SizeTransformation, f32)> for LoadSizeTransformation {
+    fn from(base:(SizeTransformation, f32)) -> Self {
+        match base.0 {
+            SizeTransformation::Enlarge => LoadSizeTransformation::Enlarge(base.1),
+            SizeTransformation::Shrink => LoadSizeTransformation::Shrink(base.1),
+        }
+    }
+}
+
+impl LoadTransformation {
+    pub fn load_rotation(
+        mut self, 
+        axis:(f32, f32, f32), 
+        rotation:f32, 
+    ) -> Self {
+        
+        let axis = na::Vector3::<f32>::new(axis.0, axis.1, axis.2);
+        let norm_axis = na::Unit::new_normalize(axis);
+        let rotation = na::Unit::from_axis_angle(&norm_axis, rotation);
+        
+        let dual_quat = na::UnitDualQuaternion::from_parts(self.rotation_translation.translation(), rotation);
+        self.rotation_translation = dual_quat;
+        
+        self
+    }
+    
+    pub fn load_translation(
+        mut self,
+        translation:(f32, f32, f32), 
+    ) -> Self {
+        
+        let translation = na::Translation3::from(na::Vector3::new(translation.0, translation.1, translation.2));
+        let dual_quat = na::UnitDualQuaternion::from_parts(translation, self.rotation_translation.rotation());
+        self.rotation_translation = dual_quat;
+        
+        
+        self
+    }
+    
+    pub fn load_size_transformation(
+        mut self,
+        action: SizeTransformation,
+        factor: f32,
+    ) -> Result<Self, AAError> {
+        if factor < 1.0 {
+            return Err(AAError::InvalidLoadTransform);
+        }
+        self.size = Some(LoadSizeTransformation::from((action, factor)));
+        Ok(self)
+    }
+    
 }
 
 #[allow(dead_code)]

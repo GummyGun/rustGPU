@@ -94,9 +94,7 @@ impl VInit {
         let uniform_buffers = vk_create_interpreter(state_ref, UniformBuffers::create(state_ref, &p_device, &device), "uniform_buffer");
         
         let mut model_vec = VkObjDevDep::new(Vec::new());
-        let model = vk_create_interpreter(state_ref, Model::vk_load(state_ref, &p_device, &device, &command_control, constants::path::avocado::metadata()), "Model");
-        //model_vec.push(model);
-        //let model = vk_create_interpreter(state_ref, Model::vk_load(state_ref, &p_device, &device, &command_control, constants::path::cube::MODEL, constants::path::cube::TEXTURE), "Model");
+        let model = vk_create_interpreter(state_ref, Model::vk_load(state_ref, &p_device, &device, &command_control, constants::path::avocado::metadata(), constants::path::avocado::load_transformations()), "Model");
         model_vec.push(model);
         
         let descriptor_control = vk_create_interpreter(state_ref, DescriptorControl::complete(state_ref, &device, layout, &sampler, &mut model_vec[..], &uniform_buffers), "descriptor_control");
