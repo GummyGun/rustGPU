@@ -1,5 +1,4 @@
 use ash::vk;
-use nalgebra as na;
 
 use super::super::{
     DeviceDestroy,
@@ -61,8 +60,6 @@ impl Model {
         } else {
             transformation
         };
-        
-        
         
         
         if state.v_exp() {

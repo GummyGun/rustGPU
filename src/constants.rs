@@ -74,11 +74,22 @@ pub mod path {
     
     pub mod suzanne{
         use crate::graphics::FileType;
+        use crate::graphics::SizeTransformation;
+        
         pub const TYPE:FileType = FileType::Gltf;
         pub const MODEL:&str = "res/gltf/suzanne/Suzanne.gltf";
         pub const TEXTURE:&str = "res/gltf/suzanne/Suzanne_BaseColor.png";
+        
+        pub const ROTATIONS_TRANSFORMATION:Option<((f32,f32,f32), f32)> = Some(((1f32, 0f32, 0f32), std::f32::consts::PI/2f32));
+        pub const SIZE_TRANSFORMATION:Option<(SizeTransformation, f32)> = None;
+        pub const TRANSLATION_TRANSFORMATION:Option<(f32, f32, f32)> = None;
+        
         pub const fn metadata() -> (&'static str, &'static str, FileType) {
             (MODEL, TEXTURE, TYPE)
+        }
+        
+        pub const fn load_transformations() -> (Option<((f32,f32,f32), f32)>, Option<(f32,f32,f32)>, Option<(SizeTransformation, f32)>) {
+            (ROTATIONS_TRANSFORMATION, TRANSLATION_TRANSFORMATION, SIZE_TRANSFORMATION)
         }
     }
     
@@ -108,6 +119,7 @@ pub mod path {
         pub const fn metadata() -> (&'static str, &'static str, FileType) {
             (MODEL, TEXTURE, TYPE)
         }
+        
         pub const fn load_transformations() -> (Option<((f32,f32,f32), f32)>, Option<(f32,f32,f32)>, Option<(SizeTransformation, f32)>) {
             (ROTATIONS_TRANSFORMATION, TRANSLATION_TRANSFORMATION, SIZE_TRANSFORMATION)
         }
