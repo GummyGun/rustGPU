@@ -120,7 +120,7 @@ impl PDevice {
         }
         let features = unsafe{instance.get_physical_device_features(p_device)};
         if features.sampler_anisotropy != vk::TRUE {
-            panic!("si");
+            return Err(());
         }
         
         

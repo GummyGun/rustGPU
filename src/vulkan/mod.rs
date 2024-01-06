@@ -56,9 +56,6 @@ impl VInit {
     pub fn init(state:State, window:&Window) -> VInit {
         let state_ref = &state;
         
-        //let viking_house = Model::load_model(state_ref).expect("should not crash");
-        //
-        
         let instance = vk_create_interpreter(state_ref, Instance::create(state_ref, window), "instance"); 
         
         let messenger = if constants::VALIDATION {
@@ -88,14 +85,15 @@ impl VInit {
         let command_control = vk_create_interpreter(state_ref, CommandControl::create(state_ref, &p_device, &device), "command_control");
         let sync_objects = vk_create_interpreter(state_ref, SyncObjects::create(state_ref, &device), "sync_objects");
         let sampler = vk_create_interpreter(state_ref, Sampler::create(state_ref, &p_device, &device), "sampler");
-        //let texture = vk_create_interpreter(state_ref, Image::create(state_ref, &p_device, &device, &command_control, &viking_house.image), "texture_image");
-        //let vertex_buffer = vk_create_interpreter(state_ref, Buffer::create_vertex(state_ref, &p_device, &device, &command_control, &viking_house.vertices[..]), "vertex_buffer");
-        //let index_buffer = vk_create_interpreter(state_ref, Buffer::create_index(state_ref, &p_device, &device, &command_control, &viking_house.indices[..]), "index_buffer");
         let uniform_buffers = vk_create_interpreter(state_ref, UniformBuffers::create(state_ref, &p_device, &device), "uniform_buffer");
         
         let mut model_vec = VkObjDevDep::new(Vec::new());
         let model = vk_create_interpreter(state_ref, Model::vk_load(state_ref, &p_device, &device, &command_control, constants::path::avocado::metadata(), constants::path::avocado::load_transformations()), "Model");
         model_vec.push(model);
+        /*
+        let model = vk_create_interpreter(state_ref, Model::vk_load(state_ref, &p_device, &device, &command_control, constants::path::suzanne::metadata(), constants::path::suzanne::load_transformations()), "Model");
+        model_vec.push(model);
+        */
         
         let descriptor_control = vk_create_interpreter(state_ref, DescriptorControl::complete(state_ref, &device, layout, &sampler, &mut model_vec[..], &uniform_buffers), "descriptor_control");
         
@@ -121,9 +119,6 @@ impl VInit {
             command_control: VkObjDevDep::new(command_control),
             sync_objects: VkObjDevDep::new(sync_objects),
             sampler: VkObjDevDep::new(sampler),
-            //texture: VkObjDevDep::new(texture),
-            //vertex_buffer: VkObjDevDep::new(vertex_buffer),
-            //index_buffer: VkObjDevDep::new(index_buffer),
             uniform_buffers: VkObjDevDep::new(uniform_buffers),
             descriptor_control: VkObjDevDep::new(descriptor_control),
             model_vec: model_vec,
@@ -165,9 +160,6 @@ impl Drop for VInit {
         
         self.descriptor_control.device_drop(&self.state, &self.device);
         self.uniform_buffers.device_drop(&self.state, &self.device);
-        //self.index_buffer.device_drop(&self.state, &self.device);
-        //self.vertex_buffer.device_drop(&self.state, &self.device);
-        //self.texture.device_drop(&self.state, &self.device);
         self.sampler.device_drop(&self.state, &self.device);
         self.sync_objects.device_drop(&self.state, &self.device);
         self.command_control.device_drop(&self.state, &self.device);

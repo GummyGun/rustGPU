@@ -39,12 +39,32 @@ impl Instance {
         }
         let entry = unsafe {ash::Entry::load().unwrap()};
         
+        match entry.try_enumerate_instance_version()? {
+            // Vulkan 1.1+
+            Some(version) => {
+                #[allow(deprecated)]
+                let major = vk::version_major(version);
+                #[allow(deprecated)]
+                let minor = vk::version_minor(version);
+                #[allow(deprecated)]
+                let patch = vk::version_patch(version);
+                
+                if state.v_exp() {
+                    println!("supported version is: {}.{}.{}", major, minor, patch);
+                }
+            },
+            // Vulkan 1.0
+            None => {
+                panic!("version not suported");
+            },
+        }
+        
         let app_info = vk::ApplicationInfo::builder()
             .application_name(CStr::from_bytes_with_nul(b"Hello Triangle\0").unwrap())
             .application_name(CStr::from_bytes_with_nul(b"AdAstra\0").unwrap())
             .application_version(vk::make_api_version(1, 0, 0, 0))
             .engine_version(vk::make_api_version(1, 0, 0, 0))
-            .api_version(vk::API_VERSION_1_0);
+            .api_version(vk::API_VERSION_1_3);
         
         let av_extensions = Extensions::get(&entry);
         av_extensions.debug_print(state);

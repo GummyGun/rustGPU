@@ -80,7 +80,7 @@ pub mod path {
         pub const MODEL:&str = "res/gltf/suzanne/Suzanne.gltf";
         pub const TEXTURE:&str = "res/gltf/suzanne/Suzanne_BaseColor.png";
         
-        pub const ROTATIONS_TRANSFORMATION:Option<((f32,f32,f32), f32)> = Some(((1f32, 0f32, 0f32), std::f32::consts::PI/2f32));
+        pub const ROTATIONS_TRANSFORMATION:Option<((f32,f32,f32), f32)> = Some(((1f32, 0f32, 0f32), std::f32::consts::FRAC_PI_2));
         pub const SIZE_TRANSFORMATION:Option<(SizeTransformation, f32)> = None;
         pub const TRANSLATION_TRANSFORMATION:Option<(f32, f32, f32)> = None;
         

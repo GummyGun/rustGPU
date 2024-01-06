@@ -61,7 +61,6 @@ impl Model {
             transformation
         };
         
-        
         if state.v_exp() {
             println!("load modification {:?}", transformation);
         }

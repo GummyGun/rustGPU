@@ -64,10 +64,15 @@ impl Device {
             println!("device extensions available");
         }
         
+        //println!("{:#?}", &p_device.features);
+        //todo!("{:#?}", &p_device.features);
+        
+        let mut features = p_device.features.clone();
+        features.fill_mode_non_solid = vk::TRUE;
         
         let device_create_info = vk::DeviceCreateInfo::builder()
             .queue_create_infos(&queue_create_info[..])
-            .enabled_features(&p_device.features)
+            .enabled_features(&features)
             .enabled_extension_names(&extensions);
         
         
