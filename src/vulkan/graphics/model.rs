@@ -28,6 +28,7 @@ pub struct Model {
 
 
 impl Model {
+    #[allow(dead_code)]
     pub fn vk_load(
         state:&State, 
         p_device:&PDevice,

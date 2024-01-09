@@ -18,13 +18,6 @@ use crate::{
     //errors::Error as AAError,
 };
 
-/*
-use std::{
-    mem::align_of,
-    slice::from_ref,
-};
-*/
-
 pub struct Sampler{
     pub sampler: vk::Sampler,
 }

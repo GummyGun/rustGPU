@@ -12,7 +12,6 @@ use super::{
     instance::Instance,
     surface::Surface,
     swapchain::SwapchainSupportDetails,
-    device::Device,
 };
 
 use std::{
@@ -42,6 +41,7 @@ pub struct QueueFamilyIndices {
 }
 
 impl PDevice {
+    
     pub fn chose(state:&State, instance:&Instance, surface:&Surface) -> Result<Self, AAError> {
         if state.v_exp() {
             println!("\nCHOSSING:\tPHYSICAL DEVICE");
@@ -54,17 +54,19 @@ impl PDevice {
         let mut best_queue = QueueFamilyOptionalIndices::default();
         let mut best_sc_details = SwapchainSupportDetails::default();
         let mut best_properties = vk::PhysicalDeviceProperties::default();
+        let mut best_features = vk::PhysicalDeviceFeatures::default();
         let mut best_score = 0;
         
         
         for p_device in p_devices.into_iter() {
             
-            if let Ok((current_score, current_queue, sc_support_details, properties)) = Self::rate(state, instance, surface, p_device) {
+            if let Ok((current_score, current_queue, sc_support_details, properties, features)) = Self::rate(state, instance, surface, p_device) {
                 if current_score > best_score {
                     best_score = current_score;
                     best_queue = current_queue;
                     best_sc_details = sc_support_details;
                     best_properties = properties;
+                    best_features = features;
                     best = p_device;
                 }
             }
@@ -88,13 +90,10 @@ impl PDevice {
                 println!("{:?}", &memory_properties);
             }
             
-            let mut features = vk::PhysicalDeviceFeatures::default();
-            Device::populate_features(state, &mut features);
-            
             Ok(Self{
                 p_device: best,
                 queues: queue,
-                features: features,
+                features: best_features,
                 swapchain_details: best_sc_details,
                 memory_properties: memory_properties,
                 properties: best_properties,
@@ -108,7 +107,7 @@ impl PDevice {
         instance:&Instance, 
         surface:&Surface, 
         p_device:vk::PhysicalDevice
-    ) -> Result<(i64, QueueFamilyOptionalIndices, SwapchainSupportDetails, vk::PhysicalDeviceProperties), ()> {
+    ) -> Result<(i64, QueueFamilyOptionalIndices, SwapchainSupportDetails, vk::PhysicalDeviceProperties, vk::PhysicalDeviceFeatures), ()> {
         
         let queues = Self::find_queue_families(state, instance, surface, p_device);
         if !queues.complete() && !Self::check_device_support(instance, p_device) {
@@ -118,31 +117,44 @@ impl PDevice {
         if !swapchain_support.min_requirements() {
             return Err(());
         }
-        let features = unsafe{instance.get_physical_device_features(p_device)};
-        if features.sampler_anisotropy != vk::TRUE {
-            return Err(());
-        }
         
+        
+        let mut vulkan11_features = vk::PhysicalDeviceVulkan11Features::default();
+        let mut vulkan12_features = vk::PhysicalDeviceVulkan12Features::default();
+        let mut vulkan13_features = vk::PhysicalDeviceVulkan13Features::default();
+        
+        let mut available_features = vk::PhysicalDeviceFeatures2::builder()
+            .push_next(&mut vulkan11_features)
+            .push_next(&mut vulkan12_features)
+            .push_next(&mut vulkan13_features);
+        
+        
+        unsafe{instance.get_physical_device_features2(p_device, &mut available_features)};
+        
+        let available_features = available_features.features;
+        let enabled_features = Self::check_features(&available_features, &vulkan11_features, &vulkan12_features, &vulkan13_features)?;
+        
+        /*
+        panic!("{:#?}", &vulkan11_features);
+        panic!("{:#?}", &vulkan12_features);
+        panic!("{:#?}", &vulkan13_features);
+        */
         
         let mut score:i64 = 0;
         let properties = unsafe{instance.get_physical_device_properties(p_device)};
         
         if state.v_dmp() {
             println!("{:#?}", properties);
-            println!("{:#?}", features);
+            println!("{:#?}", available_features);
+            println!("{:#?}", enabled_features);
         }
         
         if properties.device_type == vk::PhysicalDeviceType::DISCRETE_GPU {
             score += 100;
         }
-        
         score += i64::from(properties.limits.max_image_dimension2_d);
         
-        if features.geometry_shader<=0 {
-            Err(()) 
-        } else {
-            Ok((score, queues, swapchain_support, properties))
-        }
+        Ok((score, queues, swapchain_support, properties, enabled_features))
     }
     
 
@@ -179,6 +191,8 @@ impl PDevice {
         return holder;
     }
     
+    
+    
     fn check_device_support(instance:&Instance, p_device:vk::PhysicalDevice) -> bool {
         let device_extensions = unsafe{instance.enumerate_device_extension_properties(p_device)}.unwrap();
         
@@ -191,6 +205,32 @@ impl PDevice {
         
         set.is_empty()
     }
+    
+    
+    #[allow(unused_variables)]
+    pub fn check_features(
+        features:&vk::PhysicalDeviceFeatures,
+        vk_features11:&vk::PhysicalDeviceVulkan11Features,
+        vk_features12:&vk::PhysicalDeviceVulkan12Features,
+        vk_features13:&vk::PhysicalDeviceVulkan13Features,
+    ) -> Result<vk::PhysicalDeviceFeatures, ()> {
+        if features.geometry_shader == vk::TRUE && 
+            features.fill_mode_non_solid == vk::TRUE &&
+            vk_features12.buffer_device_address == vk::TRUE && 
+            vk_features12.descriptor_indexing == vk::TRUE &&
+            vk_features13.dynamic_rendering == vk::TRUE && 
+            vk_features13.synchronization2 == vk::TRUE {
+            
+            let holder = vk::PhysicalDeviceFeatures::builder()
+                .sampler_anisotropy(true)
+                .fill_mode_non_solid(true)
+                .build();
+            Ok(holder)
+        } else {
+            Err(())
+        }
+    }
+    
     
 }
 
@@ -220,5 +260,3 @@ impl From<QueueFamilyOptionalIndices> for QueueFamilyIndices {
         }
     }
 }
-
-

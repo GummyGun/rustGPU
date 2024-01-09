@@ -22,7 +22,12 @@ use std::{
 pub struct RenderPass(vk::RenderPass);
 
 impl RenderPass {
-    pub fn create(state:&State, device:&Device, swapchain:&SwapchainBasic, depth:&DepthBuffer) -> VkResult<Self> {
+    pub fn create(
+        state:&State, 
+        device:&Device, 
+        swapchain:&SwapchainBasic, 
+        depth:&DepthBuffer
+    ) -> VkResult<Self> {
         
         use vk::PipelineStageFlags as PSF;
         use vk::AccessFlags as AF;

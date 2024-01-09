@@ -48,14 +48,13 @@ impl Instance {
                 let minor = vk::version_minor(version);
                 #[allow(deprecated)]
                 let patch = vk::version_patch(version);
-                
                 if state.v_exp() {
                     println!("supported version is: {}.{}.{}", major, minor, patch);
                 }
             },
             // Vulkan 1.0
             None => {
-                panic!("version not suported");
+                panic!("only version 1.0 is suported");
             },
         }
         

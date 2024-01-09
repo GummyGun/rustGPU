@@ -10,8 +10,6 @@ use super::{
     swapchain::Swapchain,
     render_pass::RenderPass,
     pipeline::Pipeline,
-    descriptor::DescriptorControl,
-    
 };
 
 use super::super::{
@@ -27,7 +25,7 @@ use std::slice::from_ref;
 
 pub struct CommandControl{
     pub pool: vk::CommandPool,
-    pub buffer: [vk::CommandBuffer; constants::fif::USIZE],
+    pub buffers: [vk::CommandBuffer; constants::fif::USIZE],
     s_u_buffer: vk::CommandBuffer,
 }
 
@@ -72,7 +70,7 @@ impl CommandControl {
         
         Ok(Self{
             pool: command_pool,
-            buffer: buffer_arr,
+            buffers: buffer_arr,
             s_u_buffer: s_u_buffer[0],
         })
     }
@@ -104,29 +102,34 @@ impl CommandControl {
     }
     
     pub fn record_command_buffer(
-        &mut self, 
+        &self, 
         state:&State, 
         device:&Device, 
         swapchain:&Swapchain, 
         render_pass:&RenderPass, 
         pipeline:&Pipeline, 
-        //vertex_buffer:&Buffer, 
-        //index_buffer:&Buffer,
-        descriptor_control:&DescriptorControl,
+        //descriptor_control:&DescriptorControl,
         image_index:u32, 
-        frame_index:usize,
-        //triangles_to_draw:u32,
+        //frame_index:usize,
+        command_buffer: vk::CommandBuffer,
+        descriptor_sets: &[vk::DescriptorSet],
         model_vec:&[Model],
     ) {
+        
+        /*
+        let command_buffer = self.buffer[frame_index];
+        let descriptor_sets = from_ref(&descriptor_control.sets[frame_index]);
+        */
         
         if state.v_dmp() {
             println!("\nFILLING:\tCOMMAND BUFFER");
         }
         let image_index_usize = usize::try_from(image_index).unwrap();
         
-        let command_buffer_begin = vk::CommandBufferBeginInfo::builder();
+        let command_buffer_begin = vk::CommandBufferBeginInfo::builder()
+            .flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
         
-        unsafe{device.begin_command_buffer(self.buffer[frame_index], &command_buffer_begin)}.unwrap();
+        unsafe{device.begin_command_buffer(command_buffer, &command_buffer_begin)}.unwrap();
         
         let scissor = vk::Rect2D::builder()
                 .offset(*vk::Offset2D::builder().x(0).y(0))
@@ -162,21 +165,21 @@ impl CommandControl {
         
         
         //initialize the command buffer
-        unsafe{device.cmd_begin_render_pass(self.buffer[frame_index], &render_pass_begin, vk::SubpassContents::INLINE)};
+        unsafe{device.cmd_begin_render_pass(command_buffer, &render_pass_begin, vk::SubpassContents::INLINE)};
         //bind command buffer to graphics pipeline
         
-        unsafe{device.cmd_bind_pipeline(self.buffer[frame_index], vk::PipelineBindPoint::GRAPHICS, pipeline.as_inner())};
+        unsafe{device.cmd_bind_pipeline(command_buffer, vk::PipelineBindPoint::GRAPHICS, pipeline.as_inner())};
         
         
-        unsafe{device.cmd_set_viewport(self.buffer[frame_index], 0, from_ref(&viewport))};
-        unsafe{device.cmd_set_scissor(self.buffer[frame_index], 0, from_ref(&scissor))};
-        unsafe{device.cmd_bind_descriptor_sets(self.buffer[frame_index], vk::PipelineBindPoint::GRAPHICS, pipeline.layout, 0, from_ref(&descriptor_control.sets[frame_index]), &[])};
+        unsafe{device.cmd_set_viewport(command_buffer, 0, from_ref(&viewport))};
+        unsafe{device.cmd_set_scissor(command_buffer, 0, from_ref(&scissor))};
+        unsafe{device.cmd_bind_descriptor_sets(command_buffer, vk::PipelineBindPoint::GRAPHICS, pipeline.layout, 0, descriptor_sets, &[])};
         
         /*
-        unsafe{device.cmd_bind_vertex_buffers(self.buffer[frame_index], 0, from_ref(&vertex_buffer.buffer), &[0])};
-        unsafe{device.cmd_bind_index_buffer(self.buffer[frame_index], index_buffer.buffer, 0, vk::IndexType::UINT32)};
+        unsafe{device.cmd_bind_vertex_buffers(command_buffer, 0, from_ref(&vertex_buffer.buffer), &[0])};
+        unsafe{device.cmd_bind_index_buffer(command_buffer, index_buffer.buffer, 0, vk::IndexType::UINT32)};
         unsafe{device.cmd_draw_indexed(
-            self.buffer[frame_index], 
+            command_buffer, 
             triangles_to_draw, 
             1, 0, 0, 0
         )};
@@ -185,21 +188,21 @@ impl CommandControl {
         for model in model_vec {
             let (vertex_buffer, index_buffer, texture_descriptor, index_count) = model.render(state);
             
-            unsafe{device.cmd_bind_vertex_buffers(self.buffer[frame_index], 0, from_ref(&vertex_buffer), &[0])};
-            unsafe{device.cmd_bind_index_buffer(self.buffer[frame_index], index_buffer, 0, vk::IndexType::UINT32)};
+            unsafe{device.cmd_bind_vertex_buffers(command_buffer, 0, from_ref(&vertex_buffer), &[0])};
+            unsafe{device.cmd_bind_index_buffer(command_buffer, index_buffer, 0, vk::IndexType::UINT32)};
             
-            unsafe{device.cmd_bind_descriptor_sets(self.buffer[frame_index], vk::PipelineBindPoint::GRAPHICS, pipeline.layout, 1, from_ref(&texture_descriptor), &[])};
+            unsafe{device.cmd_bind_descriptor_sets(command_buffer, vk::PipelineBindPoint::GRAPHICS, pipeline.layout, 1, from_ref(&texture_descriptor), &[])};
             
             unsafe{device.cmd_draw_indexed(
-                self.buffer[frame_index],
+                command_buffer,
                 index_count, 
                 1, 0, 0, 0
             )};
         }
         
-        unsafe{device.cmd_end_render_pass(self.buffer[frame_index])};
+        unsafe{device.cmd_end_render_pass(command_buffer)};
         
-        unsafe{device.end_command_buffer(self.buffer[frame_index])}.unwrap();
+        unsafe{device.end_command_buffer(command_buffer)}.unwrap();
     }
     
 }

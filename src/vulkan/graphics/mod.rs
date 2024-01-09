@@ -23,6 +23,22 @@ use std::{
 
 impl VInit {
     
+    pub fn draw_frame2(&mut self) {
+        let cf = self.current_frame;
+        let image = self.swapchain.images[cf];
+        let command_buffer = self.command_control.buffers[cf];
+        
+        self.swapchain.transition_sc_image(
+            &self.state,
+            &self.device,
+            image,
+            command_buffer,
+            vk::ImageLayout::UNDEFINED,
+            vk::ImageLayout::GENERAL,
+        );
+        
+    }
+    
     pub fn draw_frame(&mut self) {
         
         let cf = self.current_frame;
@@ -33,12 +49,15 @@ impl VInit {
         let (image_index, _invalid_surface) = unsafe{
             self.swapchain.acquire_next_image(
                 self.swapchain.swapchain, u64::MAX, 
-                self.sync_objects.image_available_semaphore[self.current_frame], 
+                self.sync_objects.image_available_semaphore[cf], 
                 vk::Fence::null()
-            ).expect("next image should not fail")
-        };
+            )
+        }.expect("next image should not fail");
         
-        unsafe{self.device.reset_command_buffer(self.command_control.buffer[self.current_frame], vk::CommandBufferResetFlags::empty())}.expect("reseting command should not fail");
+        unsafe{self.device.reset_command_buffer(
+            self.command_control.buffers[cf], 
+            vk::CommandBufferResetFlags::empty())
+        }.expect("reseting command should not fail");
         
         self.command_control.record_command_buffer(
             &self.state, 
@@ -46,28 +65,26 @@ impl VInit {
             &self.swapchain, 
             &self.render_pass, 
             &self.pipeline, 
-            //&self.vertex_buffer, 
-            //&self.index_buffer, 
-            &self.descriptor_control,
             image_index, 
-            self.current_frame,
-            //u32::try_from(self.model.indices.len()).unwrap(),
+            self.command_control.buffers[cf],
+            from_ref(&self.descriptor_control.sets[cf]),
             &self.model_vec,
         );
         
         let wait_stages = [vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT];
         
-        let submit_info = [
+        let submit_info = 
             vk::SubmitInfo::builder()
-                //.wait_semaphores(&self.sync_objects.image_available_semaphore[self.frame_range()])
                 .wait_semaphores(from_ref(&self.sync_objects.image_available_semaphore[cf]))
                 .wait_dst_stage_mask(&wait_stages[..])
-                .command_buffers(from_ref(&self.command_control.buffer[cf]))
-                .signal_semaphores(from_ref(&self.sync_objects.render_finished_semaphore[cf]))
-                .build()
-        ];
+                .command_buffers(from_ref(&self.command_control.buffers[cf]))
+                .signal_semaphores(from_ref(&self.sync_objects.render_finished_semaphore[cf]));
         
-        unsafe{self.device.queue_submit(self.device.queue_handles.graphics, &submit_info[..], self.sync_objects.in_flight_fence[self.current_frame])}.expect("should not fail");
+        unsafe{self.device.queue_submit(
+            self.device.queue_handles.graphics, 
+            from_ref(&submit_info), 
+            self.sync_objects.in_flight_fence[cf]
+        )}.expect("should not fail");
         
         let present_info = vk::PresentInfoKHR::builder()
             .wait_semaphores(from_ref(&self.sync_objects.render_finished_semaphore[cf]))

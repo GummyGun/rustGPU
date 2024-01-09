@@ -13,12 +13,14 @@ use super::{
 use crate::{
     State,
     constants,
+    errors::Error as AAError,
 };
 
 use std::{
     ops::Deref,
     collections::HashSet,
     ffi::CStr,
+    ffi::c_char,
 };
 
 pub struct Device {
@@ -53,27 +55,34 @@ impl Device {
             
         }
         
-        let extensions = Extensions::get(instance, p_device);
-        extensions.debug_print(state);
+        let av_extensions = Extensions::get(instance, p_device);
+        av_extensions.debug_print(state);
+        let extensions = av_extensions.handle_logic(state);
         
-        let extensions:Vec<_> = constants::DEVICE_EXTENSIONS_CSTR[..].iter().map(|extension|{
-            extension.as_ptr()
-        }).collect();
         
-        if state.v_exp() {
-            println!("device extensions available");
-        }
+        let mut dynamic_rendering = vk::PhysicalDeviceDynamicRenderingFeatures::builder()
+            .dynamic_rendering(true);
         
-        //println!("{:#?}", &p_device.features);
-        //todo!("{:#?}", &p_device.features);
+        let mut synchronization2 = vk::PhysicalDeviceSynchronization2Features::builder()
+            .synchronization2(true);
         
-        let mut features = p_device.features.clone();
-        features.fill_mode_non_solid = vk::TRUE;
+        let mut buffer_device_address = vk::PhysicalDeviceBufferDeviceAddressFeatures::builder()
+            .buffer_device_address(true)
+            .buffer_device_address_capture_replay(true)
+            .buffer_device_address_multi_device(true);
+        
+        
+        let mut descriptor_indexing = vk::PhysicalDeviceDescriptorIndexingFeatures::builder();
+        
         
         let device_create_info = vk::DeviceCreateInfo::builder()
             .queue_create_infos(&queue_create_info[..])
-            .enabled_features(&features)
-            .enabled_extension_names(&extensions);
+            .enabled_features(&p_device.features)
+            .enabled_extension_names(&extensions)
+            .push_next(&mut dynamic_rendering)
+            .push_next(&mut synchronization2)
+            .push_next(&mut buffer_device_address)
+            .push_next(&mut descriptor_indexing);
         
         
         /*
@@ -93,19 +102,6 @@ impl Device {
             queue_handles: queue_handles
         })
     }
-    
-    pub fn populate_features(state:&State, features:&mut vk::PhysicalDeviceFeatures) {        
-        
-        if state.v_exp() {
-            println!("\t[X]:enabling sampleranisotropy");
-        }
-        features.sampler_anisotropy = vk::TRUE;
-        
-        if state.v_dmp() {
-            println!("{:#?}", features);
-        }
-    }
-    
     
     fn get_queue_handles(device:&ash::Device, queue_indices:&QueueFamilyIndices) -> QueueHandles {
         let graphics = unsafe{device.get_device_queue(0, queue_indices.graphics_family)};
@@ -128,7 +124,7 @@ impl Extensions {
     
     fn debug_print(&self, state:&State) {
         if state.v_exp() {
-            println!("Device Layers:");
+            println!("Device Extensions:");
             for layer in &self.0 {
                 let name_holder = unsafe{CStr::from_ptr(layer.extension_name.as_ptr())};
                 println!("\t{:?}", name_holder);
@@ -137,6 +133,39 @@ impl Extensions {
     }
     
     
+    fn validate(&self) -> Result<Vec<*const c_char>, AAError> {
+        
+        let mut set:HashSet<&'static str> = HashSet::from(constants::DEVICE_EXTENSIONS);//(extensions);
+        
+        let mut holder = Vec::<*const c_char>::with_capacity(set.len());
+        
+        for extension in &self.0 {
+            let name_holder = unsafe{CStr::from_ptr(extension.extension_name.as_ptr())}.to_string_lossy();
+            if set.remove(&name_holder as &str) {
+                holder.push(extension.extension_name.as_ptr() as *const c_char);
+                println!("{}", name_holder);
+            }
+        }
+        
+        
+        if set.is_empty() {
+            Ok(holder)
+        } else {
+            Err(AAError::MissingExtensions(set))
+        }
+        
+    }
+    
+    fn handle_logic(&self, state:&State) -> Vec<*const c_char> {
+        match (state.v_exp(), self.validate()) {
+            (true, Ok(holder)) => {
+                println!("all device extensions found");
+                holder
+            }
+            (false, Ok(holder)) => {holder}
+            (_, Err(err)) => {panic!("Extensions required were not available: {:?}", err);}
+        }
+    }
 }
 
 

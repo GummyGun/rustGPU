@@ -51,6 +51,15 @@ impl SyncObjects {
             in_flight_fence: in_flight_fence,
         })
     }
+    
+    /*
+    pub fn get_sync_obs(
+        &self
+        
+    ) -> () {
+        
+    }
+    */
 }
 
 impl DeviceDestroy for SyncObjects {

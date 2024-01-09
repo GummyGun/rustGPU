@@ -79,6 +79,8 @@ impl Model {
         let iterable = model.iter().map(|a|a.iter()).flatten().map(|raw_vertex|Self::apply_transform(raw_vertex, &transformation));
         let (vertex_vec, index_vec) = Self::dedup_vertices(iterable);//::<std::slice::Iter<'_, u32>, &u32, _>(iterable);
         
+        println!("deduped triangle_count: {:#?}", index_vec.len()/3);
+        
         let image_holder = ImageReader::open(texture_file).unwrap().decode().map_err(|_| AAError::DecodeError).unwrap().into_rgba8();
         
         Ok(Self{
@@ -112,6 +114,7 @@ impl Model {
         let model = model_vec.pop().unwrap();
         let mesh = model.mesh;
         
+        println!("triangle count: {:#?}", mesh.indices.len());
         
         let iterable = mesh.indices.iter().map(|current_u32|{
             let mut vertex = Vertex::default();
@@ -123,8 +126,9 @@ impl Model {
         });
         
         let (vertex_vec, index_vec) = Self::dedup_vertices(iterable);//::<std::slice::Iter<'_, u32>, &u32, _>(iterable);
+        println!("deduped triangle_count: {:#?}", index_vec.len()/3);
         
-
+        
         let image_holder = ImageReader::open(texture_file).unwrap().decode().map_err(|_| AAError::DecodeError).unwrap().into_rgba8();
         
         

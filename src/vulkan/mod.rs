@@ -42,9 +42,6 @@ pub struct VInit {
     pub command_control: VkObjDevDep<CommandControl>,
     pub sync_objects: VkObjDevDep<SyncObjects>,
     pub sampler: VkObjDevDep<Sampler>,
-    //pub texture: VkObjDevDep<Image>,
-    //pub vertex_buffer: VkObjDevDep<Buffer>,
-    //pub index_buffer: VkObjDevDep<Buffer>,
     pub uniform_buffers: VkObjDevDep<UniformBuffers>,
     pub descriptor_control: VkObjDevDep<DescriptorControl>,
     
@@ -54,7 +51,10 @@ pub struct VInit {
 
 impl VInit {
     pub fn init(state:State, window:&Window) -> VInit {
+        
+        
         let state_ref = &state;
+        
         
         let instance = vk_create_interpreter(state_ref, Instance::create(state_ref, window), "instance"); 
         
@@ -88,8 +88,11 @@ impl VInit {
         let uniform_buffers = vk_create_interpreter(state_ref, UniformBuffers::create(state_ref, &p_device, &device), "uniform_buffer");
         
         let mut model_vec = VkObjDevDep::new(Vec::new());
-        let model = vk_create_interpreter(state_ref, Model::vk_load(state_ref, &p_device, &device, &command_control, constants::path::avocado::metadata(), constants::path::avocado::load_transformations()), "Model");
+        let model = vk_create_interpreter(state_ref, Model::vk_load(state_ref, &p_device, &device, &command_control, constants::path::suzanne::metadata(), constants::path::suzanne::load_transformations()), "Model");
         model_vec.push(model);
+        /*
+        */
+        
         /*
         let model = vk_create_interpreter(state_ref, Model::vk_load(state_ref, &p_device, &device, &command_control, constants::path::suzanne::metadata(), constants::path::suzanne::load_transformations()), "Model");
         model_vec.push(model);

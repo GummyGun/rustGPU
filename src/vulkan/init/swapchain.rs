@@ -23,6 +23,7 @@ use crate::{
 
 use std::{
     ops::Deref,
+    slice::from_ref,
 };
 
 
@@ -169,9 +170,57 @@ impl Swapchain {
         
     }
     
+    pub fn transition_sc_image(
+        &self,
+        state: &State,
+        device: &Device,
+        image: vk::Image,
+        command_buffer: vk::CommandBuffer,
+        old_layout: vk::ImageLayout,
+        new_layout: vk::ImageLayout,
+    ) {
+        if state.v_dmp() {
+            println!("transitioning swapchain image");
+        }
+        let image_aspect = match new_layout {
+            vk::ImageLayout::DEPTH_ATTACHMENT_OPTIMAL => {
+                vk::ImageAspectFlags::DEPTH
+            }
+            vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL => {
+                vk::ImageAspectFlags::COLOR
+            }
+            _ => {
+                //return Err(());
+                println!("potencial error");
+                vk::ImageAspectFlags::COLOR
+            }
+        };
+        let subresource = vk::ImageSubresourceRange::builder()
+            .aspect_mask(image_aspect)
+            .level_count(vk::REMAINING_MIP_LEVELS)
+            .layer_count(vk::REMAINING_ARRAY_LAYERS)
+            .build();
+        let image_barrier = vk::ImageMemoryBarrier2::builder()
+            .image(image)
+            .old_layout(old_layout)
+            .new_layout(new_layout)
+            .src_stage_mask(vk::PipelineStageFlags2::ALL_COMMANDS)
+            .src_access_mask(vk::AccessFlags2::MEMORY_WRITE)
+            .dst_stage_mask(vk::PipelineStageFlags2::ALL_COMMANDS)
+            .dst_access_mask(vk::AccessFlags2::MEMORY_WRITE|vk::AccessFlags2::MEMORY_READ)
+            .subresource_range(subresource);
+        
+        let dependency = ash::vk::DependencyInfo::builder()
+            .image_memory_barriers(from_ref(&image_barrier));
+        
+        let _ = unsafe{device.cmd_pipeline_barrier2(command_buffer, &dependency)};
+        
+    }
     
+    
+    /*
     #[allow(dead_code)]
-    pub fn direct_create(
+    pub fn direct_create( //TODO: this function shouldn't be linted as unused
         state:&State, 
         window:&Window, 
         instance:&Instance, 
@@ -184,6 +233,8 @@ impl Swapchain {
         let holder = Self::create(state, window, instance, surface, p_device, device)?;
         Self::complete(state, device, holder, depth, render_pass)
     }
+    */
+    
     
 }
 

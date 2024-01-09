@@ -9,8 +9,14 @@ macro_rules! const_array{
 }
 
 use std::ffi::CStr;
+
+use ash::extensions::khr::BufferDeviceAddress;
+
+use ash::extensions::khr::DynamicRendering;
+use ash::extensions::khr::Synchronization2;
 use ash::extensions::khr::Swapchain;
 use ash::extensions::ext::DebugUtils;
+use ash::vk;
 
 const FIF:usize = 2;
 pub mod fif {
@@ -130,8 +136,15 @@ pub mod path {
 pub const LAYERS:[&'static str; 1] = ["VK_LAYER_KHRONOS_validation"];
 pub const EXTENSIONS:[&'static str; EXTENSIONS_LEN_PLUS_VAL] = extension_logic();
 
-pub const DEVICE_EXTENSIONS_CSTR:[&'static CStr; 1] = [Swapchain::name()];
-pub const DEVICE_EXTENSIONS:[&'static str; 1] = const_array!(Swapchain::name());
+//TODO: change vk::ExtDescriptorIndexingFn::name() to something pretier
+pub const DEVICE_EXTENSIONS:[&'static str; 5] = const_array!(
+    Swapchain::name(), 
+    DynamicRendering::name(), 
+    Synchronization2::name(), 
+    BufferDeviceAddress::name(), 
+    vk::ExtDescriptorIndexingFn::name()
+);
+//pub const DEVICE_EXTENSIONS:[&'static str; 3] = const_array!(Swapchain::name(), DynamicRendering::name(), Synchronization2::name());
 
 
 
