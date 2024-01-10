@@ -26,7 +26,7 @@ pub struct VInit {
     
     state: State,
     
-    current_frame:usize,
+    frame_control: FrameControl,
     pub mip_level: usize,
     
     //pub model: Model,
@@ -104,7 +104,7 @@ impl VInit {
         
         VInit{
             state: state,
-            current_frame: 0,
+            frame_control: FrameControl(0),
             mip_level: 1,
             //model: viking_house,
             instance: VkObj::new(instance),
@@ -135,10 +135,12 @@ impl VInit {
     
     #[inline(always)]
     fn frame_update(&mut self) {
-        use constants::fif;
-        self.current_frame = (self.current_frame + 1) % fif::USIZE;
+        self.frame_control.frame_update()
     }
     
+    fn get_frame(&self) -> usize {
+        self.frame_control.get_frame()
+    }
 }
 
 
@@ -185,5 +187,21 @@ impl Drop for VInit {
         }
         self.instance.active_drop(&self.state);
     }
+}
+
+struct FrameControl(usize);
+
+impl FrameControl {
+    fn get_frame(&self) -> usize {
+        self.0 % constants::fif::USIZE
+    }
+    fn get_frame_count(&self) -> usize {
+        self.0
+    }
+    #[inline(always)]
+    fn frame_update(&mut self) {
+        self.0 += 1;
+    }
+    
 }
 

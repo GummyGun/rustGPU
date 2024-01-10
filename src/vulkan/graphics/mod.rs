@@ -6,6 +6,7 @@ use ash::vk;
 
 use super::{
     VInit,
+    Image,
 };
 
 
@@ -24,27 +25,102 @@ use std::{
 impl VInit {
     
     pub fn draw_frame2(&mut self) {
-        let cf = self.current_frame;
-        let image = self.swapchain.images[cf];
-        let command_buffer = self.command_control.buffers[cf];
+        let cf = self.get_frame();
+        let c_buffer = self.command_control.buffers[cf];
+        let (image_avaliable_semaphore, render_finished_semaphore, inflight_fence) = self.sync_objects.get_frame(cf);
+        //let inflight_fence = ;
+        
+        let (image_index, _invalid_surface) = unsafe{
+            self.swapchain.acquire_next_image(
+                self.swapchain.swapchain, 
+                u64::MAX, 
+                image_avaliable_semaphore, 
+                vk::Fence::null()
+            )
+        }.expect("next image should not fail");
+        
+        let image = self.swapchain.images[image_index as usize];
+        
+        unsafe{self.device.wait_for_fences(from_ref(&inflight_fence), true, u64::MAX)}.expect("waiting for fence should not fail");
+        unsafe{self.device.reset_fences(from_ref(&inflight_fence))}.expect("waiting for fence should not fail");
+        
+        unsafe{self.device.reset_command_buffer(c_buffer, vk::CommandBufferResetFlags::empty())}.expect("reset on command buffer should not fail");
+        
+        
+        unsafe{self.device.reset_command_buffer(c_buffer, vk::CommandBufferResetFlags::empty())}.expect("reset on command buffer should not fail");
+        
+        let begin_info = vk::CommandBufferBeginInfo::builder()
+            .flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
+        
+        unsafe{self.device.begin_command_buffer(c_buffer, &begin_info)}.expect("reset on command buffer should not fail");
         
         self.swapchain.transition_sc_image(
             &self.state,
             &self.device,
             image,
-            command_buffer,
+            c_buffer,
             vk::ImageLayout::UNDEFINED,
             vk::ImageLayout::GENERAL,
         );
         
+        let clear_color = vk::ClearColorValue{float32:[0.3f32; 4]};
+        
+        
+        let subresource = Image::subresource_range(vk::ImageAspectFlags::COLOR);
+        
+        unsafe{self.device.cmd_clear_color_image(c_buffer, image, vk::ImageLayout::GENERAL, &clear_color, from_ref(&subresource))};
+        
+        self.swapchain.transition_sc_image(
+            &self.state,
+            &self.device,
+            image,
+            c_buffer,
+            vk::ImageLayout::GENERAL,
+            vk::ImageLayout::PRESENT_SRC_KHR,
+        );
+        
+        
+        unsafe{self.device.end_command_buffer(c_buffer)}.expect("reset on command buffer should not fail");
+        
+        
+        let wait_semaphore_submit_info = vk::SemaphoreSubmitInfo::builder()
+            .stage_mask(vk::PipelineStageFlags2::COLOR_ATTACHMENT_OUTPUT)
+            .semaphore(image_avaliable_semaphore);
+        
+        let signal_semaphore_submit_info = vk::SemaphoreSubmitInfo::builder()
+            .stage_mask(vk::PipelineStageFlags2::ALL_GRAPHICS)
+            .semaphore(render_finished_semaphore);
+        
+        let command_submit_info = vk::CommandBufferSubmitInfo::builder()
+            .command_buffer(c_buffer);
+        
+        let submit_info = vk::SubmitInfo2::builder()
+            .command_buffer_infos(from_ref(&command_submit_info))
+            .wait_semaphore_infos(from_ref(&wait_semaphore_submit_info))
+            .signal_semaphore_infos(from_ref(&signal_semaphore_submit_info));
+        
+        unsafe{self.device.queue_submit2(self.device.queue_handles.graphics, from_ref(&submit_info), inflight_fence)}.expect("should not fail");
+        
+        let present_info = vk::PresentInfoKHR::builder()
+            .swapchains(from_ref(&self.swapchain.swapchain))
+            .image_indices(from_ref(&image_index))
+            .wait_semaphores(from_ref(&render_finished_semaphore));
+        
+        
+        unsafe{self.swapchain.queue_present(self.device.queue_handles.presentation, &present_info)}.expect("present should not fail");
+        self.frame_update();
+        
     }
+    
+    
+    
     
     pub fn draw_frame(&mut self) {
         
-        let cf = self.current_frame;
+        let cf = self.get_frame();
         
-        unsafe{self.device.wait_for_fences(from_ref(&self.sync_objects.in_flight_fence[cf]), true, u64::MAX)}.expect("waiting for fence should not fail");
-        unsafe{self.device.reset_fences(from_ref(&self.sync_objects.in_flight_fence[cf]))}.expect("waiting for fence should not fail");
+        unsafe{self.device.wait_for_fences(from_ref(&self.sync_objects.inflight_fence[cf]), true, u64::MAX)}.expect("waiting for fence should not fail");
+        unsafe{self.device.reset_fences(from_ref(&self.sync_objects.inflight_fence[cf]))}.expect("waiting for fence should not fail");
         
         let (image_index, _invalid_surface) = unsafe{
             self.swapchain.acquire_next_image(
@@ -83,7 +159,7 @@ impl VInit {
         unsafe{self.device.queue_submit(
             self.device.queue_handles.graphics, 
             from_ref(&submit_info), 
-            self.sync_objects.in_flight_fence[cf]
+            self.sync_objects.inflight_fence[cf]
         )}.expect("should not fail");
         
         let present_info = vk::PresentInfoKHR::builder()
@@ -98,6 +174,8 @@ impl VInit {
     
     pub fn tick(&mut self) {
         use nalgebra as na;
+        
+        let cf = self.get_frame();
         
         //self.uniform_buffers.update_buffer(&self.state, 0);
         let delta = self.state.secs_from_start();
@@ -166,7 +244,7 @@ impl VInit {
             },
         ];
         
-        self.uniform_buffers.buffers[self.current_frame].align.copy_from_slice(&current_ubo[..]);
+        self.uniform_buffers.buffers[cf].align.copy_from_slice(&current_ubo[..]);
         
     }
     

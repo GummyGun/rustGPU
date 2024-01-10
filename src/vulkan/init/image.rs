@@ -289,6 +289,15 @@ impl Image {
         unsafe{device.free_memory(self.memory, None)};
     }
     
+    pub fn subresource_range(aspect:vk::ImageAspectFlags) -> vk::ImageSubresourceRange {
+        
+        vk::ImageSubresourceRange::builder()
+            .aspect_mask(aspect)
+            .level_count(vk::REMAINING_MIP_LEVELS)
+            .layer_count(vk::REMAINING_ARRAY_LAYERS)
+            .build()
+        
+    }
 }
 
 impl From<((vk::Image, vk::DeviceMemory), vk::ImageView, i32)> for Image {

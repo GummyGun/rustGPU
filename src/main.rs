@@ -42,6 +42,7 @@ fn main() {
         
         v_init.tick();
         v_init.draw_frame();
+        
         /*
         let current_time = state.secs_from_start();
         //println!("{:?}", 1f32/(current_time-last_time));

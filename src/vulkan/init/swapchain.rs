@@ -94,7 +94,7 @@ impl Swapchain {
             .image_color_space(surface_format.color_space)
             .image_extent(swap_extent)
             .image_array_layers(1)
-            .image_usage(vk::ImageUsageFlags::COLOR_ATTACHMENT)
+            .image_usage(vk::ImageUsageFlags::COLOR_ATTACHMENT | vk::ImageUsageFlags::TRANSFER_DST)
             .pre_transform(p_device.swapchain_details.surface_capabilities.current_transform)
             .composite_alpha(vk::CompositeAlphaFlagsKHR::OPAQUE)
             .present_mode(present_mode)
@@ -182,24 +182,18 @@ impl Swapchain {
         if state.v_dmp() {
             println!("transitioning swapchain image");
         }
+        
         let image_aspect = match new_layout {
             vk::ImageLayout::DEPTH_ATTACHMENT_OPTIMAL => {
                 vk::ImageAspectFlags::DEPTH
             }
-            vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL => {
-                vk::ImageAspectFlags::COLOR
-            }
             _ => {
-                //return Err(());
-                println!("potencial error");
                 vk::ImageAspectFlags::COLOR
             }
         };
-        let subresource = vk::ImageSubresourceRange::builder()
-            .aspect_mask(image_aspect)
-            .level_count(vk::REMAINING_MIP_LEVELS)
-            .layer_count(vk::REMAINING_ARRAY_LAYERS)
-            .build();
+        
+        let subresource = Image::subresource_range(image_aspect);
+        
         let image_barrier = vk::ImageMemoryBarrier2::builder()
             .image(image)
             .old_layout(old_layout)

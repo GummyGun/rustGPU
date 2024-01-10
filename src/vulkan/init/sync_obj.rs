@@ -17,7 +17,7 @@ use crate::{
 pub struct SyncObjects {
     pub image_available_semaphore: [vk::Semaphore; constants::fif::USIZE],
     pub render_finished_semaphore: [vk::Semaphore; constants::fif::USIZE],
-    pub in_flight_fence: [vk::Fence; constants::fif::USIZE],
+    pub inflight_fence: [vk::Fence; constants::fif::USIZE],
 }
 
 impl SyncObjects {
@@ -34,7 +34,7 @@ impl SyncObjects {
         
         let mut image_available_semaphore = [vk::Semaphore::null(); fif::USIZE];
         let mut render_finished_semaphore = [vk::Semaphore::null(); fif::USIZE];
-        let mut in_flight_fence = [vk::Fence::null(); fif::USIZE];
+        let mut inflight_fence = [vk::Fence::null(); fif::USIZE];
         
         for index in 0..fif::USIZE {
             if state.v_exp() {
@@ -42,24 +42,23 @@ impl SyncObjects {
             }
             image_available_semaphore[index] = unsafe{device.create_semaphore(&semaphore_create_info, None)}?;
             render_finished_semaphore[index] = unsafe{device.create_semaphore(&semaphore_create_info, None)}?;
-            in_flight_fence[index] =  unsafe{device.create_fence(&fence_create_info, None)}?;
+            inflight_fence[index] =  unsafe{device.create_fence(&fence_create_info, None)}?;
         }
         
         Ok(Self{
             image_available_semaphore: image_available_semaphore,
             render_finished_semaphore: render_finished_semaphore,
-            in_flight_fence: in_flight_fence,
+            inflight_fence: inflight_fence,
         })
     }
     
-    /*
-    pub fn get_sync_obs(
-        &self
-        
-    ) -> () {
-        
+    pub fn get_frame(
+        &self,
+        frame: usize,
+    ) -> (vk::Semaphore, vk::Semaphore, vk::Fence) {
+        (self.image_available_semaphore[frame], self.render_finished_semaphore[frame], self.inflight_fence[frame])
+        // pub image_available_semaphore: [vk::Semaphore; constants::fif::USIZE],
     }
-    */
 }
 
 impl DeviceDestroy for SyncObjects {
@@ -73,7 +72,7 @@ impl DeviceDestroy for SyncObjects {
         for index in 0..fif::USIZE {
             unsafe{device.destroy_semaphore(self.image_available_semaphore[index], None)};
             unsafe{device.destroy_semaphore(self.render_finished_semaphore[index], None)};
-            unsafe{device.destroy_fence(self.in_flight_fence[index], None)};
+            unsafe{device.destroy_fence(self.inflight_fence[index], None)};
         }
         
     }

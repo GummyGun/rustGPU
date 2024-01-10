@@ -108,18 +108,11 @@ impl CommandControl {
         swapchain:&Swapchain, 
         render_pass:&RenderPass, 
         pipeline:&Pipeline, 
-        //descriptor_control:&DescriptorControl,
         image_index:u32, 
-        //frame_index:usize,
         command_buffer: vk::CommandBuffer,
         descriptor_sets: &[vk::DescriptorSet],
         model_vec:&[Model],
     ) {
-        
-        /*
-        let command_buffer = self.buffer[frame_index];
-        let descriptor_sets = from_ref(&descriptor_control.sets[frame_index]);
-        */
         
         if state.v_dmp() {
             println!("\nFILLING:\tCOMMAND BUFFER");
