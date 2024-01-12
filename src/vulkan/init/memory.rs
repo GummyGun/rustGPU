@@ -18,6 +18,11 @@ use std::{
     slice::from_ref,
 };
 
+struct Allocator {
+    
+}
+
+
 pub fn find_memory_type_index(
     state:&State, 
     p_device:&PDevice, 

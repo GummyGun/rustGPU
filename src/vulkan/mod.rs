@@ -22,12 +22,15 @@ use objects::{
     ActiveDestroy,
 };
 
+use std::collections::VecDeque;
+
 pub struct VInit {
     
     state: State,
     
     frame_control: FrameControl,
     pub mip_level: usize,
+    //pub deletion_queue: VecDeque<dyn FnOnce()>,
     
     //pub model: Model,
     pub instance: VkObj<Instance>,
@@ -44,8 +47,8 @@ pub struct VInit {
     pub sampler: VkObjDevDep<Sampler>,
     pub uniform_buffers: VkObjDevDep<UniformBuffers>,
     pub descriptor_control: VkObjDevDep<DescriptorControl>,
-    
     pub model_vec: VkObjDevDep<Vec<Model>>,
+    
 }
 
 
@@ -72,6 +75,15 @@ impl VInit {
             println!("[X]:messenger");
             None
         };
+        
+        let hola = Box::new(|| {
+            println!("hola closure");
+            1
+        });
+        println!("before closure");
+        println!("{:?}", hola());
+        let destruction_queue:VecDeque<Box<dyn FnMut()->()>> = VecDeque::new();
+        panic!();
         
         let surface =  vk_create_interpreter(state_ref, Surface::create(state_ref, &window, &instance), "surface"); 
         let p_device = vk_create_interpreter(state_ref, PDevice::chose(state_ref, &instance, &surface), "p_device selected"); 
@@ -141,6 +153,7 @@ impl VInit {
     fn get_frame(&self) -> usize {
         self.frame_control.get_frame()
     }
+    
 }
 
 
@@ -162,7 +175,6 @@ impl Drop for VInit {
     fn drop(&mut self) {
         
         self.model_vec.device_drop(&self.state, &self.device);
-        
         self.descriptor_control.device_drop(&self.state, &self.device);
         self.uniform_buffers.device_drop(&self.state, &self.device);
         self.sampler.device_drop(&self.state, &self.device);
@@ -174,7 +186,6 @@ impl Drop for VInit {
         self.swapchain.device_drop(&self.state, &self.device);
         self.device.active_drop(&self.state);
         self.surface.active_drop(&self.state);
-        
         match &mut self.messenger {
             Some(ref mut messenger) => {
                 messenger.active_drop(&self.state);
@@ -202,6 +213,5 @@ impl FrameControl {
     fn frame_update(&mut self) {
         self.0 += 1;
     }
-    
 }
 
