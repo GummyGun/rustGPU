@@ -62,7 +62,7 @@ impl SyncObjects {
 }
 
 impl DeviceDestroy for SyncObjects {
-    fn device_drop(&mut self, state:&State, device:&Device) {
+    fn device_destroy(&mut self, state:&State, device:&Device) {
         use constants::fif;
         if state.v_nor() {
             println!("[0]:deleting semaphores");

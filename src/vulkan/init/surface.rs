@@ -1,24 +1,20 @@
-use ash::{
-    vk,
-    prelude::VkResult,
-};
+use crate::State;
+use crate::constants;
+use crate::window::Window;
+use crate::AAError;
 
-use super::{
-    ActiveDestroy,
-    instance::Instance,
-};
 
-use crate::{
-    State,
-    constants,
-    window::{
-        Window,
-    },
-};
+use super::logger::surface as logger;
+use super::VkDestructor;
+use super::DestructorArguments;
+use super::instance::Instance;
 
-use std::{
-    ops::Deref,
-};
+
+use std::ops::Deref;
+
+
+use ash::vk;
+
 
 pub struct Surface {
     pub surface: vk::SurfaceKHR,
@@ -26,7 +22,7 @@ pub struct Surface {
 }
 
 impl Surface {
-    pub fn create(state:&State, window:&Window, instance:&Instance) -> VkResult<Self> {
+    pub fn create(state:&State, window:&Window, instance:&Instance) -> Result<Self, AAError> {
         if state.v_exp() {
             println!("\nCREATING:\tSURFACE");
         }
@@ -55,11 +51,10 @@ impl Deref for Surface {
     }
 }
 
-impl ActiveDestroy for Surface {
-    fn active_drop(&mut self, state:&State) {
-        if state.v_nor() {
-            println!("[0]:deleting surface");
-        }
+impl VkDestructor for Surface {
+    fn destruct(&mut self, _:DestructorArguments) {
+        logger::destructor();
         unsafe{self.destroy_surface(self.surface, None)}
     }
 }
+

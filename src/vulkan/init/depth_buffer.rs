@@ -9,7 +9,7 @@ use super::{
     instance::Instance,
     p_device::PDevice,
     image::Image,
-    swapchain::SwapchainBasic,
+    swapchain::Swapchain,
 };
 
 use crate::{
@@ -29,7 +29,7 @@ impl DepthBuffer {
         instance: &Instance, 
         p_device: &PDevice,
         device: &Device,
-        swapchain: &SwapchainBasic,
+        swapchain: &Swapchain,
         
     ) -> VkResult<Self> {
         if state.v_exp() {
@@ -87,7 +87,7 @@ impl DepthBuffer {
     ) -> Result<vk::Format, AAError> {
         
         for format in formats.into_iter() {
-            let format_properties = unsafe{instance.get_physical_device_format_properties(p_device.p_device, *format)};
+            let format_properties = unsafe{instance.get_physical_device_format_properties(p_device.underlying(), *format)};
             //println!("\n\n\n{:#?}", format_properties);
             if tiling == ash::vk::ImageTiling::LINEAR && ((format_properties.linear_tiling_features & features) == features) {
                 if state.v_exp() {
@@ -107,7 +107,7 @@ impl DepthBuffer {
 }
 
 impl DeviceDestroy for DepthBuffer {
-    fn device_drop(&mut self, state:&State, device:&Device) {
+    fn device_destroy(&mut self, state:&State, device:&Device) {
         if state.v_nor() {
             println!("[0]:deleting depth buffer");
         }

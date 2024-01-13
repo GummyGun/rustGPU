@@ -1,4 +1,5 @@
 use super::Device;
+use super::Allocator;
 use crate::State;
 
 use std::{
@@ -10,19 +11,44 @@ const DROPED_ERR_TEXT:&'static str = "can't run methods on destroyed objects";
 const NON_DEV_DROPED_ERR_TEXT:&'static str = "dropping non-destroyed object use device_drop";
 const NON_ACT_DROPED_ERR_TEXT:&'static str = "dropping non-destroyed object use active_drop";
 
-pub trait DeviceDestroy {
-    fn device_drop(&mut self, state:&State, device:&Device);
+
+pub enum DestructorArguments<'a> {
+    None,
+    Dev(&'a Device),
+    DevAll(&'a Device,&'a Allocator),
 }
 
-pub trait ActiveDestroy {
-    fn active_drop(&mut self, state:&State);
+pub enum DestructorType {
+    None,
+    Dev,
+    DevAll,
 }
 
-pub struct VkObj<T:ActiveDestroy>(Option<T>);
-pub struct VkObjDevDep<T:DeviceDestroy>(Option<T>);
+pub trait VkDestructor {
+    fn destruct(&mut self, args:DestructorArguments);
+}
+
+pub trait VkDeferedDestructor {
+    fn defered_destructor() -> (Box<dyn FnOnce(DestructorArguments)>, DestructorType);
+}
 
 
-impl<T:ActiveDestroy> Drop for VkObj<T> {
+/* 
+dynamic dispached 
+should implement 
+*/
+
+
+pub struct VkWraper<T:VkDestructor>(Option<T>);
+
+impl<T:VkDestructor> VkWraper<T> {
+    pub fn new(new:T) -> Self {
+        Self(Some(new))
+    }
+}
+
+
+impl<T:VkDestructor> Drop for VkWraper<T> {
     fn drop(&mut self) {
         match self.0.as_mut() {
             Some(_) => {eprintln!("{}", NON_ACT_DROPED_ERR_TEXT)}
@@ -31,32 +57,49 @@ impl<T:ActiveDestroy> Drop for VkObj<T> {
     }
 }
 
-impl<T:ActiveDestroy> ActiveDestroy for VkObj<T> {
-    fn active_drop(&mut self, state:&State) {
-        self.0.as_mut().expect(DROPED_ERR_TEXT).active_drop(state);
+impl<T:VkDestructor> VkDestructor for VkWraper<T> {
+    fn destruct(&mut self, args:DestructorArguments) {
+        self.0.as_mut().expect(DROPED_ERR_TEXT).destruct(args);
         self.0 = None;
     }
 }
 
-impl<T:ActiveDestroy> Deref for VkObj<T> {
+impl<T:VkDestructor> Deref for VkWraper<T> {
     type Target = T;
     fn deref(&self) -> &Self::Target {
-        &self.0.as_ref().expect(DROPED_ERR_TEXT)
+        self.0.as_ref().expect(DROPED_ERR_TEXT)
     }
 }
 
-impl<T:ActiveDestroy> DerefMut for VkObj<T> {
+impl<T:VkDestructor> DerefMut for VkWraper<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         self.0.as_mut().expect(DROPED_ERR_TEXT)
     }
 }
 
 
-impl<T:ActiveDestroy> VkObj<T> {
-    pub fn new(new:T) -> Self {
-        Self(Some(new))
-    }
+
+
+
+
+
+
+
+
+
+
+
+pub trait DeviceDestroy {
+    fn device_destroy(&mut self, state:&State, device:&Device);
 }
+
+
+pub trait ActiveDestroy {
+    fn active_drop(&mut self, state:&State);
+}
+
+
+pub struct VkObjDevDep<T:DeviceDestroy>(Option<T>);
 
 
 impl<T:DeviceDestroy> Drop for VkObjDevDep<T> {
@@ -69,8 +112,8 @@ impl<T:DeviceDestroy> Drop for VkObjDevDep<T> {
 }
 
 impl<T:DeviceDestroy> DeviceDestroy for VkObjDevDep<T> {
-    fn device_drop(&mut self, state:&State, device:&Device) {
-        self.0.as_mut().unwrap().device_drop(state, device);
+    fn device_destroy(&mut self, state:&State, device:&Device) {
+        self.0.as_mut().unwrap().device_destroy(state, device);
         self.0 = None;
     }
 }

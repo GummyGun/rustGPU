@@ -1,27 +1,22 @@
-use ash::{
-    vk,
-    prelude::VkResult,
-};
+use crate::State;
+use crate::AAError;
+use crate::constants;
 
-use super::{
-    ActiveDestroy,
-    instance::Instance,
-    p_device::PDevice,
-    p_device::QueueFamilyIndices,
-};
 
-use crate::{
-    State,
-    constants,
-    errors::Error as AAError,
-};
+use super::logger::device as logger;
+use super::VkDestructor;
+use super::DestructorArguments;
+use super::instance::Instance;
+use super::p_device::PDevice;
+use super::p_device::QueueFamilyIndices;
 
-use std::{
-    ops::Deref,
-    collections::HashSet,
-    ffi::CStr,
-    ffi::c_char,
-};
+
+use std::ops::Deref;
+use std::collections::HashSet;
+use std::ffi::CStr;
+use std::ffi::c_char;
+
+use ash::vk;
 
 pub struct Device {
     device: ash::Device,
@@ -35,7 +30,7 @@ pub struct QueueHandles {
 
 
 impl Device {
-    pub fn create(state:&State, instance:&Instance, p_device:&PDevice) -> VkResult<Self> {
+    pub fn create(state:&State, instance:&Instance, p_device:&PDevice) -> Result<Self, AAError> {
         if state.v_exp() {
             println!("\nCREATING:\tDEVICE");
         }
@@ -89,7 +84,7 @@ impl Device {
         TODO: Add device layers
         */
         
-        let device = unsafe{instance.create_device(p_device.p_device, &device_create_info, None)}?;
+        let device = unsafe{instance.create_device(p_device.underlying(), &device_create_info, None)}?;
         let queue_handles = Self::get_queue_handles(&device, &p_device.queues);
         
         if state.v_dmp() {
@@ -112,13 +107,16 @@ impl Device {
         }
     }
     
+    pub fn underlying(&self) -> ash::Device {
+        self.device.clone()
+    }
 }
 
 struct Extensions(Vec<vk::ExtensionProperties>);
 
 impl Extensions {
     fn get(instance:&Instance, p_device:&PDevice) -> Self {
-        let holder = unsafe{instance.enumerate_device_extension_properties(p_device.p_device)}.expect("simple vulkan functions should not fail");
+        let holder = unsafe{instance.enumerate_device_extension_properties(p_device.underlying())}.expect("simple vulkan functions should not fail");
         Self(holder)
     }
     
@@ -177,11 +175,9 @@ impl Deref for Device {
     }
 }
 
-impl ActiveDestroy for Device {
-    fn active_drop(&mut self, state:&State) {
-        if state.v_nor() {
-            println!("[0]:deleting device");
-        }
+impl VkDestructor for Device {
+    fn destruct(&mut self, _:DestructorArguments) {
+        logger::destructor();
         unsafe{self.device.destroy_device(None)};
     }
 }

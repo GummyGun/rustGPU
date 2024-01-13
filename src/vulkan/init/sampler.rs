@@ -56,7 +56,7 @@ impl Sampler{
 }
 
 impl DeviceDestroy for Sampler {
-    fn device_drop(&mut self, state:&State, device:&Device) {
+    fn device_destroy(&mut self, state:&State, device:&Device) {
         if state.v_nor() {
             println!("[0]:deleting sampler");
         }

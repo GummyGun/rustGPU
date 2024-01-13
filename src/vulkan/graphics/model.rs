@@ -81,6 +81,7 @@ impl Model {
         })
     }
     
+    #[allow(dead_code)]
     pub fn render(
         &self,
         state:&State,
@@ -93,22 +94,22 @@ impl Model {
 }
 
 impl DeviceDestroy for Model {
-    fn device_drop(&mut self, state:&State, device:&Device) {
+    fn device_destroy(&mut self, state:&State, device:&Device) {
         if state.v_nor() {
             println!("[0]:deleting depth buffer");
         }
-        self.texture.device_drop(state, device);
-        self.vertex_buffer.device_drop(state, device);
-        self.index_buffer.device_drop(state, device);
+        self.texture.device_destroy(state, device);
+        self.vertex_buffer.device_destroy(state, device);
+        self.index_buffer.device_destroy(state, device);
     }
 }
 
 impl DeviceDestroy for Vec<Model> {
     
-    fn device_drop(&mut self, state:&State, device:&Device) {
+    fn device_destroy(&mut self, state:&State, device:&Device) {
         
         for elem in self.iter_mut() {
-            elem.device_drop(state, device);
+            elem.device_destroy(state, device);
         }
     }
 }

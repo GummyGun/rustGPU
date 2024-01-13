@@ -7,14 +7,13 @@ use super::{
     DeviceDestroy,
     device::Device,
     p_device::PDevice,
-    swapchain::Swapchain,
-    render_pass::RenderPass,
-    pipeline::Pipeline,
 };
 
+/*
 use super::super::{
     Model,
 };
+*/
 
 use crate::{
     State,
@@ -101,17 +100,9 @@ impl CommandControl {
         unsafe{device.device_wait_idle()}.expect("waiting for iddle should not fail");
     }
     
+    /*
     pub fn record_command_buffer(
-        &self, 
-        state:&State, 
-        device:&Device, 
-        swapchain:&Swapchain, 
-        render_pass:&RenderPass, 
-        pipeline:&Pipeline, 
-        image_index:u32, 
-        command_buffer: vk::CommandBuffer,
-        descriptor_sets: &[vk::DescriptorSet],
-        model_vec:&[Model],
+        &self, state:&State, device:&Device, swapchain:&Swapchain, pipeline:&Pipeline, image_index:u32, command_buffer: vk::CommandBuffer, descriptor_sets: &[vk::DescriptorSet], model_vec:&[Model],
     ) {
         
         if state.v_dmp() {
@@ -152,7 +143,7 @@ impl CommandControl {
         
         let render_pass_begin = vk::RenderPassBeginInfo::builder()
             .render_pass(render_pass.as_inner())
-            .framebuffer(swapchain.framebuffers[image_index_usize])
+            //.framebuffer(swapchain.framebuffers[image_index_usize])
             .render_area(scissor)
             .clear_values(&clear_color[..]);
         
@@ -197,11 +188,12 @@ impl CommandControl {
         
         unsafe{device.end_command_buffer(command_buffer)}.unwrap();
     }
+    */
     
 }
 
 impl DeviceDestroy for CommandControl {
-    fn device_drop(&mut self, state:&State, device:&Device) {
+    fn device_destroy(&mut self, state:&State, device:&Device) {
         if state.v_nor() {
             println!("[0]:deallocating command buffer");
         }

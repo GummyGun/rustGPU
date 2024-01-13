@@ -181,7 +181,7 @@ impl Buffer {
 }
 
 impl DeviceDestroy for Buffer {
-    fn device_drop(&mut self, state:&State, device:&Device) {
+    fn device_destroy(&mut self, state:&State, device:&Device) {
         if state.v_nor() {
             println!("[0]:deleting buffer");
         }
@@ -309,7 +309,7 @@ impl From<(Buffer, *mut c_void, ash::util::Align<UniformBufferObject>)> for Unif
 }
 
 impl DeviceDestroy for UniformBuffer {
-    fn device_drop(&mut self, state:&State, device:&Device) {
+    fn device_destroy(&mut self, state:&State, device:&Device) {
         if state.v_dmp() {
             println!("[0]:deleting buffer");
         }
@@ -321,12 +321,12 @@ impl DeviceDestroy for UniformBuffer {
 }
 
 impl DeviceDestroy for UniformBuffers {
-    fn device_drop(&mut self, state:&State, device:&Device) {
+    fn device_destroy(&mut self, state:&State, device:&Device) {
         if state.v_nor() {
             println!("[0]:deleting uniform buffers");
         }
         for buffer in self.buffers.iter_mut() {
-            buffer.device_drop(state, device);
+            buffer.device_destroy(state, device);
         }
     }
 }

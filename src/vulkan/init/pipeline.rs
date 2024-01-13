@@ -6,9 +6,6 @@ use ash::{
 use super::{
     DeviceDestroy,
     device::Device,
-    render_pass::RenderPass,
-    //d_s_layout::DSLayout,
-    descriptor::DescriptorControlLayout,
 };
 
 use crate::{
@@ -32,8 +29,8 @@ impl Pipeline {
     
     pub fn create(state:&State, 
         device:&Device, 
-        render_pass:&RenderPass, 
-        layout:&DescriptorControlLayout
+        //render_pass:&RenderPass, 
+        //layout:&DescriptorControlLayout
     ) -> VkResult<Self> {
         if state.v_exp() {
             println!("\nCREATING:\tPIPELINE");
@@ -115,8 +112,8 @@ impl Pipeline {
             .attachments(&color_blend_attachment[..]);
         
         
-        let pipeline_layout_create_info = vk::PipelineLayoutCreateInfo::builder()
-            .set_layouts(&layout.layouts[..]);
+        let pipeline_layout_create_info = vk::PipelineLayoutCreateInfo::builder();
+            //.set_layouts(&layout.layouts[..]);
         
         let pipeline_layout = unsafe{device.create_pipeline_layout(&pipeline_layout_create_info, None)?};
         
@@ -142,7 +139,7 @@ impl Pipeline {
                 .depth_stencil_state(&depth_stencil_state_create_info)
                 .dynamic_state(&dynamic_state_create_info)
                 .layout(pipeline_layout)
-                .render_pass(render_pass.as_inner())
+                //.render_pass(render_pass.as_inner())
                 .base_pipeline_index(-1)
                 .build()
         ];
@@ -162,9 +159,11 @@ impl Pipeline {
         })
     }
     
+    /*
     pub fn as_inner(&self) -> vk::Pipeline {
         self.pipeline
     }
+    */
 
     fn create_shader_module(state:&State, device:&Device, file:&str) -> VkResult<vk::ShaderModule> {
         if state.v_exp() {
@@ -179,7 +178,7 @@ impl Pipeline {
 }
 
 impl DeviceDestroy for Pipeline {
-    fn device_drop(&mut self, state:&State, device:&Device) {
+    fn device_destroy(&mut self, state:&State, device:&Device) {
         if state.v_nor() {
             println!("[0]:deleting pipeline");
         }

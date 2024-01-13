@@ -1,23 +1,15 @@
-use ash::{
-    vk,
-    prelude::VkResult,
-};
+use crate::State;
+use crate::AAError;
 
-use super::{
-    ActiveDestroy,
-    instance::Instance,
-};
+use super::logger::d_messenger as logger;
+use super::VkDestructor;
+use super::DestructorArguments;
+use super::instance::Instance;
 
-use crate::{
-    State,
-};
+use std::ffi::CStr;
+use std::borrow::Cow;
 
-use std::{
-    ffi::{
-        CStr,
-    },
-    borrow::Cow,
-};
+use ash::vk;
 
 
 pub struct DMessenger {
@@ -27,7 +19,7 @@ pub struct DMessenger {
 
 impl DMessenger {
     
-    pub fn create(state:&State, instance:&Instance) -> VkResult<Self> {
+    pub fn create(state:&State, instance:&Instance) -> Result<Self, AAError> {
         if state.v_exp() {
             println!("\nCREATING:\tDEBUG_MESSENGER\nvalidation layers activated");
         }
@@ -86,11 +78,9 @@ impl DMessenger {
     
 }
 
-impl ActiveDestroy for DMessenger {
-    fn active_drop(&mut self, state:&State) {
-        if state.v_nor() {
-            println!("[0]:deleting debug messenger");
-        }
+impl VkDestructor for DMessenger {
+    fn destruct(&mut self, _:DestructorArguments) {
+        logger::destructor();
         unsafe{self.debug_utils.destroy_debug_utils_messenger(self.messenger, None)};
     }
 }

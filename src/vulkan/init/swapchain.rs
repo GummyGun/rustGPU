@@ -1,59 +1,45 @@
-use ash::{
-    vk,
-    prelude::VkResult,
-};
+use crate::AAError;
+use crate::State;
+use crate::constants::sc_max_images;
+use crate::window::Window;
+use crate::errors::messanges::U32_TO_USIZE;
+use crate::errors::messanges::SIMPLE_VK_FN;
+use crate::errors::messanges::BAD_DESTRUCTOR;
 
-use super::{
-    DeviceDestroy,
-    device::Device,
-    instance::Instance,
-    surface::Surface,
-    p_device::PDevice,
-    render_pass::RenderPass,
-    image::Image,
-    depth_buffer::DepthBuffer,
-};
-
-use crate::{
-    State,
-    window::{
-        Window
-    },
-};
-
-use std::{
-    ops::Deref,
-    slice::from_ref,
-};
+use super::logger::swapchain as logger;
+use super::DeviceDestroy;
+use super::DestructorType;
+use super::DestructorArguments;
+use super::device::Device;
+use super::instance::Instance;
+use super::surface::Surface;
+use super::p_device::PDevice;
+use super::image2::Image2;
 
 
+use std::ops::Deref;
+use std::slice::from_ref;
+use std::cmp::min;
 
-pub struct SwapchainBasic {
-    pub image_views: Vec<vk::ImageView>,
-    pub images: Vec<vk::Image>,
-    pub extent: vk::Extent2D,
-    pub surface_format: vk::SurfaceFormatKHR,
-    pub swapchain: vk::SwapchainKHR,
-    swapchain_loader: ash::extensions::khr::Swapchain,
-}
+use ash::vk;
 
 #[derive(Debug, Default)]
 pub struct SwapchainSupportDetails {
     pub surface_capabilities: vk::SurfaceCapabilitiesKHR,
     pub surface_formats: Vec<vk::SurfaceFormatKHR>,
     pub present_modes: Vec<vk::PresentModeKHR>,
-    
 }
 
+
+#[derive(Clone)]
 pub struct Swapchain {
-    pub image_views: Vec<vk::ImageView>,
-    pub images: Vec<vk::Image>,
+    pub image_count: usize,
+    pub image_views: [vk::ImageView; sc_max_images::USIZE],
+    pub images: [vk::Image; sc_max_images::USIZE],
     pub extent: vk::Extent2D,
     pub surface_format: vk::SurfaceFormatKHR,
-    
     pub swapchain: vk::SwapchainKHR,
     swapchain_loader: ash::extensions::khr::Swapchain,
-    pub framebuffers: Vec<vk::Framebuffer>
 }
 
 impl Deref for Swapchain {
@@ -66,25 +52,33 @@ impl Deref for Swapchain {
 
 impl Swapchain {
     
-    pub fn create(state:&State, window:&Window, instance:&Instance, surface:&Surface, p_device:&PDevice, device:&Device) -> VkResult<SwapchainBasic> {
-        if state.v_exp() {
-            println!("\nCREATING:\tSWAPCHAIN");
-        }
+    pub fn create(window:&Window, instance:&Instance, surface:&Surface, p_device:&PDevice, device:&Device) -> Result<Self, AAError> {
+        logger::creation();
         
-        //println!("{:?}", p_device.swapchain_details.surface_formats);
-        let surface_format = p_device.swapchain_details.choose_surface_format(&state);
-        /*
-        println!("{:?}", surface_format);
-        */
-        let present_mode = p_device.swapchain_details.choose_present_mode(&state);
-        let swap_extent = p_device.swapchain_details.choose_swap_extent(&state, window);
+        let surface_format = p_device.swapchain_details.choose_surface_format();
+        let present_mode = p_device.swapchain_details.choose_present_mode();
+        let swap_extent = p_device.swapchain_details.choose_swap_extent(window);
         let queue_indices = p_device.queues.queue_indices();
         
-        let mut image_count = p_device.swapchain_details.surface_capabilities.min_image_count+1;
+        let min_img_cnt = p_device.swapchain_details.surface_capabilities.min_image_count;
+        let max_img_cnt = p_device.swapchain_details.surface_capabilities.max_image_count;
         
-        if p_device.swapchain_details.surface_capabilities.max_image_count>0 && image_count>p_device.swapchain_details.surface_capabilities.max_image_count {
-            image_count = p_device.swapchain_details.surface_capabilities.max_image_count;
-        }
+        let max_limit = min(max_img_cnt, sc_max_images::U32);
+        
+        let image_count = match min_img_cnt {
+            0 => {
+                max_limit
+            }
+            limit => {
+                if limit+1 < max_limit {
+                    limit+1
+                } else {
+                    max_limit
+                }
+            }
+        };
+        
+        let image_count_usize = usize::try_from(image_count).expect(U32_TO_USIZE);
         
         
         let mut create_info = vk::SwapchainCreateInfoKHR::builder()
@@ -113,75 +107,36 @@ impl Swapchain {
         
         let swapchain = unsafe{swapchain_loader.create_swapchain(&create_info, None)?};
         
-        let images = unsafe{swapchain_loader.get_swapchain_images(swapchain)?};
         
-        let image_views = SwapchainBasic::create_image_views(state, &device, &images, surface_format.format)?;
+        let images_holder = unsafe{swapchain_loader.get_swapchain_images(swapchain)?};
+        let mut images = [vk::Image::null(); sc_max_images::USIZE];
         
-        Ok(SwapchainBasic{
+        for (index, image) in images_holder.into_iter().enumerate() {
+            images[index] = image;
+        }
+        
+        let image_views = Self::create_image_views(&device, &images[0..image_count_usize], surface_format.format)?;
+        
+        Ok(Self{
+            image_count: image_count_usize,
             image_views:image_views,
             images:images,
             swapchain:swapchain,
             swapchain_loader:swapchain_loader,
             extent:swap_extent,
             surface_format:surface_format,
-            
         })
-    }
-    
-    pub fn complete(
-        state:&State, 
-        device:&Device, 
-        swapchain:SwapchainBasic, 
-        depth:&DepthBuffer,
-        render_pass:&RenderPass, 
-    ) -> VkResult<Self> {
-        if state.v_exp() {
-            println!("\nCREATING:\tFRAME BUFFER");
-        }
-        
-        let mut framebuffers_holder:Vec<vk::Framebuffer> = Vec::with_capacity(swapchain.image_views.len());
-        
-        for image_view in &swapchain.image_views {
-            
-            let attachments = [
-                *image_view,
-                depth.image.view,
-            ];
-            
-            let create_info = vk::FramebufferCreateInfo::builder()
-                .render_pass(render_pass.as_inner())
-                .attachments(&attachments[..])
-                .width(swapchain.extent.width)
-                .height(swapchain.extent.height)
-                .layers(1);
-            let holder = unsafe{device.create_framebuffer(&create_info, None)}?;
-            framebuffers_holder.push(holder);
-        }
-        
-        Ok(Self{
-            image_views: swapchain.image_views,
-            images: swapchain.images,
-            extent: swapchain.extent,
-            surface_format: swapchain.surface_format,
-            swapchain: swapchain.swapchain,
-            swapchain_loader: swapchain.swapchain_loader,
-            framebuffers: framebuffers_holder,
-        })
-        
     }
     
     pub fn transition_sc_image(
         &self,
-        state: &State,
         device: &Device,
         image: vk::Image,
         command_buffer: vk::CommandBuffer,
         old_layout: vk::ImageLayout,
         new_layout: vk::ImageLayout,
     ) {
-        if state.v_dmp() {
-            println!("transitioning swapchain image");
-        }
+        logger::transitioning_sc_image(old_layout, new_layout);
         
         let image_aspect = match new_layout {
             vk::ImageLayout::DEPTH_ATTACHMENT_OPTIMAL => {
@@ -192,7 +147,7 @@ impl Swapchain {
             }
         };
         
-        let subresource = Image::subresource_range(image_aspect);
+        let subresource = Image2::subresource_range(image_aspect);
         
         let image_barrier = vk::ImageMemoryBarrier2::builder()
             .image(image)
@@ -212,6 +167,23 @@ impl Swapchain {
     }
     
     
+    fn create_image_views(device:&Device, images:&[vk::Image], format:vk::Format) -> Result<[vk::ImageView; sc_max_images::USIZE], AAError> {
+        let mut image_views_holder = [vk::ImageView::null(); sc_max_images::USIZE];
+        
+        for (index, image) in images.into_iter().enumerate() {
+            logger::sc_image_view_creations(index);
+            let holder = Image2::create_view(
+                device, 
+                *image, 
+                format, 
+                vk::ImageAspectFlags::COLOR
+            )?;
+            image_views_holder[index] = holder;
+        }
+        
+        Ok(image_views_holder)
+    }
+    
     /*
     #[allow(dead_code)]
     pub fn direct_create( //TODO: this function shouldn't be linted as unused
@@ -229,71 +201,48 @@ impl Swapchain {
     }
     */
     
-    
-}
-
-
-impl SwapchainBasic {
-    
-    fn create_image_views(state:&State, device:&Device, images:&Vec<vk::Image>, format:vk::Format) -> VkResult<Vec<vk::ImageView>> {
-        
-        let mut image_views_holder:Vec<vk::ImageView> = Vec::with_capacity(images.len());
-        
-        for (index, image) in images.iter().enumerate() {
-            if state.v_exp() {
-                println!("creating swapchain image {index}");
-            }
-            let holder = Image::create_image_view(
-                state, 
-                device, 
-                image, 
-                format, 
-                vk::ImageAspectFlags::COLOR
-            )?;
-            image_views_holder.push(holder);
+    fn internal_destroy(inself:&mut Self, device:&Device) {//inself
+        logger::deletion(true);
+        for view in inself.image_views.iter() {
+            unsafe{device.destroy_image_view(*view, None)};
         }
-        
-        Ok(image_views_holder)
+        logger::deletion(false);
+        unsafe{inself.destroy_swapchain(inself.swapchain, None)};
     }
     
 }
 
 
 impl DeviceDestroy for Swapchain {
-    fn device_drop(&mut self, state:&State, device:&Device) {
-        if state.v_nor() {
-            println!("[0]:deleting swapchain framebuffers");
-        }
-        for framebuffer in self.framebuffers.iter() {
-            unsafe{device.destroy_framebuffer(*framebuffer, None)};
-        }
-        if state.v_nor() {
-            println!("[0]:deleting images");
-        }
-        for view in self.image_views.iter() {
-            unsafe{device.destroy_image_view(*view, None)};
-        }
-        if state.v_nor() {
-            println!("[0]:deleting swapchain");
-        }
-        unsafe{self.destroy_swapchain(self.swapchain, None)};
+    fn device_destroy(&mut self, _:&State, device:&Device) {
+        Self::internal_destroy(self, device);
+    }
+}
+
+impl Swapchain {
+    pub fn destroy_callback(&mut self) -> (Box<dyn FnOnce(DestructorArguments)>, DestructorType) {
+        let target = self.clone();
+        let callback = Box::new(move |arguments:DestructorArguments|{
+            let mut target = target;
+            if let DestructorArguments::Dev(device) = arguments {
+                Self::internal_destroy(&mut target, device);
+            } else {
+                panic!("{}", BAD_DESTRUCTOR);
+            }
+        });
+        (callback, DestructorType::Dev)
     }
 }
 
 
-impl Deref for SwapchainBasic {
-    type Target = ash::extensions::khr::Swapchain;
-    fn deref(&self) -> &Self::Target {
-        &self.swapchain_loader
-    }
-}
 
 impl SwapchainSupportDetails {
     
     pub fn query_swapchain_support(surface:&Surface, p_device:vk::PhysicalDevice) -> SwapchainSupportDetails {
-        let surface_capabilities = unsafe{surface.get_physical_device_surface_capabilities(p_device, surface.surface).unwrap()};
-        let surface_formats = unsafe{surface.get_physical_device_surface_formats(p_device, surface.surface).unwrap()};
-        let present_modes = unsafe{surface.get_physical_device_surface_present_modes(p_device, surface.surface).unwrap()};
+        
+        let surface_capabilities = unsafe{surface.get_physical_device_surface_capabilities(p_device, surface.surface).expect(SIMPLE_VK_FN)};
+        let surface_formats = unsafe{surface.get_physical_device_surface_formats(p_device, surface.surface).expect(SIMPLE_VK_FN)};
+        let present_modes = unsafe{surface.get_physical_device_surface_present_modes(p_device, surface.surface).expect(SIMPLE_VK_FN)};
         SwapchainSupportDetails{
             surface_capabilities,
             surface_formats,
@@ -305,56 +254,43 @@ impl SwapchainSupportDetails {
         !self.surface_formats.is_empty() && !self.present_modes.is_empty()
     }
     
-    fn choose_surface_format(&self, state:&State) -> vk::SurfaceFormatKHR {
-        if state.v_dmp() {
-            println!("{:#?}", &self.surface_formats);
-        }
+    fn choose_surface_format(&self) -> vk::SurfaceFormatKHR {
+        logger::format_chossing(&self.surface_formats);
         
         for format in &self.surface_formats {
             match (format.format, format.color_space) {
                 (vk::Format::R8G8B8A8_SRGB, vk::ColorSpaceKHR::SRGB_NONLINEAR) => {}
-                (vk::Format::B8G8R8A8_SRGB, vk::ColorSpaceKHR::SRGB_NONLINEAR) => {}
                 (_,_) => { 
                     continue;
                 }
             }
-            if state.v_exp() {
-                println!("found target {:#?}", &format);
-            }
-            return *format;
+            let format = *format;
+            logger::found_format(true, format);
+            return format;
         }
+        logger::found_format(true, self.surface_formats[0]);
         
-        if state.v_exp() {
-            println!("didn't found target settling for {:#?}", &self.surface_formats[0]);
-        }
         self.surface_formats[0]
     }
     
-    fn choose_present_mode(&self, state:&State) -> vk::PresentModeKHR {
-        if state.v_dmp() {
-            println!("{:#?}", &self.present_modes);
-        }
+    fn choose_present_mode(&self) -> vk::PresentModeKHR {
+        
+        logger::present_chossing(&self.present_modes);
         
         for mode in &self.present_modes {
             if mode == &vk::PresentModeKHR::MAILBOX {
-                if state.v_exp() {
-                    println!("found target Mailbox", );
-                }
+                logger::found_present(true);
                 return vk::PresentModeKHR::MAILBOX;
             }
             
         }
-        if state.v_exp() {
-            println!("MAILBOX not available settling for FIFO");
-        }
+        logger::found_present(false);
         vk::PresentModeKHR::FIFO
     }
     
-    fn choose_swap_extent(&self, state:&State, window:&Window) -> vk::Extent2D {
+    fn choose_swap_extent(&self, window:&Window) -> vk::Extent2D {
         if self.surface_capabilities.current_extent.width != u32::MAX {
-            if state.v_exp() {
-                println!("normal display width:{} height:{}", self.surface_capabilities.current_extent.width, self.surface_capabilities.current_extent.height);
-            }
+            logger::extent_chossing(self.surface_capabilities.current_extent);
             self.surface_capabilities.current_extent
         } else {
             let (_width, _height) = window.get_pixel_dimensions();

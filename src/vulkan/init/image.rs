@@ -25,10 +25,11 @@ use std::{
 };
 
 
+
 pub struct Image {
     pub image: vk::Image,
-    pub memory: vk::DeviceMemory,
     pub view: vk::ImageView,
+    pub memory: vk::DeviceMemory,
     pub mip_level: i32,
 }
 
@@ -290,13 +291,11 @@ impl Image {
     }
     
     pub fn subresource_range(aspect:vk::ImageAspectFlags) -> vk::ImageSubresourceRange {
-        
-        vk::ImageSubresourceRange::builder()
-            .aspect_mask(aspect)
-            .level_count(vk::REMAINING_MIP_LEVELS)
-            .layer_count(vk::REMAINING_ARRAY_LAYERS)
-            .build()
-        
+        let mut holder = vk::ImageSubresourceRange::default();
+        holder.aspect_mask = aspect;
+        holder.level_count = vk::REMAINING_MIP_LEVELS;
+        holder.layer_count = vk::REMAINING_ARRAY_LAYERS;
+        holder
     }
 }
 
@@ -307,7 +306,7 @@ impl From<((vk::Image, vk::DeviceMemory), vk::ImageView, i32)> for Image {
 }
 
 impl DeviceDestroy for Image {
-    fn device_drop(&mut self, state:&State, device:&Device) {
+    fn device_destroy(&mut self, state:&State, device:&Device) {
         if state.v_nor() {
             println!("[0]:deleting texture image");
         }

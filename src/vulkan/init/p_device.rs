@@ -20,7 +20,7 @@ use std::{
 };
 
 pub struct PDevice {
-    pub p_device: vk::PhysicalDevice,
+    p_device: vk::PhysicalDevice,
     pub queues: QueueFamilyIndices,
     pub features: vk::PhysicalDeviceFeatures,
     pub swapchain_details: SwapchainSupportDetails,
@@ -231,7 +231,9 @@ impl PDevice {
         }
     }
     
-    
+    pub fn underlying(&self) -> vk::PhysicalDevice {
+        self.p_device
+    }
 }
 
 impl QueueFamilyOptionalIndices {

@@ -6,7 +6,7 @@ use ash::{
 use super::{
     DeviceDestroy,
     device::Device,
-    swapchain::SwapchainBasic,
+    swapchain::Swapchain,
     depth_buffer::DepthBuffer,
 };
 
@@ -25,7 +25,7 @@ impl RenderPass {
     pub fn create(
         state:&State, 
         device:&Device, 
-        swapchain:&SwapchainBasic, 
+        swapchain:&Swapchain, 
         depth:&DepthBuffer
     ) -> VkResult<Self> {
         
@@ -114,7 +114,7 @@ impl Deref for RenderPass {
 */
 
 impl DeviceDestroy for RenderPass {
-    fn device_drop(&mut self, state:&State, device:&Device) {
+    fn device_destroy(&mut self, state:&State, device:&Device) {
         if state.v_nor() {
             println!("[0]:deleting render pass");
         }

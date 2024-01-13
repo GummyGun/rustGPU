@@ -1,30 +1,19 @@
-use ash::{
-    vk,
-    prelude::VkResult,
-};
+use crate::constants;
+use crate::State;
+use crate::window::Window;
+use crate::errors::Error as AAError;
 
-use super::{
-    ActiveDestroy,
-    d_messenger::DMessenger
-};
+use super::logger::instance as logger;
+use super::VkDestructor;
+use super::DestructorArguments;
+use super::d_messenger::DMessenger;
 
-use crate::{
-    constants,
-    State,
-    window::{
-        Window,
-    },
-    errors::Error as AAError,
-};
+use std::ffi::c_char;
+use std::ffi::CStr;
+use std::ops::Deref;
+use std::collections::HashSet;
 
-use std::{
-    ffi::{
-        c_char,
-        CStr,
-    },
-    ops::Deref,
-    collections::HashSet,
-};
+use ash::vk;
 
 pub struct Instance {
     pub entry: ash::Entry,
@@ -33,7 +22,7 @@ pub struct Instance {
 
 impl Instance {
     
-    pub fn create(state:&State, window:&Window) -> VkResult<Instance> {
+    pub fn create(state:&State, window:&Window) -> Result<Instance, AAError> {
         if state.v_exp() {
             println!("\nCREATING:\tINSTANCE");
         }
@@ -94,14 +83,16 @@ impl Instance {
         
         Ok(Self{entry:entry, instance:instance_holder})
     }
+    
+    pub fn underlying(&self) -> ash::Instance {
+        self.instance.clone()
+    }
 
 }
 
-impl ActiveDestroy for Instance {
-    fn active_drop(&mut self, state:&State) {
-        if state.v_nor() {
-            println!("[0]:deleting instance");
-        }
+impl VkDestructor for Instance {
+    fn destruct(&mut self, _:DestructorArguments) {
+        logger::destructor();
         unsafe{self.destroy_instance(None)};
     }
     

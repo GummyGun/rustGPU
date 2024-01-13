@@ -1,25 +1,88 @@
-use ash::{
-    vk,
-};
+use crate::State;
+use crate::errors::Error as AAError;
 
-use super::{
-    device::Device,
-    p_device::PDevice,
-    command::CommandControl,
-    buffers::Buffer,
-};
+use super::logger::memory as logger;
+use super::VkDestructor;
+use super::DestructorArguments;
+use super::instance::Instance;
+use super::p_device::PDevice;
+use super::device::Device;
+use super::command::CommandControl;
+use super::buffers::Buffer;
 
-use crate::{
-    State,
-    errors::Error as AAError,
-};
+use std::slice::from_ref;
+use std::ops::Deref;
+use std::ops::DerefMut;
 
-use std::{
-    slice::from_ref,
-};
+use ash::vk;
+use gpu_allocator::vulkan as vkmem;
+use gpu_allocator as gpuall;
 
-struct Allocator {
+pub struct Allocator {
+    allocator:std::mem::ManuallyDrop<vkmem::Allocator>,
+}
+
+impl Allocator {
+    pub fn create(
+        instance: &Instance,
+        p_device: &PDevice,
+        device: &Device,
+    ) -> Result<Self, AAError> {
+        logger::allocator_creation();
+        
+        let create_info = vkmem::AllocatorCreateDesc {
+            instance: instance.underlying(),
+            device: device.underlying(),
+            physical_device: p_device.underlying(),
+            debug_settings: Default::default(),
+            buffer_device_address: true,  // Ideally, check the BufferDeviceAddressFeatures struct.
+            allocation_sizes: Default::default(),
+        };
+        
+        let allocator = vkmem::Allocator::new(&create_info)?;
+        
+        Ok(Self{
+            allocator: std::mem::ManuallyDrop::new(allocator),
+        })
+    }
     
+    pub fn allocate_gpu_only(
+        &mut self,
+        name: &str,
+        requirements: vk::MemoryRequirements,
+    ) -> vkmem::Allocation {
+        
+        logger::allocation_gpu_only(name);
+        let alloc_info = vkmem::AllocationCreateDesc{
+            name: name,
+            requirements: requirements,
+            location: gpuall::MemoryLocation::GpuOnly,
+            linear: true,
+            allocation_scheme: vkmem::AllocationScheme::GpuAllocatorManaged,
+        };
+        
+        self.allocate(&alloc_info).expect("gpu error")
+    }
+}
+
+impl Deref for Allocator {
+    type Target = vkmem::Allocator;
+    fn deref(&self) -> &Self::Target {
+        &self.allocator
+    }
+}
+
+impl DerefMut for Allocator {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.allocator
+    }
+}
+
+
+impl VkDestructor for Allocator {
+    fn destruct(&mut self, _:DestructorArguments) {
+        unsafe{std::mem::ManuallyDrop::drop(&mut self.allocator)};
+    }
 }
 
 

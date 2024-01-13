@@ -1,9 +1,12 @@
-use super::{
-    ActiveDestroy,
-    DeviceDestroy,
-};
+use super::DeviceDestroy;
+use super::logger;
+use super::VkDestructor;
+use super::DestructorType;
+use super::DestructorArguments;
+    
 
 pub mod memory;
+pub use memory::Allocator;
 
 mod instance;
 pub use instance::*;
@@ -26,9 +29,6 @@ pub use swapchain::*;
 mod pipeline;
 pub use pipeline::*;
 
-mod render_pass;
-pub use render_pass::*;
-
 mod command;
 pub use command::*;
 
@@ -43,6 +43,9 @@ pub use descriptor::*;
 
 mod image;
 pub use image::*;
+
+pub mod image2;
+pub use image2::*;
 
 mod sampler;
 pub use sampler::*;

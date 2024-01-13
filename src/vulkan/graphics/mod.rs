@@ -55,7 +55,6 @@ impl VInit {
         unsafe{self.device.begin_command_buffer(c_buffer, &begin_info)}.expect("reset on command buffer should not fail");
         
         self.swapchain.transition_sc_image(
-            &self.state,
             &self.device,
             image,
             c_buffer,
@@ -63,7 +62,9 @@ impl VInit {
             vk::ImageLayout::GENERAL,
         );
         
-        let clear_color = vk::ClearColorValue{float32:[0.3f32; 4]};
+        let hola = (self.get_frame_count()%100) as f32/100 as f32;
+        
+        let clear_color = vk::ClearColorValue{float32:[hola; 4]};
         
         
         let subresource = Image::subresource_range(vk::ImageAspectFlags::COLOR);
@@ -71,7 +72,6 @@ impl VInit {
         unsafe{self.device.cmd_clear_color_image(c_buffer, image, vk::ImageLayout::GENERAL, &clear_color, from_ref(&subresource))};
         
         self.swapchain.transition_sc_image(
-            &self.state,
             &self.device,
             image,
             c_buffer,
@@ -115,6 +115,7 @@ impl VInit {
     
     
     
+    /*
     pub fn draw_frame(&mut self) {
         
         let cf = self.get_frame();
@@ -171,6 +172,7 @@ impl VInit {
         
         self.frame_update();
     }
+    */
     
     pub fn tick(&mut self) {
         use nalgebra as na;

@@ -37,6 +37,7 @@ pub struct DescriptorControl {
 }
 
 impl DescriptorControl {
+    #[allow(dead_code)]
     pub fn create(state:&State, device:&Device) -> VkResult<DescriptorControlLayout> {
         if state.v_exp() {
             println!("\nCREATING:\tDESCRIPTOR SET LAYOUT");
@@ -78,6 +79,7 @@ impl DescriptorControl {
         })
     }
 
+    #[allow(dead_code)]
     pub fn complete(
         state: &State, 
         device: &Device, 
@@ -180,7 +182,7 @@ impl DescriptorControl {
 }
 
 impl DeviceDestroy for DescriptorControl {
-    fn device_drop(&mut self, state:&State, device:&Device) {
+    fn device_destroy(&mut self, state:&State, device:&Device) {
         if state.v_nor() {
             println!("[0]:deleting uniform buffers");
         }
