@@ -1,5 +1,5 @@
-use crate::State;
-use crate::errors::Error as AAError;
+use crate::AAError;
+use crate::errors::messanges::GPU_ALLOCATION;
 
 use super::logger::memory as logger;
 use super::VkDestructor;
@@ -7,10 +7,7 @@ use super::DestructorArguments;
 use super::instance::Instance;
 use super::p_device::PDevice;
 use super::device::Device;
-use super::command::CommandControl;
-use super::buffers::Buffer;
 
-use std::slice::from_ref;
 use std::ops::Deref;
 use std::ops::DerefMut;
 
@@ -28,7 +25,7 @@ impl Allocator {
         p_device: &PDevice,
         device: &Device,
     ) -> Result<Self, AAError> {
-        logger::allocator_creation();
+        logger::alloc::create();
         
         let create_info = vkmem::AllocatorCreateDesc {
             instance: instance.underlying(),
@@ -52,7 +49,7 @@ impl Allocator {
         requirements: vk::MemoryRequirements,
     ) -> vkmem::Allocation {
         
-        logger::allocation_gpu_only(name);
+        logger::alloc::gpu_allocation(name);
         let alloc_info = vkmem::AllocationCreateDesc{
             name: name,
             requirements: requirements,
@@ -61,7 +58,7 @@ impl Allocator {
             allocation_scheme: vkmem::AllocationScheme::GpuAllocatorManaged,
         };
         
-        self.allocate(&alloc_info).expect("gpu error")
+        self.allocate(&alloc_info).expect(GPU_ALLOCATION)
     }
 }
 
@@ -80,12 +77,15 @@ impl DerefMut for Allocator {
 
 
 impl VkDestructor for Allocator {
-    fn destruct(&mut self, _:DestructorArguments) {
+    fn destruct(mut self, mut args:DestructorArguments) {
+        let _ = args.unwrap_dev();
+        logger::alloc::destruct();
         unsafe{std::mem::ManuallyDrop::drop(&mut self.allocator)};
     }
 }
 
 
+/*
 pub fn find_memory_type_index(
     state:&State, 
     p_device:&PDevice, 
@@ -175,4 +175,5 @@ pub fn copy_buffer_2_image(
     
     command.submit_su_buffer(device);
 }
+*/
 

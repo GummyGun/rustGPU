@@ -37,7 +37,6 @@ pub struct DescriptorControl {
 }
 
 impl DescriptorControl {
-    #[allow(dead_code)]
     pub fn create(state:&State, device:&Device) -> VkResult<DescriptorControlLayout> {
         if state.v_exp() {
             println!("\nCREATING:\tDESCRIPTOR SET LAYOUT");

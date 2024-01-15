@@ -5,8 +5,10 @@ mod graphics;
 use graphics::*;
 
 mod objects;
+mod helpers;
 
 mod logger;
+use logger::base as b_logger;
 
 use super::window::Window;
 use super::constants;
@@ -20,12 +22,13 @@ use objects::VkDestructor;
 use objects::DestructorType;
 use objects::DestructorArguments;
 
+use ash::vk;
+
 pub struct VInit {
     
     state: State,
     
     frame_control: FrameControl,
-    pub mip_level: usize,
     //pub deletion_queue: VecDeque<dyn FnOnce()>,
     
     //pub model: Model,
@@ -36,15 +39,29 @@ pub struct VInit {
     pub device: VkWraper<Device>,
     //pub allocator: std::mem::ManuallyDrop<Allocator>,
     pub allocator: VkWraper<Allocator>,
-    pub depth_buffer: VkObjDevDep<DepthBuffer>,
     pub swapchain: VkObjDevDep<Swapchain>,
-    pub pipeline: VkObjDevDep<Pipeline>,
-    pub command_control: VkObjDevDep<CommandControl>,
     pub sync_objects: VkObjDevDep<SyncObjects>,
+    pub command_control: VkObjDevDep<CommandControl>,
+    /*
+    pub depth_buffer: VkObjDevDep<DepthBuffer>,
+    pub pipeline: VkObjDevDep<Pipeline>,
     pub sampler: VkObjDevDep<Sampler>,
     pub uniform_buffers: VkObjDevDep<UniformBuffers>,
+    */
     //pub descriptor_control: VkObjDevDep<DescriptorControl>,
     //pub model_vec: VkObjDevDep<Vec<Model>>,
+    
+    render_image: VkWraper<Image2>,
+    render_extent: vk::Extent2D,
+    
+    ds_layout_builder: VkWraper<DescriptorLayoutBuilder>,
+    ds_layout: VkWraper<DescriptorLayout>,
+    ds_pool: VkWraper<DescriptorPoolAllocator>,
+    ds_set: vk::DescriptorSet,
+    /*
+    */
+    
+    pub render:graphics::Graphics,
     
 }
 
@@ -52,8 +69,7 @@ pub struct VInit {
 impl VInit {
     pub fn init(state:State, window:&Window) -> VInit {
         
-        
-        let instance = vk_create_interpreter(&state, Instance::create(&state, window), "instance"); 
+        let instance = vk_create_interpreter(Instance::create(&state, window), "instance"); 
         
         let messenger = if constants::VALIDATION {
             Some(match DMessenger::create(&state, &instance) {
@@ -70,66 +86,61 @@ impl VInit {
             None
         };
         
+        let surface =  vk_create_interpreter(Surface::create(&state, &window, &instance), "surface"); 
+        let p_device = vk_create_interpreter(PDevice::chose(&state, &instance, &surface), "p_device selected"); 
+        let mut device = vk_create_interpreter(Device::create(&state, &instance, &p_device), "device"); 
+        let mut allocator = vk_create_interpreter(Allocator::create(&instance, &p_device, &device), "allocator");
+        
+        let swapchain = vk_create_interpreter(Swapchain::create(&window, &instance, &surface, &p_device, &mut device), "swapchain");
+        let sync_objects = vk_create_interpreter(SyncObjects::create(&state, &device), "sync_objects");
+        let command_control = vk_create_interpreter(CommandControl::create(&state, &p_device, &device), "command_control");
+        
         /*
-        let hola = Box::new(|| {
-            println!("hola closure");
-            1
-        });
-        println!("before closure");
-        println!("{:?}", hola());
-        use std::collections::VecDeque;
-        
-        let mut destruction_queue:VecDeque<Box<dyn FnMut()->()>> = VecDeque::new();
-        
-        destruction_queue.push_back(Box::new(||{
-            println!("0");
-        }));
-        destruction_queue.push_back(Box::new(||{
-            println!("1");
-        }));
-        destruction_queue.push_back(Box::new(||{
-            println!("2");
-        }));
-        
-        destruction_queue.pop_back().unwrap()();
-        
-        panic!();
+        let depth_buffer = vk_create_interpreter(DepthBuffer::create(&state, &instance, &p_device, &device, &swapchain), "depth_buffer");
+        let pipeline = vk_create_interpreter(Pipeline::create(&state, &device/*, &layout*/), "pipeline");
+        let sampler = vk_create_interpreter(Sampler::create(&state, &p_device, &device), "sampler");
+        let uniform_buffers = vk_create_interpreter(UniformBuffers::create(&state, &p_device, &device), "uniform_buffer");
         */
         
-        let surface =  vk_create_interpreter(&state, Surface::create(&state, &window, &instance), "surface"); 
-        let p_device = vk_create_interpreter(&state, PDevice::chose(&state, &instance, &surface), "p_device selected"); 
-        let device = vk_create_interpreter(&state, Device::create(&state, &instance, &p_device), "device"); 
-        let mut allocator = vk_create_interpreter(&state, Allocator::create(&instance, &p_device, &device), "allocator");
         
-        let swapchain = vk_create_interpreter(&state, Swapchain::create(&window, &instance, &surface, &p_device, &device), "swapchain");
+        let render_image = vk_create_interpreter(Image2::create(&mut device, &mut allocator, swapchain.extent.into(), image2::RENDER), "render_image");
+        let render_extent = vk::Extent2D::default();
         
-        let depth_buffer = vk_create_interpreter(&state, DepthBuffer::create(&state, &instance, &p_device, &device, &swapchain), "depth_buffer");
-        let pipeline = vk_create_interpreter(&state, Pipeline::create(&state, &device/*, &layout*/), "pipeline");
-        let command_control = vk_create_interpreter(&state, CommandControl::create(&state, &p_device, &device), "command_control");
-        let sync_objects = vk_create_interpreter(&state, SyncObjects::create(&state, &device), "sync_objects");
-        let sampler = vk_create_interpreter(&state, Sampler::create(&state, &p_device, &device), "sampler");
-        let uniform_buffers = vk_create_interpreter(&state, UniformBuffers::create(&state, &p_device, &device), "uniform_buffer");
+        //render_image.destruct(DestructorArguments::DevAll(&mut device, &mut allocator));
         
-        let image2 = Image2::create(&device, &mut allocator, swapchain.extent.into(), image2::RENDER);
+        
+        let mut ds_layout_builder = vk_create_interpreter(DescriptorLayoutBuilder::create(), "descriptor_layout_builder");
+        ds_layout_builder.add_binding(0, vk::DescriptorType::STORAGE_IMAGE);
+        /*
+        descriptor_layout_builder.add_binding(3, vk::DescriptorType::UNIFORM_BUFFER);
+        descriptor_layout_builder.add_binding(4, vk::DescriptorType::SAMPLER);
+        */
+        let (ds_layout, mut types_in_layout) = ds_layout_builder.build(&mut device, vk::ShaderStageFlags::VERTEX).unwrap();
+        
+        types_in_layout *= 10;//allocate 10 DS
+        
+        
+        let mut ds_pool = DescriptorPoolAllocator::create(&mut device, types_in_layout).unwrap();
+        let ds_set = ds_pool.allocate(&mut device, ds_layout).unwrap();
+        
+        /*
+        */
         
         /*
         let mut model_vec = VkObjDevDep::new(Vec::new());
-        let model = vk_create_interpreter(&state, Model::vk_load(&state, &p_device, &device, &command_control, constants::path::suzanne::metadata(), constants::path::suzanne::load_transformations()), "Model");
+        let model = vk_create_interpreter(Model::vk_load(&state, &p_device, &device, &command_control, constants::path::suzanne::metadata(), constants::path::suzanne::load_transformations()), "Model");
         model_vec.push(model);
+        let model = vk_create_interpreter(Model::vk_load(&state, &p_device, &device, &command_control, constants::path::suzanne::metadata(), constants::path::suzanne::load_transformations()), "Model");
+        model_vec.push(model);
+        let descriptor_control = vk_create_interpreter(DescriptorControl::complete(&state, &device, layout, &sampler, &mut model_vec[..], &uniform_buffers), "descriptor_control");
         */
         
-        /*
-        let model = vk_create_interpreter(&state, Model::vk_load(&state, &p_device, &device, &command_control, constants::path::suzanne::metadata(), constants::path::suzanne::load_transformations()), "Model");
-        model_vec.push(model);
+        let render = Graphics::new(&mut device, &mut allocator).unwrap();
         
-        let descriptor_control = vk_create_interpreter(&state, DescriptorControl::complete(&state, &device, layout, &sampler, &mut model_vec[..], &uniform_buffers), "descriptor_control");
-        */
-        
-        
+        //None::<i32>.expect("todo");
         VInit{
             state: state,
             frame_control: FrameControl(0),
-            mip_level: 1,
             
             instance: VkWraper::new(instance),
             messenger: match messenger {
@@ -140,15 +151,25 @@ impl VInit {
             surface: VkWraper::new(surface),
             device: VkWraper::new(device),
             allocator: VkWraper::new(allocator), 
+            swapchain: VkObjDevDep::new(swapchain),
+            sync_objects: VkObjDevDep::new(sync_objects),
+            command_control: VkObjDevDep::new(command_control),
+            render_image: VkWraper::new(render_image),
+            render_extent,
+            /*
             depth_buffer: VkObjDevDep::new(depth_buffer),
             pipeline: VkObjDevDep::new(pipeline),
-            swapchain: VkObjDevDep::new(swapchain),
-            command_control: VkObjDevDep::new(command_control),
-            sync_objects: VkObjDevDep::new(sync_objects),
             sampler: VkObjDevDep::new(sampler),
             uniform_buffers: VkObjDevDep::new(uniform_buffers),
             //descriptor_control: VkObjDevDep::new(descriptor_control),
             //model_vec: model_vec,
+            */
+            ds_layout_builder: VkWraper::new(ds_layout_builder),
+            ds_layout: VkWraper::new(ds_layout),
+            ds_pool: VkWraper::new(ds_pool),
+            ds_set: ds_set,
+            render: render,
+            
         }
     }
     
@@ -175,12 +196,10 @@ impl VInit {
 
 
 #[inline]
-fn vk_create_interpreter<T, A:std::fmt::Debug>(state:&State, result:Result<T, A>, name:&'static str) -> T {
+fn vk_create_interpreter<T, A:std::fmt::Debug>(result:Result<T, A>, name:&str) -> T {
     match result {
         Ok(device) => {
-            if state.v_nor() {
-                println!("[0]:{}", name);
-            }
+            b_logger::create(name);
             device
         }
         Err(err) => {panic!("error in {} {:?}", name, err);}
@@ -188,41 +207,53 @@ fn vk_create_interpreter<T, A:std::fmt::Debug>(state:&State, result:Result<T, A>
 }
 
 impl Drop for VInit {
+    
     fn drop(&mut self) {
         
-        //self.model_vec.device_destroy(&self.state, &self.device);
-        //self.descriptor_control.device_destroy(&self.state, &self.device);
+        let (instance, messenger, surface, mut _device, mut _allocator, mut swapchain, mut sync_objects, mut command_control, mut _render_image, ds_layout_builder, ds_pool, ds_layout) = self.destructure();
+        let state = self.state;
         
-        let VInit{allocator:allocator, ..} = self;
         
-        self.uniform_buffers.device_destroy(&self.state, &self.device);
-        self.sampler.device_destroy(&self.state, &self.device);
-        self.sync_objects.device_destroy(&self.state, &self.device);
-        self.command_control.device_destroy(&self.state, &self.device);
-        self.pipeline.device_destroy(&self.state, &self.device);
-        self.depth_buffer.device_destroy(&self.state, &self.device);
-        self.swapchain.device_destroy(&self.state, &self.device);
+        let mut device = &mut _device;
+        let allocator = &mut _allocator;
+        //let render_image = &mut _render_image;
+        
+        ds_pool.destruct(DestructorArguments::Dev(&mut device));
+        ds_layout.destruct(DestructorArguments::Dev(&mut device));
+        ds_layout_builder.destruct(DestructorArguments::None);
+        
+        _render_image.destruct(DestructorArguments::DevAll(device, allocator));
         
         /*
-        let swapchain_destructor = self.swapchain.destroy_callback();
-        swapchain_destructor.0(DestructorArguments::Dev(&self.device));
+        self.uniform_buffers.device_destroy(&self.state, device);
+        self.sampler.device_destroy(&self.state, device);
+        self.pipeline.device_destroy(&self.state, device);
+        self.depth_buffer.device_destroy(&self.state, device);
         */
         
-        allocator.destruct(DestructorArguments::Dev(&self.device));
+        command_control.device_destroy(&state, device);
+        sync_objects.device_destroy(&state, device);
+        swapchain.device_destroy(&state, device);
         
-        self.device.destruct(DestructorArguments::None);
-        self.surface.destruct(DestructorArguments::None);
-        match &mut self.messenger {
-            Some(ref mut messenger) => {
+        /*
+        let swapchain_destruct = self.swapchain.destroy_callback();
+        swapchain_destruct.0(DestructorArguments::Dev(&self.device));
+        */
+        
+        _allocator.destruct(DestructorArguments::Dev(device));
+        _device.destruct(DestructorArguments::None);
+        surface.destruct(DestructorArguments::None);
+        
+        match messenger {
+            Some(messenger) => {
                 messenger.destruct(DestructorArguments::None);
             }
             None => {
-                if self.state.v_nor() {
-                    println!("No Messenger to delete");
-                }
+                b_logger::debug_messenger_destruct();
             }
         }
-        self.instance.destruct(DestructorArguments::None);
+        
+        instance.destruct(DestructorArguments::None);
         
     }
 }
@@ -241,4 +272,6 @@ impl FrameControl {
         self.0 += 1;
     }
 }
+
+
 

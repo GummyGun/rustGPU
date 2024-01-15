@@ -2,6 +2,7 @@ use thiserror::Error;
 use std::collections::HashSet;
 use std::io;
 use ash::vk;
+use gpu_allocator as gpu;
 
 
 #[derive(Error, Debug)]
@@ -29,15 +30,34 @@ pub enum Error {
     #[error("only simple gltf are supported")]
     ComplexGltf,
     
+    #[error("swapchain support is strange")]
+    SwapchainImageSize,
+    
     #[error("invalid load transform")]
     InvalidLoadTransform,
-    
     #[error("Lobj error")]
     LobjError(#[from] tobj::LoadError),
     #[error("VK error")]
     VkError(#[from] vk::Result),
+    #[error("gpu_allocator error")]
+    GPUAlocError(#[from] gpu::AllocationError),
     #[error("IO error")]
     IoError(#[from] io::Error),
+}
+
+/*
+use crate::errors::messanges:: ;
+*/
+pub mod messanges {
+    pub const U32_TO_USIZE:&'static str = "conversion should be granted on regular architecture";
+    pub const SIMPLE_VK_FN:&'static str = "simple vk functions should not fail";
+    pub const BAD_DESTRUCTOR:&'static str = "destruct did not receive the right information";
+    pub const GPU_ALLOCATION:&'static str = "gpu allocation should not fail";
+    pub const GPU_FREE:&'static str = "gpu free should not fail";
+    pub const STANDARD_CONV:&'static str = "conversion is granted by de standard";
+    pub const GRANTED:&'static str = "things the programer knows but the compiled does not";
+    
+    
 }
 
 /*

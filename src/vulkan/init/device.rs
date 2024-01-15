@@ -176,8 +176,9 @@ impl Deref for Device {
 }
 
 impl VkDestructor for Device {
-    fn destruct(&mut self, _:DestructorArguments) {
-        logger::destructor();
+    fn destruct(self, mut args:DestructorArguments) {
+        logger::destruct();
+        args.unwrap_none();
         unsafe{self.device.destroy_device(None)};
     }
 }

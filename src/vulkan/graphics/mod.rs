@@ -1,86 +1,81 @@
+/*
 mod types;
 mod model;
 pub use model::Model;
+*/
+
+//use crate::graphics::UniformBufferObject;
+use crate::AAError;
+use crate::errors::messanges::SIMPLE_VK_FN;
+
+use super::VInit;
+use super::Device;
+use super::Allocator;
+use super::Image2;
+
+
+
+use std::slice::from_ref;
 
 use ash::vk;
 
-use super::{
-    VInit,
-    Image,
-};
+pub struct Graphics {
+    /*
+    render_image: Image,
+    render_extent: vk::Extent2D,
+    */
+    
+}
 
-
-use crate::{
-    graphics::{
-        UniformBufferObject,
-    },
-};
-
-
-use std::{
-    slice::from_ref,
-};
+impl Graphics {
+    pub fn new(_device:&mut Device, _allocator:&Allocator) -> Result<Self, AAError> {
+        
+        Ok(Self{})
+    }
+}
 
 
 impl VInit {
     
+    
+//----
     pub fn draw_frame2(&mut self) {
+        self.frame_update();
         let cf = self.get_frame();
-        let c_buffer = self.command_control.buffers[cf];
-        let (image_avaliable_semaphore, render_finished_semaphore, inflight_fence) = self.sync_objects.get_frame(cf);
-        //let inflight_fence = ;
+        let frame_count = self.get_frame_count();
         
-        let (image_index, _invalid_surface) = unsafe{
-            self.swapchain.acquire_next_image(
-                self.swapchain.swapchain, 
-                u64::MAX, 
-                image_avaliable_semaphore, 
-                vk::Fence::null()
-            )
-        }.expect("next image should not fail");
+        let VInit{render_image, command_control, sync_objects, swapchain, device, ..} = self;
+        let cmd = command_control.buffers[cf];
         
-        let image = self.swapchain.images[image_index as usize];
+        let (image_avaliable_semaphore, render_finished_semaphore, inflight_fence) = sync_objects.get_frame(cf);
+        let (p_image_handle, image_index) = swapchain.get_next_image(image_avaliable_semaphore);
         
-        unsafe{self.device.wait_for_fences(from_ref(&inflight_fence), true, u64::MAX)}.expect("waiting for fence should not fail");
-        unsafe{self.device.reset_fences(from_ref(&inflight_fence))}.expect("waiting for fence should not fail");
-        
-        unsafe{self.device.reset_command_buffer(c_buffer, vk::CommandBufferResetFlags::empty())}.expect("reset on command buffer should not fail");
-        
-        
-        unsafe{self.device.reset_command_buffer(c_buffer, vk::CommandBufferResetFlags::empty())}.expect("reset on command buffer should not fail");
+        unsafe{device.wait_for_fences(from_ref(&inflight_fence), true, u64::MAX)}.expect(SIMPLE_VK_FN);
+        unsafe{device.reset_fences(from_ref(&inflight_fence))}.expect(SIMPLE_VK_FN);
+        unsafe{device.reset_command_buffer(cmd, vk::CommandBufferResetFlags::empty())}.expect(SIMPLE_VK_FN);
+        unsafe{device.reset_command_buffer(cmd, vk::CommandBufferResetFlags::empty())}.expect(SIMPLE_VK_FN);
         
         let begin_info = vk::CommandBufferBeginInfo::builder()
             .flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
         
-        unsafe{self.device.begin_command_buffer(c_buffer, &begin_info)}.expect("reset on command buffer should not fail");
-        
-        self.swapchain.transition_sc_image(
-            &self.device,
-            image,
-            c_buffer,
-            vk::ImageLayout::UNDEFINED,
-            vk::ImageLayout::GENERAL,
-        );
-        
-        let hola = (self.get_frame_count()%100) as f32/100 as f32;
-        
-        let clear_color = vk::ClearColorValue{float32:[hola; 4]};
+        unsafe{device.begin_command_buffer(cmd, &begin_info)}.expect(SIMPLE_VK_FN);
         
         
-        let subresource = Image::subresource_range(vk::ImageAspectFlags::COLOR);
+        let r_image_handle = render_image.underlying();
         
-        unsafe{self.device.cmd_clear_color_image(c_buffer, image, vk::ImageLayout::GENERAL, &clear_color, from_ref(&subresource))};
+        Image2::transition_image(device, cmd, r_image_handle, vk::ImageLayout::UNDEFINED, vk::ImageLayout::GENERAL);
         
-        self.swapchain.transition_sc_image(
-            &self.device,
-            image,
-            c_buffer,
-            vk::ImageLayout::GENERAL,
-            vk::ImageLayout::PRESENT_SRC_KHR,
-        );
+        Self::draw_background(device, cmd, r_image_handle, frame_count);
+        
+        Image2::transition_image(device, cmd, r_image_handle, vk::ImageLayout::GENERAL, vk::ImageLayout::TRANSFER_SRC_OPTIMAL);
+        Image2::transition_image(device, cmd, p_image_handle, vk::ImageLayout::UNDEFINED, vk::ImageLayout::TRANSFER_DST_OPTIMAL);
+        
+        Image2::raw_copy_image_to_image(device, cmd, r_image_handle, render_image.extent, p_image_handle, vk::Extent3D::from(swapchain.extent));
+        
+        Image2::transition_image(device, cmd, p_image_handle, vk::ImageLayout::TRANSFER_DST_OPTIMAL, vk::ImageLayout::PRESENT_SRC_KHR);
         
         
-        unsafe{self.device.end_command_buffer(c_buffer)}.expect("reset on command buffer should not fail");
+        unsafe{device.end_command_buffer(cmd)}.expect(SIMPLE_VK_FN);
         
         
         let wait_semaphore_submit_info = vk::SemaphoreSubmitInfo::builder()
@@ -92,29 +87,50 @@ impl VInit {
             .semaphore(render_finished_semaphore);
         
         let command_submit_info = vk::CommandBufferSubmitInfo::builder()
-            .command_buffer(c_buffer);
+            .command_buffer(cmd);
         
         let submit_info = vk::SubmitInfo2::builder()
             .command_buffer_infos(from_ref(&command_submit_info))
             .wait_semaphore_infos(from_ref(&wait_semaphore_submit_info))
             .signal_semaphore_infos(from_ref(&signal_semaphore_submit_info));
         
-        unsafe{self.device.queue_submit2(self.device.queue_handles.graphics, from_ref(&submit_info), inflight_fence)}.expect("should not fail");
+        unsafe{device.queue_submit2(device.queue_handles.graphics, from_ref(&submit_info), inflight_fence)}.expect(SIMPLE_VK_FN);
         
         let present_info = vk::PresentInfoKHR::builder()
-            .swapchains(from_ref(&self.swapchain.swapchain))
+            .swapchains(from_ref(&swapchain.swapchain))
             .image_indices(from_ref(&image_index))
             .wait_semaphores(from_ref(&render_finished_semaphore));
         
         
-        unsafe{self.swapchain.queue_present(self.device.queue_handles.presentation, &present_info)}.expect("present should not fail");
-        self.frame_update();
+        unsafe{swapchain.queue_present(device.queue_handles.presentation, &present_info)}.expect(SIMPLE_VK_FN);
         
     }
     
+//----
+    pub fn draw_background(device:&mut Device, cmd:vk::CommandBuffer, image:vk::Image, frame:usize) {
+        
+        //let rgba_component = (self.get_frame_count()%100) as f32/100 as f32;
+        let rgba_component = (frame%100) as f32/100 as f32;
+        
+        let clear_color = vk::ClearColorValue{float32:[rgba_component; 4]};
+        
+        let subresource = Self::subresource_range(vk::ImageAspectFlags::COLOR);
+        
+        unsafe{device.cmd_clear_color_image(cmd, image, vk::ImageLayout::GENERAL, &clear_color, from_ref(&subresource))};
+        
+    }
     
+//----
+    pub fn subresource_range(aspect:vk::ImageAspectFlags) -> vk::ImageSubresourceRange {
+        let mut holder = vk::ImageSubresourceRange::default();
+        holder.aspect_mask = aspect;
+        holder.level_count = vk::REMAINING_MIP_LEVELS;
+        holder.layer_count = vk::REMAINING_ARRAY_LAYERS;
+        holder
+    }
     
-    
+
+
     /*
     pub fn draw_frame(&mut self) {
         
@@ -174,6 +190,7 @@ impl VInit {
     }
     */
     
+    /*
     pub fn tick(&mut self) {
         use nalgebra as na;
         
@@ -249,18 +266,8 @@ impl VInit {
         self.uniform_buffers.buffers[cf].align.copy_from_slice(&current_ubo[..]);
         
     }
-    
-    
-    /*
-    pub fn test(&self) {
-        //let vector = Vector3::new(1, 2, 3);
-        println!("{:?}", size_of::<na::Vector3<f32>>());
-        println!("{:?}", size_of::<na::Vector2<f32>>());
-        println!("{:?}", size_of::<Vertex>());
-        println!("{:?}", size_of::<[Vertex; 3]>());
-        println!("{:?}", Vertex::attribute_description());
-    }
     */
+    
     
 }
 

@@ -1,10 +1,13 @@
 use crate::AAError;
-use crate::State;
+use crate::errors::messanges::GPU_FREE;
 
 use super::logger::image as logger;
-use super::DeviceDestroy;
+use super::VkDestructor;
+use super::DestructorArguments;
 use super::Device;
 use super::Allocator;
+
+use std::slice::from_ref;
 
 use ash::vk;
 use gpu_allocator::vulkan as vkmem;
@@ -41,15 +44,19 @@ pub const RENDER:Image2Metadata = {
 
 impl Image2 {
     
+//----
+    pub fn underlying(&self) -> vk::Image {
+        self.image
+    }
     
 //----
     pub fn create(
-        device: &Device,
+        device: &mut Device,
         allocator: &mut Allocator,
         extent: vk::Extent3D,
         metadata: Image2Metadata,
     ) -> Result<Self, AAError> {
-        logger::creation(metadata.d_name);
+        logger::create(metadata.d_name);
         
         let format = metadata.format;
         let extent = extent;
@@ -132,15 +139,102 @@ impl Image2 {
 
     
 
+//----
+    pub fn copy_from_image(&mut self, device:&Device, cmd:vk::CommandBuffer, src:Image2) {
+        
+        Self::raw_copy_image_to_image(device, cmd, src.image, src.extent, self.image, self.extent);
+    }
+    
 
+//----
+    pub fn raw_copy_image_to_image(device:&Device, cmd:vk::CommandBuffer, src:vk::Image, src_extent:vk::Extent3D, dst:vk::Image, dst_extent:vk::Extent3D) {
+        
+        let mut blit_region = vk::ImageBlit2::default();
+        
+        blit_region.src_offsets[1].x = src_extent.width as i32;
+        blit_region.src_offsets[1].y = src_extent.height as i32;
+        blit_region.src_offsets[1].z = src_extent.depth as i32;
+        
+        blit_region.dst_offsets[1].x = dst_extent.width as i32;
+        blit_region.dst_offsets[1].y = dst_extent.height as i32;
+        blit_region.dst_offsets[1].z = dst_extent.depth as i32;
+        
+        blit_region.src_subresource.aspect_mask = vk::ImageAspectFlags::COLOR;
+        blit_region.src_subresource.base_array_layer = 0;
+        blit_region.src_subresource.layer_count = 1;
+        blit_region.src_subresource.mip_level = 0;
+        
+        blit_region.dst_subresource.aspect_mask = vk::ImageAspectFlags::COLOR;
+        blit_region.dst_subresource.base_array_layer = 0;
+        blit_region.dst_subresource.layer_count = 1;
+        blit_region.dst_subresource.mip_level = 0;
+        
+        let cmd_info = vk::BlitImageInfo2::builder()
+            .src_image(src)
+            .src_image_layout(vk::ImageLayout::TRANSFER_SRC_OPTIMAL)
+            .dst_image(dst)
+            .dst_image_layout(vk::ImageLayout::TRANSFER_DST_OPTIMAL)
+            .filter(vk::Filter::LINEAR)
+            .regions(from_ref(&blit_region));
+        
+        unsafe{device.cmd_blit_image2(cmd, &cmd_info)}
+    }
+    
+
+    
+//----
+    pub fn transition_image(
+        device: &Device,
+        command_buffer: vk::CommandBuffer,
+        image: vk::Image,
+        old_layout: vk::ImageLayout,
+        new_layout: vk::ImageLayout,
+    ) {
+        logger::transitioning_image(old_layout, new_layout);
+        
+        let image_aspect = match new_layout {
+            vk::ImageLayout::DEPTH_ATTACHMENT_OPTIMAL => {
+                vk::ImageAspectFlags::DEPTH
+            }
+            _ => {
+                vk::ImageAspectFlags::COLOR
+            }
+        };
+        
+        let subresource = Image2::subresource_range(image_aspect);
+        
+        let image_barrier = vk::ImageMemoryBarrier2::builder()
+            .image(image)
+            .old_layout(old_layout)
+            .new_layout(new_layout)
+            .src_stage_mask(vk::PipelineStageFlags2::ALL_COMMANDS)
+            .src_access_mask(vk::AccessFlags2::MEMORY_WRITE)
+            .dst_stage_mask(vk::PipelineStageFlags2::ALL_COMMANDS)
+            .dst_access_mask(vk::AccessFlags2::MEMORY_WRITE|vk::AccessFlags2::MEMORY_READ)
+            .subresource_range(subresource);
+        
+        let dependency = ash::vk::DependencyInfo::builder()
+            .image_memory_barriers(from_ref(&image_barrier));
+        
+        let _ = unsafe{device.cmd_pipeline_barrier2(command_buffer, &dependency)};
+        
+    }
+    
 }
 
 
-impl DeviceDestroy for Image2 {
-    fn device_destroy(&mut self, _:&State, device:&Device) {
-        
-        panic!("decide how to hande destruction");
+
+impl VkDestructor for Image2 {
+    fn destruct(self, mut args:DestructorArguments) {
+        logger::destruct();
+        let (device, allocator) = args.unwrap_dev_all();
+        unsafe{device.destroy_image_view(self.view, None)};
+        unsafe{device.destroy_image(self.image, None)};
+        allocator.free(self.allocation).expect(GPU_FREE);
     }
+    
+    
+    
 }
 
 

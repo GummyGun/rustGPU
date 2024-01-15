@@ -91,8 +91,9 @@ impl Instance {
 }
 
 impl VkDestructor for Instance {
-    fn destruct(&mut self, _:DestructorArguments) {
-        logger::destructor();
+    fn destruct(self, mut args:DestructorArguments) {
+        logger::destruct();
+        args.unwrap_none();
         unsafe{self.destroy_instance(None)};
     }
     

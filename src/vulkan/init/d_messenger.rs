@@ -79,8 +79,9 @@ impl DMessenger {
 }
 
 impl VkDestructor for DMessenger {
-    fn destruct(&mut self, _:DestructorArguments) {
-        logger::destructor();
+    fn destruct(self, mut args:DestructorArguments) {
+        logger::destruct();
+        args.unwrap_none();
         unsafe{self.debug_utils.destroy_debug_utils_messenger(self.messenger, None)};
     }
 }

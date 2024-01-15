@@ -290,13 +290,6 @@ impl Image {
         unsafe{device.free_memory(self.memory, None)};
     }
     
-    pub fn subresource_range(aspect:vk::ImageAspectFlags) -> vk::ImageSubresourceRange {
-        let mut holder = vk::ImageSubresourceRange::default();
-        holder.aspect_mask = aspect;
-        holder.level_count = vk::REMAINING_MIP_LEVELS;
-        holder.layer_count = vk::REMAINING_ARRAY_LAYERS;
-        holder
-    }
 }
 
 impl From<((vk::Image, vk::DeviceMemory), vk::ImageView, i32)> for Image {

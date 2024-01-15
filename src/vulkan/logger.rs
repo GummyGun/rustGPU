@@ -1,10 +1,37 @@
 use crate::constants::LOGGING;
 use ash::vk;
 
+/*
+mod base 
+mod instance 
+mod d_messenger 
+mod surface 
+mod device 
+mod memory 
+mod swapchain 
+mod image 
+*/
+    
+pub mod base {
+    use super::*;
+    
+    pub fn create(name:&str) {
+        if LOGGING {
+            log::trace!("[0]:{}", name);
+        }
+    }
+    
+    pub fn debug_messenger_destruct() {
+        if LOGGING {
+            log::trace!("No Messenger to delete");
+        }
+    }
+}
+
 pub mod instance {
     use super::*;
     
-    pub fn destructor() {
+    pub fn destruct() {
         if LOGGING {
             log::trace!("[0]:deleting instance");
         }
@@ -14,7 +41,7 @@ pub mod instance {
 pub mod d_messenger {
     use super::*;
     
-    pub fn destructor() {
+    pub fn destruct() {
         if LOGGING {
             log::trace!("[0]:deleting debug messenger");
         }
@@ -24,7 +51,7 @@ pub mod d_messenger {
 pub mod surface {
     use super::*;
     
-    pub fn destructor() {
+    pub fn destruct() {
         if LOGGING {
             log::trace!("[0]:deleting surface");
         }
@@ -34,7 +61,7 @@ pub mod surface {
 pub mod device {
     use super::*;
     
-    pub fn destructor() {
+    pub fn destruct() {
         if LOGGING {
             log::trace!("[0]:deleting device");
         }
@@ -44,47 +71,41 @@ pub mod device {
 pub mod memory {
     use super::*;
     
-    pub fn allocator_creation() {
-        if LOGGING {
-            log::trace!("\nCREATING:\tALLOCATOR");
+    pub mod alloc {
+        use super::*;
+        
+        pub fn create() {
+            if LOGGING {
+                log::trace!("\nCREATING:\tALLOCATOR");
+            }
         }
-    }
-    
-    pub fn allocation_gpu_only(name:&str) {
-        if LOGGING {
-            log::trace!("allocating gpu memory for :\t{}", name);
+        
+        pub fn gpu_allocation(name:&str) {
+            if LOGGING {
+                log::trace!("allocating gpu memory for :\t{}", name);
+            }
         }
-    }
-}
-
-
-pub mod image {
-    use super::*;
-    pub fn creation(name:Option<&'static str>) {
-        if LOGGING {
-            match name {
-                Some(d_name) => {
-                    println!("\nCREATING:\tIMAGE\nType: \t{}",d_name);
-                }
-                None => {
-                    println!("\nCREATING:\tIMAGE ");
-                }
+        
+        pub fn destruct() {
+            if LOGGING {
+                log::trace!("[0]:deleting allocator");
             }
         }
     }
+    
 }
 
 
 pub mod swapchain {
     use super::*;
     
-    pub fn creation() {
+    pub fn create() {
         if LOGGING {
             log::trace!("\nCREATING:\tSWAPCHAIN");
         }
     }
     
-    pub fn deletion(state:bool) {
+    pub fn destruct(state:bool) {
         if LOGGING {
             if state {
                 log::trace!("[0]:deleting images");
@@ -126,20 +147,12 @@ pub mod swapchain {
         }
     }
     
-    pub fn sc_image_view_creations(index: usize) {
+    pub fn sc_image_view_creates(index: usize) {
         if LOGGING {
             log::trace!("creating swapchain image {index}");
         }
     }
     
-    pub fn transitioning_sc_image(old: vk::ImageLayout, new: vk::ImageLayout) {
-        if LOGGING {
-            log::info!("transitioning swapchain image old:{:?} new:{:?}", old, new);
-        }
-    }
-    
-    
-
     pub fn extent_chossing(extent: vk::Extent2D) {
         if LOGGING {
             println!("normal display width:{} height:{}", extent.width, extent.height);
@@ -147,3 +160,85 @@ pub mod swapchain {
     }
     
 }
+
+pub mod image {
+    use super::*;
+    pub fn create(name:Option<&'static str>) {
+        if LOGGING {
+            match name {
+                Some(d_name) => {
+                    log::trace!("\nCREATING:\tIMAGE\nType: \t{}",d_name);
+                }
+                None => {
+                    log::trace!("\nCREATING:\tIMAGE");
+                }
+            }
+        }
+    }
+    
+    
+    pub fn transitioning_image(old: vk::ImageLayout, new: vk::ImageLayout) {
+        if LOGGING {
+            log::info!("transitioning image from old:{:?} to new:{:?}", old, new);
+        }
+    }
+    
+    pub fn destruct() {
+        if LOGGING {
+            log::trace!("[0]:deleting image");
+        }
+    }
+    
+}
+
+pub mod descriptors {
+    use super::*;
+    
+    pub mod dlb {
+        use super::*;
+        pub fn create() {
+            if LOGGING {
+                log::trace!("\nCREATING:\tLAYOUT_BUILDER");
+            }
+        }
+        
+        pub fn destruct() {
+            if LOGGING {
+                log::trace!("[0]:deleting layout_builder");
+            }
+        }
+    }
+    
+    pub mod dl {
+        use super::*;
+        pub fn create() {
+            if LOGGING {
+                log::trace!("\nCREATING:\tDESCRIPTOR_LAYOUT");
+            }
+        }
+        
+        pub fn destruct() {
+            if LOGGING {
+                log::trace!("[0]:deleting descriptor_layout");
+            }
+        }
+    }
+    
+    pub mod dpa {
+        use super::*;
+        pub fn create() {
+            if LOGGING {
+                log::trace!("\nCREATING:\tDESCRIPTOR_POOL");
+            }
+        }
+        
+        pub fn destruct() {
+            if LOGGING {
+                log::trace!("[0]:deleting descriptor_pool");
+            }
+        }
+    }
+    
+}
+
+

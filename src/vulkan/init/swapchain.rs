@@ -18,7 +18,6 @@ use super::image2::Image2;
 
 
 use std::ops::Deref;
-use std::slice::from_ref;
 use std::cmp::min;
 
 use ash::vk;
@@ -52,8 +51,8 @@ impl Deref for Swapchain {
 
 impl Swapchain {
     
-    pub fn create(window:&Window, instance:&Instance, surface:&Surface, p_device:&PDevice, device:&Device) -> Result<Self, AAError> {
-        logger::creation();
+    pub fn create(window:&Window, instance:&Instance, surface:&Surface, p_device:&PDevice, device:&mut Device) -> Result<Self, AAError> {
+        logger::create();
         
         let surface_format = p_device.swapchain_details.choose_surface_format();
         let present_mode = p_device.swapchain_details.choose_present_mode();
@@ -128,50 +127,12 @@ impl Swapchain {
         })
     }
     
-    pub fn transition_sc_image(
-        &self,
-        device: &Device,
-        image: vk::Image,
-        command_buffer: vk::CommandBuffer,
-        old_layout: vk::ImageLayout,
-        new_layout: vk::ImageLayout,
-    ) {
-        logger::transitioning_sc_image(old_layout, new_layout);
-        
-        let image_aspect = match new_layout {
-            vk::ImageLayout::DEPTH_ATTACHMENT_OPTIMAL => {
-                vk::ImageAspectFlags::DEPTH
-            }
-            _ => {
-                vk::ImageAspectFlags::COLOR
-            }
-        };
-        
-        let subresource = Image2::subresource_range(image_aspect);
-        
-        let image_barrier = vk::ImageMemoryBarrier2::builder()
-            .image(image)
-            .old_layout(old_layout)
-            .new_layout(new_layout)
-            .src_stage_mask(vk::PipelineStageFlags2::ALL_COMMANDS)
-            .src_access_mask(vk::AccessFlags2::MEMORY_WRITE)
-            .dst_stage_mask(vk::PipelineStageFlags2::ALL_COMMANDS)
-            .dst_access_mask(vk::AccessFlags2::MEMORY_WRITE|vk::AccessFlags2::MEMORY_READ)
-            .subresource_range(subresource);
-        
-        let dependency = ash::vk::DependencyInfo::builder()
-            .image_memory_barriers(from_ref(&image_barrier));
-        
-        let _ = unsafe{device.cmd_pipeline_barrier2(command_buffer, &dependency)};
-        
-    }
-    
     
     fn create_image_views(device:&Device, images:&[vk::Image], format:vk::Format) -> Result<[vk::ImageView; sc_max_images::USIZE], AAError> {
         let mut image_views_holder = [vk::ImageView::null(); sc_max_images::USIZE];
         
         for (index, image) in images.into_iter().enumerate() {
-            logger::sc_image_view_creations(index);
+            logger::sc_image_view_creates(index);
             let holder = Image2::create_view(
                 device, 
                 *image, 
@@ -182,6 +143,21 @@ impl Swapchain {
         }
         
         Ok(image_views_holder)
+    }
+    
+    
+    pub fn get_next_image(&mut self, semaphore:vk::Semaphore) -> (vk::Image, u32) {
+        
+        let (image_index, _invalid_surface) = unsafe{
+            self.acquire_next_image(
+                self.swapchain, 
+                u64::MAX, 
+                semaphore, 
+                vk::Fence::null()
+            )
+        }.expect("next image should not fail");
+        
+        (self.images[image_index as usize], image_index)
     }
     
     /*
@@ -202,11 +178,11 @@ impl Swapchain {
     */
     
     fn internal_destroy(inself:&mut Self, device:&Device) {//inself
-        logger::deletion(true);
+        logger::destruct(true);
         for view in inself.image_views.iter() {
             unsafe{device.destroy_image_view(*view, None)};
         }
-        logger::deletion(false);
+        logger::destruct(false);
         unsafe{inself.destroy_swapchain(inself.swapchain, None)};
     }
     

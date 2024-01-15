@@ -12,7 +12,6 @@ use super::instance::Instance;
 
 use std::ops::Deref;
 
-
 use ash::vk;
 
 
@@ -52,8 +51,9 @@ impl Deref for Surface {
 }
 
 impl VkDestructor for Surface {
-    fn destruct(&mut self, _:DestructorArguments) {
-        logger::destructor();
+    fn destruct(self, mut args:DestructorArguments) {
+        logger::destruct();
+        args.unwrap_none();
         unsafe{self.destroy_surface(self.surface, None)}
     }
 }
