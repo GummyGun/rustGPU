@@ -71,7 +71,7 @@ pub struct VInit {
 impl VInit {
     pub fn init(state:State, window:&Window) -> VInit {
         
-        let instance = vk_create_interpreter(Instance::create(&state, window), "instance"); 
+        let mut instance = vk_create_interpreter(Instance::create(&state, window), "instance"); 
         
         let messenger = if constants::VALIDATION {
             Some(match DMessenger::create(&state, &instance) {
@@ -111,6 +111,9 @@ impl VInit {
         let (ds_layout, ds_pool, ds_set) = init_descriptors(&mut device, &mut ds_layout_builder, &render_image);
         let cp_pipeline = init_pipeline(&mut device, &ds_layout);
         
+        let mut imgui_allocator = vk_create_interpreter(Allocator::create(&instance, &p_device, &device), "allocator").into_inner();
+        
+        let imgui = Imgui::create(&mut instance, &p_device, &mut device, imgui_allocator);
         
         /*
         let mut model_vec = VkObjDevDep::new(Vec::new());
@@ -156,7 +159,6 @@ impl VInit {
             cp_pipeline: VkWraper::new(cp_pipeline),
             
             render: render,
-            
         }
     }
     

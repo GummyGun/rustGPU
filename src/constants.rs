@@ -86,9 +86,13 @@ const fn extension_logic() -> [&'static str; EXTENSIONS_LEN_PLUS_VAL] {
 }
 
 
-pub mod path {
+pub mod comp {
+    use super::*;
     pub const COMP_SHADER:&str = "res/shaders/sh.comp.spv";
+    pub const COMP_START:&CStr = cstr::cstr!(b"main");
 }
+
+
 /*
 #[allow(dead_code)]
 pub mod path {

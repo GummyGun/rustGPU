@@ -36,9 +36,11 @@ impl CommandControl {
         if state.v_exp() {
             println!("\nCREATING:\tCOMMAND CONTROL STRUCTURES");
         }
+        
         let create_info = vk::CommandPoolCreateInfo::builder()
             .flags(vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER)
             .queue_family_index(p_device.queues.graphics_family);
+        
         let command_pool = unsafe{device.create_command_pool(&create_info, None)}?;
         
         if state.v_exp() {

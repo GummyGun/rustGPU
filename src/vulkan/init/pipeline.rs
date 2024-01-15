@@ -22,10 +22,9 @@ pub struct ComputePipeline {
 }
 
 pub fn init_pipeline(device:&mut Device, ds_layout:&DescriptorLayout) -> ComputePipeline {
+    logger::init();
     let pipeline_name = unsafe{CStr::from_bytes_with_nul_unchecked(b"main\0")};
-    
-    ComputePipeline::create(device, ds_layout, constants::path::COMP_SHADER, pipeline_name).unwrap()
-    
+    ComputePipeline::create(device, ds_layout, constants::comp::COMP_SHADER, constants::comp::COMP_START).unwrap()
 }
 
 

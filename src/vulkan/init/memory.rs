@@ -10,13 +10,14 @@ use super::device::Device;
 
 use std::ops::Deref;
 use std::ops::DerefMut;
+use std::mem::ManuallyDrop;
 
 use ash::vk;
 use gpu_allocator::vulkan as vkmem;
 use gpu_allocator as gpuall;
 
 pub struct Allocator {
-    allocator:std::mem::ManuallyDrop<vkmem::Allocator>,
+    allocator:ManuallyDrop<vkmem::Allocator>,
 }
 
 impl Allocator {
@@ -39,7 +40,7 @@ impl Allocator {
         let allocator = vkmem::Allocator::new(&create_info)?;
         
         Ok(Self{
-            allocator: std::mem::ManuallyDrop::new(allocator),
+            allocator: ManuallyDrop::new(allocator),
         })
     }
     
@@ -60,6 +61,10 @@ impl Allocator {
         
         self.allocate(&alloc_info).expect(GPU_ALLOCATION)
     }
+    
+    pub fn into_inner(self) -> vkmem::Allocator {
+        ManuallyDrop::into_inner(self.allocator)
+    }
 }
 
 impl Deref for Allocator {
@@ -78,9 +83,9 @@ impl DerefMut for Allocator {
 
 impl VkDestructor for Allocator {
     fn destruct(mut self, mut args:DestructorArguments) {
-        let _ = args.unwrap_dev();
+        args.unwrap_dev();
         logger::alloc::destruct();
-        unsafe{std::mem::ManuallyDrop::drop(&mut self.allocator)};
+        unsafe{ManuallyDrop::drop(&mut self.allocator)};
     }
 }
 

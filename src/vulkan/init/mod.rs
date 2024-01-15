@@ -41,6 +41,12 @@ pub use descriptors::*;
 mod pipeline;
 pub use pipeline::*;
 
+mod imgui;
+pub use imgui::*;
+
+mod render_pass;
+pub use render_pass::*;
+
 /*
 mod buffers;
 pub use buffers::*;

@@ -22,10 +22,12 @@ pub struct Window {
 }
 
 impl Window {
+    
     pub fn init(state: State) -> Window {
         if let Verbosity::Expresive | Verbosity::Normal = state.verbosity {
             println!("[0]:window");
         }
+        
         let mut glfw = glfw::init_no_callbacks().unwrap();
         glfw.window_hint(glfw::WindowHint::Resizable(false));
         glfw.window_hint(glfw::WindowHint::Resizable(false));

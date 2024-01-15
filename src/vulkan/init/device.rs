@@ -110,6 +110,10 @@ impl Device {
     pub fn underlying(&self) -> ash::Device {
         self.device.clone()
     }
+    
+    pub fn test(&self) {
+        println!("TODO: TODEL");
+    }
 }
 
 struct Extensions(Vec<vk::ExtensionProperties>);
