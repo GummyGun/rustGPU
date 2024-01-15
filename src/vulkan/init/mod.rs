@@ -32,16 +32,16 @@ pub use command::*;
 mod sync_obj;
 pub use sync_obj::*;
 
-pub mod image2;
-pub use image2::*;
+pub mod image;
+pub use image::*;
 
 pub mod descriptors;
 pub use descriptors::*;
 
-/*
 mod pipeline;
 pub use pipeline::*;
 
+/*
 mod buffers;
 pub use buffers::*;
 

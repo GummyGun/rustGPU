@@ -27,15 +27,14 @@ pub mod sc_max_images {
     pub const U32:u32 = super::SC_MAX_IMAGES as u32;
 }
 
-pub const WIDTH:u32 = 1200;
-pub const HEIGTH:u32 = 800;
+pub const WIDTH:u32 = 1200/16*16;
+pub const HEIGTH:u32 = 800/16*16;
 pub const VALIDATION:bool = true;
 pub const LOGGING:bool = true;
 
 pub const LAYERS:[&'static str; 1] = ["VK_LAYER_KHRONOS_validation"];
 pub const EXTENSIONS:[&'static str; EXTENSIONS_LEN_PLUS_VAL] = extension_logic();
 
-//TODO: change vk::ExtDescriptorIndexingFn::name() to something pretier
 pub const DEVICE_EXTENSIONS:[&'static str; 5] = const_array!(
     Swapchain::name(), 
     DynamicRendering::name(), 
@@ -87,6 +86,9 @@ const fn extension_logic() -> [&'static str; EXTENSIONS_LEN_PLUS_VAL] {
 }
 
 
+pub mod path {
+    pub const COMP_SHADER:&str = "res/shaders/sh.comp.spv";
+}
 /*
 #[allow(dead_code)]
 pub mod path {

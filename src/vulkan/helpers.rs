@@ -8,10 +8,11 @@ use super::Allocator;
 use super::Swapchain;
 use super::SyncObjects;
 use super::CommandControl;
-use super::Image2;
+use super::Image;
 use super::DescriptorLayoutBuilder;
 use super::DescriptorLayout;
 use super::DescriptorPoolAllocator;
+use super::ComputePipeline;
 
 
 type Objects = (
@@ -23,11 +24,11 @@ type Objects = (
     Swapchain,
     SyncObjects,
     CommandControl,
-    Image2,
+    Image,
     DescriptorLayoutBuilder,
     DescriptorLayout,
     DescriptorPoolAllocator,
-    
+    ComputePipeline,
 );
 
 impl VInit {
@@ -44,9 +45,11 @@ impl VInit {
         let render_image = self.render_image.take();
         
         
+        
         let ds_layout_builder = self.ds_layout_builder.take();
         let ds_layout = self.ds_layout.take();
         let ds_pool = self.ds_pool.take();
+        let cp_pipeline = self.cp_pipeline.take();
         
         (
             instance,
@@ -61,6 +64,7 @@ impl VInit {
             ds_layout_builder,
             ds_layout,
             ds_pool,
+            cp_pipeline,
         )
     }
     

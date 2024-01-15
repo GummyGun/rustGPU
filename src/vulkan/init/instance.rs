@@ -23,9 +23,7 @@ pub struct Instance {
 impl Instance {
     
     pub fn create(state:&State, window:&Window) -> Result<Instance, AAError> {
-        if state.v_exp() {
-            println!("\nCREATING:\tINSTANCE");
-        }
+        logger::create();
         let entry = unsafe {ash::Entry::load().unwrap()};
         
         match entry.try_enumerate_instance_version()? {

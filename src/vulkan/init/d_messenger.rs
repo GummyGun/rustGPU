@@ -20,9 +20,7 @@ pub struct DMessenger {
 impl DMessenger {
     
     pub fn create(state:&State, instance:&Instance) -> Result<Self, AAError> {
-        if state.v_exp() {
-            println!("\nCREATING:\tDEBUG_MESSENGER\nvalidation layers activated");
-        }
+        logger::create();
         
         let debug_utils = ash::extensions::ext::DebugUtils::new(&instance.entry, instance);
         let messenger = unsafe{debug_utils.create_debug_utils_messenger(&Self::populate_create_info(), None)?};

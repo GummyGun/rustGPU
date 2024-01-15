@@ -41,7 +41,7 @@ fn main() {
         window.poll_events();
         
         //v_init.tick();
-        v_init.draw_frame2();
+        v_init.draw_frame();
         
         /*
         let current_time = state.secs_from_start();

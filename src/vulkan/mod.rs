@@ -51,14 +51,16 @@ pub struct VInit {
     //pub descriptor_control: VkObjDevDep<DescriptorControl>,
     //pub model_vec: VkObjDevDep<Vec<Model>>,
     
-    render_image: VkWraper<Image2>,
+    render_image: VkWraper<Image>,
     render_extent: vk::Extent2D,
     
     ds_layout_builder: VkWraper<DescriptorLayoutBuilder>,
     ds_layout: VkWraper<DescriptorLayout>,
     ds_pool: VkWraper<DescriptorPoolAllocator>,
     ds_set: vk::DescriptorSet,
+    cp_pipeline: VkWraper<ComputePipeline>,
     /*
+    
     */
     
     pub render:graphics::Graphics,
@@ -74,15 +76,13 @@ impl VInit {
         let messenger = if constants::VALIDATION {
             Some(match DMessenger::create(&state, &instance) {
                 Ok(messenger) => {
-                    if state.v_nor() {
-                        println!("[0]:messenger");
-                    }
+                    b_logger::debug_messenger_create();
                     messenger
                 }
                 Err(err) => {panic!("{:?}", err);}
             })
         } else {
-            println!("[X]:messenger");
+            b_logger::no_debug_messenger_create();
             None
         };
         
@@ -103,28 +103,14 @@ impl VInit {
         */
         
         
-        let render_image = vk_create_interpreter(Image2::create(&mut device, &mut allocator, swapchain.extent.into(), image2::RENDER), "render_image");
+        let render_image = vk_create_interpreter(Image::create(&mut device, &mut allocator, swapchain.extent.into(), image::RENDER), "render_image");
         let render_extent = vk::Extent2D::default();
-        
-        //render_image.destruct(DestructorArguments::DevAll(&mut device, &mut allocator));
         
         
         let mut ds_layout_builder = vk_create_interpreter(DescriptorLayoutBuilder::create(), "descriptor_layout_builder");
-        ds_layout_builder.add_binding(0, vk::DescriptorType::STORAGE_IMAGE);
-        /*
-        descriptor_layout_builder.add_binding(3, vk::DescriptorType::UNIFORM_BUFFER);
-        descriptor_layout_builder.add_binding(4, vk::DescriptorType::SAMPLER);
-        */
-        let (ds_layout, mut types_in_layout) = ds_layout_builder.build(&mut device, vk::ShaderStageFlags::VERTEX).unwrap();
+        let (ds_layout, ds_pool, ds_set) = init_descriptors(&mut device, &mut ds_layout_builder, &render_image);
+        let cp_pipeline = init_pipeline(&mut device, &ds_layout);
         
-        types_in_layout *= 10;//allocate 10 DS
-        
-        
-        let mut ds_pool = DescriptorPoolAllocator::create(&mut device, types_in_layout).unwrap();
-        let ds_set = ds_pool.allocate(&mut device, ds_layout).unwrap();
-        
-        /*
-        */
         
         /*
         let mut model_vec = VkObjDevDep::new(Vec::new());
@@ -137,7 +123,6 @@ impl VInit {
         
         let render = Graphics::new(&mut device, &mut allocator).unwrap();
         
-        //None::<i32>.expect("todo");
         VInit{
             state: state,
             frame_control: FrameControl(0),
@@ -168,6 +153,8 @@ impl VInit {
             ds_layout: VkWraper::new(ds_layout),
             ds_pool: VkWraper::new(ds_pool),
             ds_set: ds_set,
+            cp_pipeline: VkWraper::new(cp_pipeline),
+            
             render: render,
             
         }
@@ -210,16 +197,18 @@ impl Drop for VInit {
     
     fn drop(&mut self) {
         
-        let (instance, messenger, surface, mut _device, mut _allocator, mut swapchain, mut sync_objects, mut command_control, mut _render_image, ds_layout_builder, ds_pool, ds_layout) = self.destructure();
+        let (instance, messenger, surface, mut _device, mut _allocator, mut swapchain, mut sync_objects, mut command_control, mut _render_image, ds_layout_builder, ds_pool, ds_layout, cp_pipeline) = self.destructure();
         let state = self.state;
         
         
-        let mut device = &mut _device;
+        let device = &mut _device;
         let allocator = &mut _allocator;
         //let render_image = &mut _render_image;
         
-        ds_pool.destruct(DestructorArguments::Dev(&mut device));
-        ds_layout.destruct(DestructorArguments::Dev(&mut device));
+        cp_pipeline.destruct(DestructorArguments::Dev(device));
+        
+        ds_pool.destruct(DestructorArguments::Dev(device));
+        ds_layout.destruct(DestructorArguments::Dev(device));
         ds_layout_builder.destruct(DestructorArguments::None);
         
         _render_image.destruct(DestructorArguments::DevAll(device, allocator));

@@ -47,7 +47,8 @@ impl<T:VkDestructor> VkWraper<T> {
         Self(Some(new))
     }
     
-    
+    //will this ever be called
+    #[allow(dead_code)]
     pub fn destruct(&mut self, args:DestructorArguments) {
         self.0.take().expect(DROPED_ERR_TEXT).destruct(args);
     }

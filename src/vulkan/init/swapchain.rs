@@ -14,7 +14,7 @@ use super::device::Device;
 use super::instance::Instance;
 use super::surface::Surface;
 use super::p_device::PDevice;
-use super::image2::Image2;
+use super::image::Image;
 
 
 use std::ops::Deref;
@@ -133,7 +133,7 @@ impl Swapchain {
         
         for (index, image) in images.into_iter().enumerate() {
             logger::sc_image_view_creates(index);
-            let holder = Image2::create_view(
+            let holder = Image::create_view(
                 device, 
                 *image, 
                 format, 

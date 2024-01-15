@@ -3,12 +3,18 @@ use crate::errors::messanges::STANDARD_CONV;
 use crate::errors::messanges::GRANTED;
 use crate::errors::messanges::SIMPLE_VK_FN;
 
+use super::logger::descriptors as logger;
 use super::VkDestructor;
 use super::DestructorArguments;
 use super::Device;
-use super::logger::descriptors as logger;
+use super::Image;
 
 use std::slice::from_ref;
+use std::ops::Deref;
+use std::ops::Add;
+use std::ops::AddAssign;
+use std::ops::Mul;
+use std::ops::MulAssign;
 
 use ash::vk;
 
@@ -35,6 +41,29 @@ pub struct DescriptorPoolAllocator {
     pool: vk::DescriptorPool,
 }
 
+
+pub fn init_descriptors(device:&mut Device, ds_layout_builder:&mut DescriptorLayoutBuilder, render_image:&Image) -> (DescriptorLayout, DescriptorPoolAllocator, vk::DescriptorSet) {
+    logger::init();
+    ds_layout_builder.add_binding(0, vk::DescriptorType::STORAGE_IMAGE);
+    let (ds_layout, mut types_in_layout) = ds_layout_builder.build(device, vk::ShaderStageFlags::COMPUTE).unwrap();
+    
+    types_in_layout *= 10;//allocate 10 DS
+    let mut ds_pool = DescriptorPoolAllocator::create(device, types_in_layout).unwrap();
+    let ds_set = ds_pool.allocate(device, ds_layout).unwrap();
+    
+    let mut descriptor_image_info = vk::DescriptorImageInfo::default();
+    descriptor_image_info.image_layout = vk::ImageLayout::GENERAL;
+    descriptor_image_info.image_view = render_image.view;
+    
+    let write_descriptor_set = vk::WriteDescriptorSet::builder()
+        .dst_binding(0)
+        .dst_set(ds_set)
+        .descriptor_type(vk::DescriptorType::STORAGE_IMAGE)
+        .image_info(from_ref(&descriptor_image_info));
+    
+    unsafe{device.update_descriptor_sets(from_ref(&write_descriptor_set), &[])};
+    (ds_layout, ds_pool, ds_set)
+}
 
 impl DescriptorLayoutBuilder {
     
@@ -96,6 +125,14 @@ impl VkDestructor for DescriptorLayout {
         unsafe{device.destroy_descriptor_set_layout(self.set_layout, None)};
     }
 }
+
+impl Deref for DescriptorLayout {
+    type Target = vk::DescriptorSetLayout;
+    fn deref(&self) -> &Self::Target {
+        &self.set_layout
+    }
+}
+
 
 impl DescriptorPoolCount {
     #[allow(dead_code)]
@@ -179,7 +216,7 @@ impl DescriptorPoolCount {
     
 }
 
-impl std::ops::Mul<u32> for DescriptorPoolCount {
+impl Mul<u32> for DescriptorPoolCount {
     type Output = Self;
     fn mul(mut self, magnitude:u32) -> Self::Output {
         self *= magnitude;
@@ -187,7 +224,7 @@ impl std::ops::Mul<u32> for DescriptorPoolCount {
     }
 }
 
-impl std::ops::MulAssign<u32> for DescriptorPoolCount {
+impl MulAssign<u32> for DescriptorPoolCount {
     fn mul_assign(&mut self, magnitude:u32) {
         for iter in 0..self.count.len() {
             self.count[iter] *= magnitude;
@@ -195,7 +232,7 @@ impl std::ops::MulAssign<u32> for DescriptorPoolCount {
     }
 }
 
-impl std::ops::Add<Self> for DescriptorPoolCount {
+impl Add<Self> for DescriptorPoolCount {
     type Output = Self;
     fn add(mut self, other:Self) -> Self::Output {
         self += &other;
@@ -203,13 +240,13 @@ impl std::ops::Add<Self> for DescriptorPoolCount {
     }
 }
 
-impl std::ops::AddAssign<Self> for DescriptorPoolCount {
+impl AddAssign<Self> for DescriptorPoolCount {
     fn add_assign(&mut self, other:Self) {
         *self += &other;
     }
 }
 
-impl std::ops::AddAssign<&Self> for DescriptorPoolCount {
+impl AddAssign<&Self> for DescriptorPoolCount {
     fn add_assign(&mut self, other:&Self) {
         for iter in 0..self.count.len() {
             self.count[iter] += other.count[iter];

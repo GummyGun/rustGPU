@@ -1,192 +1,93 @@
-use ash::{
-    vk,
-    prelude::VkResult
-};
+use crate::AAError;
+use crate::errors::messanges::GRANTED;
+use crate::constants;
 
-use super::{
-    DeviceDestroy,
-    device::Device,
-};
+use super::logger::pipeline as logger;
 
-use crate::{
-    State,
-    graphics::Vertex,
-    constants,
-};
+use super::DestructorArguments;
+use super::VkDestructor;
+use super::Device;
+use super::DescriptorLayout;
 
-use std::{
-    fs::File,
-    ffi::CStr,
-};
+use std::fs::File;
+use std::slice::from_ref;
+use std::ffi::CStr;
+
+use ash::vk;
 
 
-pub struct Pipeline {
+pub struct ComputePipeline {
     pub layout: vk::PipelineLayout,
     pub pipeline: vk::Pipeline,
 }
 
-impl Pipeline {
+pub fn init_pipeline(device:&mut Device, ds_layout:&DescriptorLayout) -> ComputePipeline {
+    let pipeline_name = unsafe{CStr::from_bytes_with_nul_unchecked(b"main\0")};
     
-    pub fn create(state:&State, 
-        device:&Device, 
-        //render_pass:&RenderPass, 
-        //layout:&DescriptorControlLayout
-    ) -> VkResult<Self> {
-        if state.v_exp() {
-            println!("\nCREATING:\tPIPELINE");
-        }
+    ComputePipeline::create(device, ds_layout, constants::path::COMP_SHADER, pipeline_name).unwrap()
+    
+}
+
+
+impl ComputePipeline {
+    pub fn create(device:&mut Device, ds_layout:&DescriptorLayout, file:&str, name:&CStr) -> Result<Self, AAError> {
+        logger::compute::create(true);
+        let layout_create_info = vk::PipelineLayoutCreateInfo::builder()
+            .set_layouts(from_ref(ds_layout));
+        let layout = unsafe{device.create_pipeline_layout(&layout_create_info, None)}?;
         
-        let frag_sm = Self::create_shader_module(state, device, constants::path::FRAG_SHADER).unwrap();
-        let vert_sm = Self::create_shader_module(state, device, constants::path::VERT_SHADER).unwrap();
+        let compute_module = Self::create_shader_module(device, file)?;
         
-        let shader_name = unsafe{CStr::from_bytes_with_nul_unchecked(b"main\0")};
+        let compute_shader_stage = vk::PipelineShaderStageCreateInfo::builder()
+            .stage(vk::ShaderStageFlags::COMPUTE)
+            .module(compute_module)
+            .name(name)
+            .build();
         
-        let sm_create_info = [
-            vk::PipelineShaderStageCreateInfo::builder()
-                .stage(vk::ShaderStageFlags::VERTEX)
-                .module(vert_sm)
-                .name(shader_name)
-                .build(),
-            vk::PipelineShaderStageCreateInfo::builder()
-                .stage(vk::ShaderStageFlags::FRAGMENT)
-                .module(frag_sm)
-                .name(shader_name)
-                .build()
-        ];
+            //.name(unsafe{CStr::from_bytes_with_nul_unchecked(b"background\0")});
+        let compute_pipeline_create_info = vk::ComputePipelineCreateInfo::builder()
+            .layout(layout)
+            .stage(compute_shader_stage);
         
-        let dynamic_states = [vk::DynamicState::VIEWPORT, vk::DynamicState::SCISSOR];
-        
-        let dynamic_state_create_info = vk::PipelineDynamicStateCreateInfo::builder()
-            .dynamic_states(&dynamic_states);
-        
-        
-        let vertex_input_state_create_info = vk::PipelineVertexInputStateCreateInfo::builder()
-            .vertex_binding_descriptions(Vertex::binding_description())
-            .vertex_attribute_descriptions(Vertex::attribute_description());
-        
-        let input_assembly_create_info = ash::vk::PipelineInputAssemblyStateCreateInfo::builder()
-            .topology(vk::PrimitiveTopology::TRIANGLE_LIST)
-            .primitive_restart_enable(false);
-        
-        let viewport_state_create_info = vk::PipelineViewportStateCreateInfo::builder()
-            .viewport_count(1)
-            .scissor_count(1);
-        
-        let rasterization_state_create_info = vk::PipelineRasterizationStateCreateInfo::builder()
-            .depth_clamp_enable(false)
-            .rasterizer_discard_enable(false)
-            .polygon_mode(vk::PolygonMode::LINE)
-            .line_width(1f32)
-            /*
-            .polygon_mode(vk::PolygonMode::LINE)
-            .line_width(1f32)
-            */
-            .cull_mode(vk::CullModeFlags::BACK)
-            .front_face(vk::FrontFace::COUNTER_CLOCKWISE)
-            //.front_face(vk::FrontFace::CLOCKWISE)
-            .depth_bias_enable(false);
-            //.depth_bias_slope_factor(0f32);
-        
-        let multisample_state_create_info = vk::PipelineMultisampleStateCreateInfo::builder()
-            .sample_shading_enable(false)
-            .rasterization_samples(vk::SampleCountFlags::TYPE_1);
-        
-        if state.v_exp() {
-            println!("enabling RGBA color attachment");
-        }
-        
-        let color_blend_attachment = [
-            vk::PipelineColorBlendAttachmentState::builder()
-                .color_write_mask(
-                    vk::ColorComponentFlags::R | 
-                    vk::ColorComponentFlags::G | 
-                    vk::ColorComponentFlags::B | 
-                    vk::ColorComponentFlags::A
-                )
-                .build()
-        ];
-        
-        let color_blend_state_create_info = vk::PipelineColorBlendStateCreateInfo::builder()
-            .logic_op_enable(false)
-            .logic_op(vk::LogicOp::COPY)
-            .attachments(&color_blend_attachment[..]);
-        
-        
-        let pipeline_layout_create_info = vk::PipelineLayoutCreateInfo::builder();
-            //.set_layouts(&layout.layouts[..]);
-        
-        let pipeline_layout = unsafe{device.create_pipeline_layout(&pipeline_layout_create_info, None)?};
-        
-        let depth_stencil_state_create_info = vk::PipelineDepthStencilStateCreateInfo::builder()
-            .depth_test_enable(true)
-            .depth_write_enable(true)
-            .depth_compare_op(vk::CompareOp::LESS)
-            .depth_bounds_test_enable(false)
-            .stencil_test_enable(false)
-            .min_depth_bounds(0f32)
-            .max_depth_bounds(1f32);
-        
-        
-        let create_info = [
-            vk::GraphicsPipelineCreateInfo::builder()
-                .stages(&sm_create_info[..])
-                .vertex_input_state(&vertex_input_state_create_info)
-                .input_assembly_state(&input_assembly_create_info)
-                .viewport_state(&viewport_state_create_info)
-                .rasterization_state(&rasterization_state_create_info)
-                .multisample_state(&multisample_state_create_info)
-                .color_blend_state(&color_blend_state_create_info)
-                .depth_stencil_state(&depth_stencil_state_create_info)
-                .dynamic_state(&dynamic_state_create_info)
-                .layout(pipeline_layout)
-                //.render_pass(render_pass.as_inner())
-                .base_pipeline_index(-1)
-                .build()
-        ];
-        
-        let pipeline_vec = match unsafe{device.create_graphics_pipelines(vk::PipelineCache::null(), &create_info[..], None)} {
-            Ok(vec) => vec,
-            Err(_) => {panic!();}
+        let pipeline = match unsafe{device.create_compute_pipelines(vk::PipelineCache::null(), from_ref(&compute_pipeline_create_info), None)} {
+            Ok(mut pipeline) => {
+                pipeline.pop().expect(GRANTED)
+            }
+            Err(_) => {
+                panic!("Error creating compute pipeline");
+            }
         };
         
-        let pipeline = pipeline_vec[0];
+        unsafe{device.destroy_shader_module(compute_module, None)};
         
-        unsafe{device.destroy_shader_module(vert_sm, None)};
-        unsafe{device.destroy_shader_module(frag_sm, None)};
         Ok(Self{
-            layout:pipeline_layout,
-            pipeline:pipeline,
+            layout,
+            pipeline
         })
     }
     
-    /*
-    pub fn as_inner(&self) -> vk::Pipeline {
-        self.pipeline
-    }
-    */
-
-    fn create_shader_module(state:&State, device:&Device, file:&str) -> VkResult<vk::ShaderModule> {
+    
+    fn create_shader_module(device:&mut Device, file:&str) -> Result<vk::ShaderModule, AAError> {
+        /*
         if state.v_exp() {
             println!("creating shader module from {}", file);
         }
+        */
         let mut spv_file = File::open(file).unwrap();
         let spv = ash::util::read_spv(&mut spv_file).expect("should be in file");
         let create_info = vk::ShaderModuleCreateInfo::builder()
             .code(&spv);
-        unsafe{device.create_shader_module(&create_info, None)}
+        unsafe{device.create_shader_module(&create_info, None)}.map_err(|err|err.into())
+        
     }
 }
 
-impl DeviceDestroy for Pipeline {
-    fn device_destroy(&mut self, state:&State, device:&Device) {
-        if state.v_nor() {
-            println!("[0]:deleting pipeline");
-        }
-        unsafe{device.destroy_pipeline(self.pipeline, None)};
-        
-        if state.v_nor() {
-            println!("[0]:deleting pipeline layout");
-        }
+impl VkDestructor for ComputePipeline {
+    fn destruct(self, mut args:DestructorArguments) {
+        let device = args.unwrap_dev();
+        logger::compute::destruct();
         unsafe{device.destroy_pipeline_layout(self.layout, None)}
+        unsafe{device.destroy_pipeline(self.pipeline, None)};
     }
 }
+

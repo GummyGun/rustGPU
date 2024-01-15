@@ -1,240 +1,311 @@
-use crate::AAError;
-use crate::errors::messanges::GPU_FREE;
-
-use super::logger::image as logger;
-use super::VkDestructor;
-use super::DestructorArguments;
-use super::Device;
-use super::Allocator;
-
-use std::slice::from_ref;
-
-use ash::vk;
-use gpu_allocator::vulkan as vkmem;
-//use gpu_allocator as gpuall;
-
-pub struct Image2 {
-    pub image: vk::Image,
-    pub view: vk::ImageView,
-    pub allocation: vkmem::Allocation,
-    pub extent: vk::Extent3D,
-    pub format: vk::Format,
-}
-
-#[derive(Debug)]
-pub struct Image2Metadata {
-    d_name: Option<&'static str>,
-    format: vk::Format,
-    usage: ash::vk::ImageUsageFlags,
-    aspect_flags: ash::vk::ImageAspectFlags,
-}
-
-pub const RENDER:Image2Metadata = {
-    use vk::ImageUsageFlags as IUF;
-    use vk::ImageAspectFlags as IAF;
-    Image2Metadata{
-        d_name: Some("RENDER"),
-        format: vk::Format::R16G16B16A16_SFLOAT,
-        usage: IUF::from_raw(0x1b),
-        //IUF::TRANSFER_SRC | IUF::TRANSFER_DST
-        //IUF::STORAGE      | IUF::COLOR_ATTACHMENT
-        aspect_flags: IAF::COLOR,
-    }
+use ash::{
+    vk,
+    prelude::VkResult,
 };
 
-impl Image2 {
-    
-//----
-    pub fn underlying(&self) -> vk::Image {
-        self.image
+use zerocopy::AsBytes;
+
+use super::{
+    memory,
+    DeviceDestroy,
+    device::Device,
+    p_device::PDevice,
+    command::CommandControl,
+    buffers::Buffer,
+};
+
+use crate::{
+    State,
+    errors::Error as AAError,
+};
+
+use std::{
+    mem::align_of,
+    slice::from_ref,
+};
+
+
+
+pub struct Image {
+    pub image: vk::Image,
+    pub view: vk::ImageView,
+    pub memory: vk::DeviceMemory,
+    pub mip_level: i32,
+}
+
+impl Image {
+    pub fn create(
+        state:&State, 
+        p_device:&PDevice,
+        device:&Device, 
+        command:&CommandControl, 
+        image_data:&image::RgbaImage,
+    ) -> Result<Self, AAError> {
+        
+        use vk::BufferUsageFlags as BUF;
+        use vk::MemoryPropertyFlags as MPF;
+        use vk::ImageUsageFlags as IUF;
+        
+        if state.v_exp() {
+            println!("\nCREATING:\tIMAGE");
+        }
+        
+        //let image:image::RgbaImage = image::io::Reader::open(crate::constants::path::TEST_TEXTURE)?.decode().map_err(|_| AAError::DecodeError)?.into_rgba8();
+        //let image_data = &image;
+        
+        let raw_size = u64::try_from(image_data.as_bytes().len()).expect("image size should fit in a u64");
+        let staging_memory_properties = MPF::HOST_VISIBLE | MPF::HOST_COHERENT;
+        let (staging, staging_size) = Buffer::create_buffer(state, p_device, device, raw_size, BUF::TRANSFER_SRC, staging_memory_properties)?;
+        
+        let memory_ptr = unsafe{device.map_memory(staging.memory, 0, raw_size, vk::MemoryMapFlags::empty())}?;
+        let mut vert_align = unsafe{ash::util::Align::new(memory_ptr, align_of::<u8>() as u64, staging_size)};
+        vert_align.copy_from_slice(&image_data.as_bytes());
+        
+        unsafe{device.unmap_memory(staging.memory)};
+        
+        let usage_flags = IUF::TRANSFER_DST | IUF::SAMPLED;
+        let memory_properties = MPF::DEVICE_LOCAL;
+        let extent = vk::Extent3D::builder()
+            .width(image_data.width())
+            .height(image_data.height())
+            .depth(1);
+        
+        let (mut image, _image_size) = Self::create_image(
+            state,
+            p_device,
+            device,
+            &extent,
+            vk::Format::R8G8B8A8_SRGB,
+            vk::ImageTiling::OPTIMAL,
+            usage_flags,
+            memory_properties,
+        )?;
+        
+        Self::transition_image_layout(
+            state,
+            device, 
+            command,
+            &image.0,
+            vk::Format::R8G8B8A8_SRGB, 
+            vk::ImageLayout::UNDEFINED, 
+            vk::ImageLayout::TRANSFER_DST_OPTIMAL,
+        )?;
+        
+        if state.v_exp() {
+            println!("copying from buffer to image");
+        }
+        
+        memory::copy_buffer_2_image(
+            state,
+            device,
+            command,
+            &staging,
+            &mut image.0,
+            &extent,
+        );
+        
+        Self::transition_image_layout(
+            state,
+            device, 
+            command,
+            &image.0,
+            vk::Format::R8G8B8A8_SRGB, 
+            vk::ImageLayout::TRANSFER_DST_OPTIMAL,
+            vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL, 
+        )?;
+        
+        staging.staging_drop(state, device);
+        
+        let image_view = Self::create_image_view(
+            state, 
+            device, 
+            &image.0, 
+            vk::Format::R8G8B8A8_SRGB, 
+            vk::ImageAspectFlags::COLOR
+        )?;
+        
+        Ok(Self::from((image, image_view, 0)))
     }
     
-//----
-    pub fn create(
-        device: &mut Device,
-        allocator: &mut Allocator,
-        extent: vk::Extent3D,
-        metadata: Image2Metadata,
-    ) -> Result<Self, AAError> {
-        logger::create(metadata.d_name);
+    pub fn create_image (
+        state: &State, 
+        p_device: &PDevice, 
+        device: &Device, 
+        extent: &vk::Extent3D,
+        format: vk::Format,
+        tiling: vk::ImageTiling,
+        usage_flags: vk::ImageUsageFlags, 
+        memory_properties: vk::MemoryPropertyFlags,
+    ) -> VkResult<((vk::Image, vk::DeviceMemory), u64)> {
         
-        let format = metadata.format;
-        let extent = extent;
-        let create_info = Self::create_info(format, metadata.usage, extent);
+        let create_info = vk::ImageCreateInfo::builder()
+            .image_type(vk::ImageType::TYPE_2D)
+            .extent(*extent)
+            .mip_levels(1)
+            .array_layers(1)
+            .format(format)
+            .tiling(tiling)
+            .initial_layout(vk::ImageLayout::UNDEFINED)
+            .usage(usage_flags)
+            .sharing_mode(vk::SharingMode::EXCLUSIVE)
+            .samples(vk::SampleCountFlags::TYPE_1);
         
         let image = unsafe{device.create_image(&create_info, None)}?;
+        
         let memory_requirements = unsafe{device.get_image_memory_requirements(image)};
         
+        let index_holder = memory::find_memory_type_index(state, p_device, &memory_requirements, memory_properties).expect("required memory type is not present");
         
-        let allocation = allocator.allocate_gpu_only(metadata.d_name.unwrap_or_default(), memory_requirements);
+        let allocate_info = ash::vk::MemoryAllocateInfo::builder()
+            .allocation_size(memory_requirements.size)
+            .memory_type_index(index_holder);
         
-        unsafe{device.bind_image_memory(image, allocation.memory(), allocation.offset())}?;
+        let memory = unsafe{device.allocate_memory(&allocate_info, None)}?;
         
-        let view = Self::create_view(device, image, format, metadata.aspect_flags)?;//unsafe{device.create_image_view(&view_create_info, None)}?;
+        unsafe{device.bind_image_memory(image, memory, 0)}?;
         
-        Ok(Self{image, view, allocation, extent, format})
+        Ok(((image, memory), memory_requirements.size))
     }
     
-//----
-    pub fn create_view(
+    fn transition_image_layout(
+        state: &State,
         device: &Device,
-        image: vk::Image,
+        command: &CommandControl,
+        image: &vk::Image,
         format: vk::Format,
-        aspect: vk::ImageAspectFlags,
-    ) -> Result<vk::ImageView, AAError> {
-        let view_create_info = Self::view_create_info(image, format, aspect);
-        Ok(unsafe{device.create_image_view(&view_create_info, None)}?)
-    }
-    
-    
-//----
-    fn create_info(
-        format: vk::Format, 
-        usage_flags: vk::ImageUsageFlags,
-        extent: vk::Extent3D,
-    ) -> vk::ImageCreateInfo {
-        let mut holder = vk::ImageCreateInfo::default();
-        holder.image_type = vk::ImageType::TYPE_2D;
-        holder.mip_levels = 1;
-        holder.array_layers = 1;
-        holder.samples = vk::SampleCountFlags::TYPE_1;
-        holder.tiling = vk::ImageTiling::OPTIMAL;
-        holder.usage = usage_flags;
-        holder.format = format;
-        holder.extent = extent;
-        holder
-    }
-    
-    
-    
-//----
-    fn view_create_info(
-        image: vk::Image,
-        format: vk::Format, 
-        aspect_flags: vk::ImageAspectFlags,
-    ) -> vk::ImageViewCreateInfo {
-        let mut holder = vk::ImageViewCreateInfo::default();
-        holder.view_type = vk::ImageViewType::TYPE_2D;
-        holder.format = format;
-        holder.image = image;
-        holder.subresource_range.base_mip_level = 0;
-        holder.subresource_range.level_count = 1;
-        holder.subresource_range.base_array_layer = 0;
-        holder.subresource_range.layer_count = 1;
-        holder.subresource_range.aspect_mask = aspect_flags;
-        holder
-    }
-    
-    
-
-//----
-    pub fn subresource_range(aspect:vk::ImageAspectFlags) -> vk::ImageSubresourceRange {
-        let mut holder = vk::ImageSubresourceRange::default();
-        holder.aspect_mask = aspect;
-        holder.level_count = vk::REMAINING_MIP_LEVELS;
-        holder.layer_count = vk::REMAINING_ARRAY_LAYERS;
-        holder
-    }
-    
-
-    
-
-//----
-    pub fn copy_from_image(&mut self, device:&Device, cmd:vk::CommandBuffer, src:Image2) {
-        
-        Self::raw_copy_image_to_image(device, cmd, src.image, src.extent, self.image, self.extent);
-    }
-    
-
-//----
-    pub fn raw_copy_image_to_image(device:&Device, cmd:vk::CommandBuffer, src:vk::Image, src_extent:vk::Extent3D, dst:vk::Image, dst_extent:vk::Extent3D) {
-        
-        let mut blit_region = vk::ImageBlit2::default();
-        
-        blit_region.src_offsets[1].x = src_extent.width as i32;
-        blit_region.src_offsets[1].y = src_extent.height as i32;
-        blit_region.src_offsets[1].z = src_extent.depth as i32;
-        
-        blit_region.dst_offsets[1].x = dst_extent.width as i32;
-        blit_region.dst_offsets[1].y = dst_extent.height as i32;
-        blit_region.dst_offsets[1].z = dst_extent.depth as i32;
-        
-        blit_region.src_subresource.aspect_mask = vk::ImageAspectFlags::COLOR;
-        blit_region.src_subresource.base_array_layer = 0;
-        blit_region.src_subresource.layer_count = 1;
-        blit_region.src_subresource.mip_level = 0;
-        
-        blit_region.dst_subresource.aspect_mask = vk::ImageAspectFlags::COLOR;
-        blit_region.dst_subresource.base_array_layer = 0;
-        blit_region.dst_subresource.layer_count = 1;
-        blit_region.dst_subresource.mip_level = 0;
-        
-        let cmd_info = vk::BlitImageInfo2::builder()
-            .src_image(src)
-            .src_image_layout(vk::ImageLayout::TRANSFER_SRC_OPTIMAL)
-            .dst_image(dst)
-            .dst_image_layout(vk::ImageLayout::TRANSFER_DST_OPTIMAL)
-            .filter(vk::Filter::LINEAR)
-            .regions(from_ref(&blit_region));
-        
-        unsafe{device.cmd_blit_image2(cmd, &cmd_info)}
-    }
-    
-
-    
-//----
-    pub fn transition_image(
-        device: &Device,
-        command_buffer: vk::CommandBuffer,
-        image: vk::Image,
         old_layout: vk::ImageLayout,
         new_layout: vk::ImageLayout,
-    ) {
-        logger::transitioning_image(old_layout, new_layout);
+    ) -> Result<(), AAError> {
+        use vk::ImageLayout as IL;
         
-        let image_aspect = match new_layout {
-            vk::ImageLayout::DEPTH_ATTACHMENT_OPTIMAL => {
+        if state.v_exp() {
+            println!("moving image from {:?} {:?}", old_layout, new_layout);
+        }
+        
+        let aspect_mask = if new_layout == IL::DEPTH_STENCIL_ATTACHMENT_OPTIMAL {
+            if Self::has_stencil_component(format) {
+                vk::ImageAspectFlags::DEPTH | vk::ImageAspectFlags::STENCIL
+            } else {
                 vk::ImageAspectFlags::DEPTH
             }
-            _ => {
-                vk::ImageAspectFlags::COLOR
+        } else {
+            vk::ImageAspectFlags::COLOR
+        };
+        
+        let (src_access_mask, dst_access_maks, src_stage, dst_stage) = match (old_layout, new_layout) {
+            (IL::UNDEFINED, IL::TRANSFER_DST_OPTIMAL) => {
+                (vk::AccessFlags::empty(), vk::AccessFlags::TRANSFER_WRITE, vk::PipelineStageFlags::TOP_OF_PIPE, vk::PipelineStageFlags::TRANSFER)
+            }
+            (IL::TRANSFER_DST_OPTIMAL, IL::SHADER_READ_ONLY_OPTIMAL) => {
+                (vk::AccessFlags::TRANSFER_WRITE, vk::AccessFlags::SHADER_READ, vk::PipelineStageFlags::TRANSFER, vk::PipelineStageFlags::FRAGMENT_SHADER)
+            }
+            (IL::UNDEFINED, IL::DEPTH_STENCIL_ATTACHMENT_OPTIMAL) => {
+                (vk::AccessFlags::empty(), vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_READ |vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE, vk::PipelineStageFlags::TOP_OF_PIPE, vk::PipelineStageFlags::EARLY_FRAGMENT_TESTS)
+            }
+            (_, _) => {
+                return Err(AAError::ImageLayoutUnsuported);
             }
         };
         
-        let subresource = Image2::subresource_range(image_aspect);
+        let buffer = command.setup_su_buffer(device);
         
-        let image_barrier = vk::ImageMemoryBarrier2::builder()
-            .image(image)
+        let subresource = vk::ImageSubresourceRange::builder()
+            .aspect_mask(aspect_mask)
+            .base_mip_level(0)
+            .level_count(1)
+            .base_array_layer(0)
+            .layer_count(1);
+        
+        let memory_barrier = vk::ImageMemoryBarrier::builder()
             .old_layout(old_layout)
             .new_layout(new_layout)
-            .src_stage_mask(vk::PipelineStageFlags2::ALL_COMMANDS)
-            .src_access_mask(vk::AccessFlags2::MEMORY_WRITE)
-            .dst_stage_mask(vk::PipelineStageFlags2::ALL_COMMANDS)
-            .dst_access_mask(vk::AccessFlags2::MEMORY_WRITE|vk::AccessFlags2::MEMORY_READ)
-            .subresource_range(subresource);
+            .src_queue_family_index(vk::QUEUE_FAMILY_IGNORED)
+            .dst_queue_family_index(vk::QUEUE_FAMILY_IGNORED)
+            .image(*image)
+            .subresource_range(*subresource)
+            .src_access_mask(src_access_mask)
+            .dst_access_mask(dst_access_maks);
         
-        let dependency = ash::vk::DependencyInfo::builder()
-            .image_memory_barriers(from_ref(&image_barrier));
+        unsafe{device.cmd_pipeline_barrier(
+            buffer,
+            src_stage,
+            dst_stage,
+            vk::DependencyFlags::empty(),
+            &[],
+            &[],
+            from_ref(&memory_barrier),
+        )};
         
-        let _ = unsafe{device.cmd_pipeline_barrier2(command_buffer, &dependency)};
-        
+        command.submit_su_buffer(device);
+        Ok(())
     }
     
-}
-
-
-
-impl VkDestructor for Image2 {
-    fn destruct(self, mut args:DestructorArguments) {
-        logger::destruct();
-        let (device, allocator) = args.unwrap_dev_all();
+    
+    pub fn create_image_view(
+        state: &State,
+        device: &Device,
+        image: &vk::Image,
+        format: vk::Format,
+        aspect: vk::ImageAspectFlags,
+    ) -> VkResult<vk::ImageView> {
+        
+        if state.v_exp() {
+            println!("creating image views");
+        }
+        
+        let component_create_info = vk::ComponentMapping::builder()
+            .r(vk::ComponentSwizzle::IDENTITY)
+            .g(vk::ComponentSwizzle::IDENTITY)
+            .b(vk::ComponentSwizzle::IDENTITY)
+            .a(vk::ComponentSwizzle::IDENTITY);
+        
+        let subresource_range_create_info = vk::ImageSubresourceRange::builder()
+            .aspect_mask(vk::ImageAspectFlags::COLOR)
+            .base_mip_level(0)
+            .level_count(1)
+            .base_array_layer(0)
+            .aspect_mask(aspect)
+            .layer_count(1);
+        
+        let create_info = vk::ImageViewCreateInfo::builder()
+            .format(format)
+            .view_type(vk::ImageViewType::TYPE_2D)
+            .components(*component_create_info)
+            .subresource_range(*subresource_range_create_info)
+            .image(*image);
+        
+        let holder = unsafe{device.create_image_view(&create_info, None)?};
+        
+        Ok(holder)
+    }
+    
+    
+    fn has_stencil_component(format: vk::Format) -> bool {
+        format == vk::Format::D32_SFLOAT_S8_UINT || format == vk::Format::D24_UNORM_S8_UINT
+    }
+    
+    pub fn silent_drop(&mut self, device:&Device) {
         unsafe{device.destroy_image_view(self.view, None)};
         unsafe{device.destroy_image(self.image, None)};
-        allocator.free(self.allocation).expect(GPU_FREE);
+        unsafe{device.free_memory(self.memory, None)};
     }
     
-    
-    
 }
+
+impl From<((vk::Image, vk::DeviceMemory), vk::ImageView, i32)> for Image {
+    fn from(base:((vk::Image, vk::DeviceMemory), vk::ImageView, i32)) -> Self {
+        Self{image:base.0.0, memory:base.0.1, view: base.1, mip_level:base.2}
+    }
+}
+
+impl DeviceDestroy for Image {
+    fn device_destroy(&mut self, state:&State, device:&Device) {
+        if state.v_nor() {
+            println!("[0]:deleting texture image");
+        }
+        self.silent_drop(device);
+    }
+}
+
 
 
