@@ -1,10 +1,10 @@
 use crate::AAError;
-use crate::errors::messanges::GRANTED;
+use crate::errors::messages::GRANTED;
 use crate::constants;
 
 use super::logger::pipeline as logger;
 
-use super::DestructorArguments;
+use super::VkDestructorArguments;
 use super::VkDestructor;
 use super::Device;
 use super::DescriptorLayout;
@@ -82,7 +82,7 @@ impl ComputePipeline {
 }
 
 impl VkDestructor for ComputePipeline {
-    fn destruct(self, mut args:DestructorArguments) {
+    fn destruct(self, mut args:VkDestructorArguments) {
         let device = args.unwrap_dev();
         logger::compute::destruct();
         unsafe{device.destroy_pipeline_layout(self.layout, None)}

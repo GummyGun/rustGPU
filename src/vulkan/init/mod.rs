@@ -1,8 +1,8 @@
 use super::DeviceDestroy;
 use super::logger;
 use super::VkDestructor;
-use super::DestructorType;
-use super::DestructorArguments;
+use super::VkDestructorType;
+use super::VkDestructorArguments;
     
 
 pub mod memory;
@@ -44,10 +44,10 @@ pub use pipeline::*;
 mod imgui;
 pub use imgui::*;
 
+/*
 mod render_pass;
 pub use render_pass::*;
 
-/*
 mod buffers;
 pub use buffers::*;
 

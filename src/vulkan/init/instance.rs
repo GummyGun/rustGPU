@@ -1,11 +1,11 @@
-use crate::constants;
 use crate::State;
+use crate::constants;
 use crate::window::Window;
-use crate::errors::Error as AAError;
+use crate::AAError;
 
 use super::logger::instance as logger;
 use super::VkDestructor;
-use super::DestructorArguments;
+use super::VkDestructorArguments;
 use super::d_messenger::DMessenger;
 
 use std::ffi::c_char;
@@ -85,10 +85,13 @@ impl Instance {
     pub fn underlying(&self) -> ash::Instance {
         self.instance.clone()
     }
+    pub fn test(&self) {
+        panic!();
+    }
 }
 
 impl VkDestructor for Instance {
-    fn destruct(self, mut args:DestructorArguments) {
+    fn destruct(self, mut args:VkDestructorArguments) {
         logger::destruct();
         args.unwrap_none();
         unsafe{self.destroy_instance(None)};

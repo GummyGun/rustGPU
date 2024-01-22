@@ -75,6 +75,12 @@ pub mod d_messenger {
 pub mod surface {
     use super::*;
     
+    pub fn create() {
+        if LOGGING {
+            log::info!("\nCREATING:\tSURFACE");
+        }
+    }
+    
     pub fn destruct() {
         if LOGGING {
             log::info!("[0]:deleting surface");
@@ -304,4 +310,21 @@ pub mod pipeline {
         }
         
     }
+}
+
+pub mod imgui {
+    use super::*;
+    
+    pub fn create() {
+        if LOGGING {
+            log::info!("\nCREATING:\tIMGUI");
+        }
+    }
+    
+    pub fn destruct() {
+        if LOGGING {
+            log::info!("[0]:deleting imgui");
+        }
+    }
+
 }

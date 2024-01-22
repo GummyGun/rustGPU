@@ -2,14 +2,14 @@ use crate::AAError;
 use crate::State;
 use crate::constants::sc_max_images;
 use crate::window::Window;
-use crate::errors::messanges::U32_TO_USIZE;
-use crate::errors::messanges::SIMPLE_VK_FN;
-use crate::errors::messanges::BAD_DESTRUCTOR;
+use crate::errors::messages::U32_TO_USIZE;
+use crate::errors::messages::SIMPLE_VK_FN;
+use crate::errors::messages::BAD_DESTRUCTOR;
 
 use super::logger::swapchain as logger;
 use super::DeviceDestroy;
-use super::DestructorType;
-use super::DestructorArguments;
+use super::VkDestructorType;
+use super::VkDestructorArguments;
 use super::device::Device;
 use super::instance::Instance;
 use super::surface::Surface;
@@ -146,7 +146,7 @@ impl Swapchain {
     }
     
     
-    pub fn get_next_image(&mut self, semaphore:vk::Semaphore) -> (vk::Image, u32) {
+    pub fn get_next_image(&mut self, semaphore:vk::Semaphore) -> (vk::Image, vk::ImageView, u32) {
         
         let (image_index, _invalid_surface) = unsafe{
             self.acquire_next_image(
@@ -157,7 +157,7 @@ impl Swapchain {
             )
         }.expect("next image should not fail");
         
-        (self.images[image_index as usize], image_index)
+        (self.images[image_index as usize], self.image_views[image_index as usize], image_index)
     }
     
     /*
@@ -196,17 +196,17 @@ impl DeviceDestroy for Swapchain {
 }
 
 impl Swapchain {
-    pub fn destroy_callback(&mut self) -> (Box<dyn FnOnce(DestructorArguments)>, DestructorType) {
+    pub fn destroy_callback(&mut self) -> (Box<dyn FnOnce(VkDestructorArguments)>, VkDestructorType) {
         let target = self.clone();
-        let callback = Box::new(move |arguments:DestructorArguments|{
+        let callback = Box::new(move |arguments:VkDestructorArguments|{
             let mut target = target;
-            if let DestructorArguments::Dev(device) = arguments {
+            if let VkDestructorArguments::Dev(device) = arguments {
                 Self::internal_destroy(&mut target, device);
             } else {
                 panic!("{}", BAD_DESTRUCTOR);
             }
         });
-        (callback, DestructorType::Dev)
+        (callback, VkDestructorType::Dev)
     }
 }
 

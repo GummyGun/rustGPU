@@ -44,7 +44,7 @@ impl RenderPass {
             .dst_subpass(0)
             .src_access_mask(AF::empty())
             .src_stage_mask(PSF::COLOR_ATTACHMENT_OUTPUT /*| PSF::EARLY_FRAGMENT_TESTS*/)
-            .dst_access_mask(AF::COLOR_ATTACHMENT_WRITE /*| AF::DEPTH_STENCIL_ATTACHMENT_WRITE*/)
+            .dst_access_mask(AF::COLOR_ATTACHMENT_WRITE | AF::COLOR_ATTACHMENT_READ/*| AF::DEPTH_STENCIL_ATTACHMENT_WRITE*/)
             .dst_stage_mask(PSF::COLOR_ATTACHMENT_OUTPUT /*| PSF::EARLY_FRAGMENT_TESTS*/);
         
         /*
@@ -64,7 +64,7 @@ impl RenderPass {
                 .store_op(vk::AttachmentStoreOp::STORE)
                 .stencil_load_op(vk::AttachmentLoadOp::DONT_CARE)
                 .stencil_store_op(vk::AttachmentStoreOp::DONT_CARE)
-                .initial_layout(vk::ImageLayout::UNDEFINED)
+                .initial_layout(vk::ImageLayout::GENERAL)
                 .final_layout(vk::ImageLayout::PRESENT_SRC_KHR)
                 .build(),
                 

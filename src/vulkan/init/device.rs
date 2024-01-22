@@ -5,7 +5,7 @@ use crate::constants;
 
 use super::logger::device as logger;
 use super::VkDestructor;
-use super::DestructorArguments;
+use super::VkDestructorArguments;
 use super::instance::Instance;
 use super::p_device::PDevice;
 use super::p_device::QueueFamilyIndices;
@@ -173,14 +173,13 @@ impl Extensions {
 
 impl Deref for Device {
     type Target = ash::Device;
-    
     fn deref(&self) -> &Self::Target {
         &self.device
     }
 }
 
 impl VkDestructor for Device {
-    fn destruct(self, mut args:DestructorArguments) {
+    fn destruct(self, mut args:VkDestructorArguments) {
         logger::destruct();
         args.unwrap_none();
         unsafe{self.device.destroy_device(None)};

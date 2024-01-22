@@ -1,9 +1,9 @@
 use crate::AAError;
-use crate::errors::messanges::GPU_FREE;
+use crate::errors::messages::GPU_FREE;
 
 use super::logger::image as logger;
 use super::VkDestructor;
-use super::DestructorArguments;
+use super::VkDestructorArguments;
 use super::Device;
 use super::Allocator;
 
@@ -24,7 +24,7 @@ pub struct Image {
 #[derive(Debug)]
 pub struct ImageMetadata {
     d_name: Option<&'static str>,
-    format: vk::Format,
+    pub format: vk::Format,
     usage: ash::vk::ImageUsageFlags,
     aspect_flags: ash::vk::ImageAspectFlags,
 }
@@ -43,6 +43,14 @@ pub const RENDER:ImageMetadata = {
 };
 
 impl Image {
+    
+//----
+    pub fn get_extent2d(&self) -> vk::Extent2D {
+        vk::Extent2D{
+            width: self.extent.width,
+            height: self.extent.height,
+        }
+    }
     
 //----
     pub fn underlying(&self) -> vk::Image {
@@ -225,16 +233,13 @@ impl Image {
 
 
 impl VkDestructor for Image {
-    fn destruct(self, mut args:DestructorArguments) {
+    fn destruct(self, mut args:VkDestructorArguments) {
         logger::destruct();
         let (device, allocator) = args.unwrap_dev_all();
         unsafe{device.destroy_image_view(self.view, None)};
         unsafe{device.destroy_image(self.image, None)};
         allocator.free(self.allocation).expect(GPU_FREE);
     }
-    
-    
-    
 }
 
 

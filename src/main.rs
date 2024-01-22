@@ -32,6 +32,7 @@ fn main() {
     let state = State::new();
     
     let mut window = window::Window::init(state);
+    
     let mut v_init = vulkan::VInit::init(state, &window);
     
     //let mut last_time = state.secs_from_start();
@@ -40,8 +41,10 @@ fn main() {
     while !window.should_close() {
         window.poll_events();
         
+        v_init.handle_events(&window);
+        
         //v_init.tick();
-        v_init.draw_frame();
+        v_init.draw_frame(&window);
         
         /*
         let current_time = state.secs_from_start();

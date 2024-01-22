@@ -3,7 +3,7 @@ use crate::AAError;
 
 use super::logger::d_messenger as logger;
 use super::VkDestructor;
-use super::DestructorArguments;
+use super::VkDestructorArguments;
 use super::instance::Instance;
 
 use std::ffi::CStr;
@@ -77,7 +77,7 @@ impl DMessenger {
 }
 
 impl VkDestructor for DMessenger {
-    fn destruct(self, mut args:DestructorArguments) {
+    fn destruct(self, mut args:VkDestructorArguments) {
         logger::destruct();
         args.unwrap_none();
         unsafe{self.debug_utils.destroy_debug_utils_messenger(self.messenger, None)};

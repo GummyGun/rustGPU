@@ -1,9 +1,9 @@
 use crate::AAError;
-use crate::errors::messanges::GPU_ALLOCATION;
+use crate::errors::messages::GPU_ALLOCATION;
 
 use super::logger::memory as logger;
 use super::VkDestructor;
-use super::DestructorArguments;
+use super::VkDestructorArguments;
 use super::instance::Instance;
 use super::p_device::PDevice;
 use super::device::Device;
@@ -13,11 +13,11 @@ use std::ops::DerefMut;
 use std::mem::ManuallyDrop;
 
 use ash::vk;
-use gpu_allocator::vulkan as vkmem;
-use gpu_allocator as gpuall;
+use gpu_allocator::vulkan as gpu_vk;
+use gpu_allocator as gpu_all;
 
 pub struct Allocator {
-    allocator:ManuallyDrop<vkmem::Allocator>,
+    allocator:ManuallyDrop<gpu_vk::Allocator>,
 }
 
 impl Allocator {
@@ -28,7 +28,7 @@ impl Allocator {
     ) -> Result<Self, AAError> {
         logger::alloc::create();
         
-        let create_info = vkmem::AllocatorCreateDesc {
+        let create_info = gpu_vk::AllocatorCreateDesc {
             instance: instance.underlying(),
             device: device.underlying(),
             physical_device: p_device.underlying(),
@@ -37,7 +37,7 @@ impl Allocator {
             allocation_sizes: Default::default(),
         };
         
-        let allocator = vkmem::Allocator::new(&create_info)?;
+        let allocator = gpu_vk::Allocator::new(&create_info)?;
         
         Ok(Self{
             allocator: ManuallyDrop::new(allocator),
@@ -48,27 +48,27 @@ impl Allocator {
         &mut self,
         name: &str,
         requirements: vk::MemoryRequirements,
-    ) -> vkmem::Allocation {
+    ) -> gpu_vk::Allocation {
         
         logger::alloc::gpu_allocation(name);
-        let alloc_info = vkmem::AllocationCreateDesc{
+        let alloc_info = gpu_vk::AllocationCreateDesc{
             name: name,
             requirements: requirements,
-            location: gpuall::MemoryLocation::GpuOnly,
+            location: gpu_all::MemoryLocation::GpuOnly,
             linear: true,
-            allocation_scheme: vkmem::AllocationScheme::GpuAllocatorManaged,
+            allocation_scheme: gpu_vk::AllocationScheme::GpuAllocatorManaged,
         };
         
         self.allocate(&alloc_info).expect(GPU_ALLOCATION)
     }
     
-    pub fn into_inner(self) -> vkmem::Allocator {
+    pub fn into_inner(self) -> gpu_vk::Allocator {
         ManuallyDrop::into_inner(self.allocator)
     }
 }
 
 impl Deref for Allocator {
-    type Target = vkmem::Allocator;
+    type Target = gpu_vk::Allocator;
     fn deref(&self) -> &Self::Target {
         &self.allocator
     }
@@ -82,7 +82,7 @@ impl DerefMut for Allocator {
 
 
 impl VkDestructor for Allocator {
-    fn destruct(mut self, mut args:DestructorArguments) {
+    fn destruct(mut self, mut args:VkDestructorArguments) {
         args.unwrap_dev();
         logger::alloc::destruct();
         unsafe{ManuallyDrop::drop(&mut self.allocator)};

@@ -147,7 +147,7 @@ impl CommandControl {
             .render_pass(render_pass.as_inner())
             //.framebuffer(swapchain.framebuffers[image_index_usize])
             .render_area(scissor)
-            .clear_values(&clear_color[..]);
+            //.clear_values(&clear_color[..]);
         
         
         //initialize the command buffer

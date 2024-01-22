@@ -46,9 +46,9 @@ pub enum Error {
 }
 
 /*
-use crate::errors::messanges:: ;
+use crate::errors::messages:: ;
 */
-pub mod messanges {
+pub mod messages {
     pub const U32_TO_USIZE:&'static str = "conversion should be granted on regular architecture";
     pub const SIMPLE_VK_FN:&'static str = "simple vk functions should not fail";
     pub const BAD_DESTRUCTOR:&'static str = "destruct did not receive the right information";

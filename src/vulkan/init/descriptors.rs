@@ -1,11 +1,11 @@
 use crate::AAError;
-use crate::errors::messanges::STANDARD_CONV;
-use crate::errors::messanges::GRANTED;
-use crate::errors::messanges::SIMPLE_VK_FN;
+use crate::errors::messages::STANDARD_CONV;
+use crate::errors::messages::GRANTED;
+use crate::errors::messages::SIMPLE_VK_FN;
 
 use super::logger::descriptors as logger;
 use super::VkDestructor;
-use super::DestructorArguments;
+use super::VkDestructorArguments;
 use super::Device;
 use super::Image;
 
@@ -112,14 +112,14 @@ impl DescriptorLayoutBuilder {
 
 
 impl VkDestructor for DescriptorLayoutBuilder {
-    fn destruct(self, mut args:DestructorArguments) {
+    fn destruct(self, mut args:VkDestructorArguments) {
         logger::dlb::destruct();
         args.unwrap_none();
     }
 }
 
 impl VkDestructor for DescriptorLayout {
-    fn destruct(self, mut args:DestructorArguments) {
+    fn destruct(self, mut args:VkDestructorArguments) {
         logger::dl::destruct();
         let device = args.unwrap_dev();
         unsafe{device.destroy_descriptor_set_layout(self.set_layout, None)};
@@ -294,7 +294,7 @@ impl DescriptorPoolAllocator {
 }
 
 impl VkDestructor for DescriptorPoolAllocator {
-    fn destruct(self, mut args:DestructorArguments) {
+    fn destruct(self, mut args:VkDestructorArguments) {
         logger::dpa::destruct();
         let device = args.unwrap_dev();
         unsafe{device.destroy_descriptor_pool(self.pool, None)};

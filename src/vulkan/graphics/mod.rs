@@ -4,8 +4,9 @@ mod model;
 pub use model::Model;
 */
 
+use crate::window::Window;
 use crate::AAError;
-use crate::errors::messanges::SIMPLE_VK_FN;
+use crate::errors::messages::SIMPLE_VK_FN;
 
 use super::VInit;
 use super::Device;
@@ -39,16 +40,30 @@ impl VInit {
     
     
 //----
-    pub fn draw_frame(&mut self) {
+    pub fn draw_frame(
+        &mut self,
+        window: &Window,
+        
+    ) {
         self.frame_update();
         let cf = self.get_frame();
         let frame_count = self.get_frame_count();
         
-        let VInit{cp_pipeline, ds_set, render_image, command_control, sync_objects, swapchain, device, ..} = self;
+        let VInit{
+            imgui, 
+            cp_pipeline, 
+            ds_set, 
+            render_image, 
+            command_control, 
+            sync_objects, 
+            swapchain, 
+            device, 
+            ..
+        } = self;
         let cmd = command_control.buffers[cf];
         
         let (image_avaliable_semaphore, render_finished_semaphore, inflight_fence) = sync_objects.get_frame(cf);
-        let (p_image_handle, image_index) = swapchain.get_next_image(image_avaliable_semaphore);
+        let (p_image_handle, p_image_view, image_index) = swapchain.get_next_image(image_avaliable_semaphore);
         
         unsafe{device.wait_for_fences(from_ref(&inflight_fence), true, u64::MAX)}.expect(SIMPLE_VK_FN);
         unsafe{device.reset_fences(from_ref(&inflight_fence))}.expect(SIMPLE_VK_FN);
@@ -67,13 +82,17 @@ impl VInit {
         
         Self::draw_background(device, cmd, render_image, *ds_set, cp_pipeline, frame_count);
         
+        
         Image::transition_image(device, cmd, r_image_handle, vk::ImageLayout::GENERAL, vk::ImageLayout::TRANSFER_SRC_OPTIMAL);
         Image::transition_image(device, cmd, p_image_handle, vk::ImageLayout::UNDEFINED, vk::ImageLayout::TRANSFER_DST_OPTIMAL);
         
         Image::raw_copy_image_to_image(device, cmd, r_image_handle, render_image.extent, p_image_handle, vk::Extent3D::from(swapchain.extent));
         
-        Image::transition_image(device, cmd, p_image_handle, vk::ImageLayout::TRANSFER_DST_OPTIMAL, vk::ImageLayout::PRESENT_SRC_KHR);
+        Image::transition_image(device, cmd, p_image_handle, vk::ImageLayout::TRANSFER_DST_OPTIMAL, vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL);
         
+        imgui.render(window, device, cmd, self.render_extent, p_image_view);
+        
+        Image::transition_image(device, cmd, p_image_handle, vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL, vk::ImageLayout::PRESENT_SRC_KHR);
         
         unsafe{device.end_command_buffer(cmd)}.expect(SIMPLE_VK_FN);
         
@@ -88,6 +107,7 @@ impl VInit {
         
         let command_submit_info = vk::CommandBufferSubmitInfo::builder()
             .command_buffer(cmd);
+        
         
         let submit_info = vk::SubmitInfo2::builder()
             .command_buffer_infos(from_ref(&command_submit_info))

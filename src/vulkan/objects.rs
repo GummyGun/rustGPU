@@ -1,5 +1,5 @@
 use crate::State;
-use crate::errors::messanges::BAD_DESTRUCTOR;
+use crate::errors::messages::BAD_DESTRUCTOR;
 
 use super::Device;
 use super::Allocator;
@@ -12,25 +12,25 @@ const NON_DEV_DROPED_ERR_TEXT:&'static str = "dropping non-destroyed object use 
 const NON_ACT_DROPED_ERR_TEXT:&'static str = "dropping non-destroyed object use active_drop";
 
 
-pub enum DestructorArguments<'a> {
+pub enum VkDestructorArguments<'a> {
     None,
     Dev(&'a mut Device),
     DevAll(&'a mut Device,&'a mut Allocator),
 }
 
 #[allow(dead_code)]
-pub enum DestructorType {
+pub enum VkDestructorType {
     None,
     Dev,
     DevAll,
 }
 
 pub trait VkDestructor {
-    fn destruct(self, args:DestructorArguments);
+    fn destruct(self, args:VkDestructorArguments);
 }
 
 pub trait VkDeferedDestructor {
-    fn defered_destruct() -> (Box<dyn FnOnce(DestructorArguments)>, DestructorType);
+    fn defered_destruct() -> (Box<dyn FnOnce(VkDestructorArguments)>, VkDestructorType);
 }
 
 
@@ -49,7 +49,7 @@ impl<T:VkDestructor> VkWraper<T> {
     
     //will this ever be called
     #[allow(dead_code)]
-    pub fn destruct(&mut self, args:DestructorArguments) {
+    pub fn destruct(&mut self, args:VkDestructorArguments) {
         self.0.take().expect(DROPED_ERR_TEXT).destruct(args);
     }
     
@@ -83,10 +83,10 @@ impl<T:VkDestructor> DerefMut for VkWraper<T> {
 
 
 
-impl DestructorArguments<'_> {
+impl VkDestructorArguments<'_> {
     
     pub fn unwrap_none(&mut self) {
-        if let DestructorArguments::None = self {
+        if let VkDestructorArguments::None = self {
             
         } else {
             panic!("{}", BAD_DESTRUCTOR);
@@ -94,7 +94,7 @@ impl DestructorArguments<'_> {
     }
     
     pub fn unwrap_dev(&mut self) -> &Device {
-        if let DestructorArguments::Dev(device) = self {
+        if let VkDestructorArguments::Dev(device) = self {
             device
         } else {
             panic!("{}", BAD_DESTRUCTOR);
@@ -102,7 +102,7 @@ impl DestructorArguments<'_> {
     }
     
     pub fn unwrap_dev_all(&mut self) -> (&mut Device, &mut Allocator) {
-        if let DestructorArguments::DevAll(device, allocator) = self {
+        if let VkDestructorArguments::DevAll(device, allocator) = self {
             (device, allocator)
         } else {
             panic!("{}", BAD_DESTRUCTOR);

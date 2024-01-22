@@ -13,6 +13,7 @@ use super::DescriptorLayoutBuilder;
 use super::DescriptorLayout;
 use super::DescriptorPoolAllocator;
 use super::ComputePipeline;
+use super::Imgui;
 
 
 type Objects = (
@@ -29,6 +30,7 @@ type Objects = (
     DescriptorLayout,
     DescriptorPoolAllocator,
     ComputePipeline,
+    Imgui,
 );
 
 impl VInit {
@@ -50,6 +52,7 @@ impl VInit {
         let ds_layout = self.ds_layout.take();
         let ds_pool = self.ds_pool.take();
         let cp_pipeline = self.cp_pipeline.take();
+        let imgui = self.imgui.take();
         
         (
             instance,
@@ -65,6 +68,7 @@ impl VInit {
             ds_layout,
             ds_pool,
             cp_pipeline,
+            imgui,
         )
     }
     

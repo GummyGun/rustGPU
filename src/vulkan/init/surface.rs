@@ -6,7 +6,7 @@ use crate::AAError;
 
 use super::logger::surface as logger;
 use super::VkDestructor;
-use super::DestructorArguments;
+use super::VkDestructorArguments;
 use super::instance::Instance;
 
 
@@ -22,16 +22,17 @@ pub struct Surface {
 
 impl Surface {
     pub fn create(state:&State, window:&Window, instance:&Instance) -> Result<Self, AAError> {
-        if state.v_exp() {
-            println!("\nCREATING:\tSURFACE");
-        }
+        logger::create();
         
+        
+        /*
         if state.v_exp() {
             println!("{:?}", constants::EXTENSIONS);
             println!("{:?}", constants::LAYERS);
         }
+        */
         
-        let surface = unsafe{window.create_surface(instance, None)?};
+        let surface = unsafe{window.create_surface(instance, None)}.unwrap();
         let surface_loader = ash::extensions::khr::Surface::new(&instance.entry, instance);
         
         Ok(Self{
@@ -51,7 +52,7 @@ impl Deref for Surface {
 }
 
 impl VkDestructor for Surface {
-    fn destruct(self, mut args:DestructorArguments) {
+    fn destruct(self, mut args:VkDestructorArguments) {
         logger::destruct();
         args.unwrap_none();
         unsafe{self.destroy_surface(self.surface, None)}
