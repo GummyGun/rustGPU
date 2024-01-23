@@ -3,11 +3,12 @@ use ash::{
     prelude::VkResult,
 };
 
-use super::{
-    DeviceDestroy,
-    device::Device,
-    p_device::PDevice,
-};
+use super::logger::command as logger;
+
+use super::VkDestructor;
+use super::VkDestructorArguments;
+use super::device::Device;
+use super::p_device::PDevice;
 
 /*
 use super::super::{
@@ -194,14 +195,11 @@ impl CommandControl {
     
 }
 
-impl DeviceDestroy for CommandControl {
-    fn device_destroy(&mut self, state:&State, device:&Device) {
-        if state.v_nor() {
-            println!("[0]:deallocating command buffer");
-        }
-        if state.v_nor() {
-            println!("[0]:deleting command pool");
-        }
+impl VkDestructor for CommandControl {
+    fn destruct(self, mut args:VkDestructorArguments) {
+        logger::destruct();
+        let device = args.unwrap_dev();
         unsafe{device.destroy_command_pool(self.pool, None)};
     }
 }
+

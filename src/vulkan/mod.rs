@@ -17,9 +17,6 @@ use super::constants;
 use super::State;
 
 use objects::VkWraper;
-use objects::VkObjDevDep;
-use objects::DeviceDestroy;
-
 use objects::VkDestructor;
 use objects::VkDestructorType;
 use objects::VkDestructorArguments;
@@ -40,9 +37,9 @@ pub struct VInit {
     p_device: PDevice,
     device: VkWraper<Device>,
     allocator: VkWraper<Allocator>,
-    swapchain: VkObjDevDep<Swapchain>,
-    sync_objects: VkObjDevDep<SyncObjects>,
-    command_control: VkObjDevDep<CommandControl>,
+    swapchain: VkWraper<Swapchain>,
+    sync_objects: VkWraper<SyncObjects>,
+    command_control: VkWraper<CommandControl>,
     /*
     pub depth_buffer: VkObjDevDep<DepthBuffer>,
     pub pipeline: VkObjDevDep<Pipeline>,
@@ -140,9 +137,10 @@ impl VInit {
             surface: VkWraper::new(surface),
             device: VkWraper::new(device),
             allocator: VkWraper::new(allocator), 
-            swapchain: VkObjDevDep::new(swapchain),
-            sync_objects: VkObjDevDep::new(sync_objects),
-            command_control: VkObjDevDep::new(command_control),
+            swapchain: VkWraper::new(swapchain),
+            sync_objects: VkWraper::new(sync_objects),
+            command_control: VkWraper::new(command_control),
+            
             render_image: VkWraper::new(render_image),
             render_extent,
             /*
@@ -212,36 +210,35 @@ impl Drop for VInit {
         let state = self.state;
         
         
-        let device = &mut _device;
+        let dev = &mut _device;
         let allocator = &mut _allocator;
-        //let render_image = &mut _render_image;
         
         
-        imgui.destruct(VkDestructorArguments::Dev(device));
-        cp_pipeline.destruct(VkDestructorArguments::Dev(device));
-        ds_pool.destruct(VkDestructorArguments::Dev(device));
-        ds_layout.destruct(VkDestructorArguments::Dev(device));
+        imgui.destruct(VkDestructorArguments::Dev(dev));
+        cp_pipeline.destruct(VkDestructorArguments::Dev(dev));
+        ds_pool.destruct(VkDestructorArguments::Dev(dev));
+        ds_layout.destruct(VkDestructorArguments::Dev(dev));
         ds_layout_builder.destruct(VkDestructorArguments::None);
         
-        render_image.destruct(VkDestructorArguments::DevAll(device, allocator));
+        render_image.destruct(VkDestructorArguments::DevAll(dev, allocator));
         
         /*
-        self.uniform_buffers.device_destroy(&self.state, device);
-        self.sampler.device_destroy(&self.state, device);
-        self.pipeline.device_destroy(&self.state, device);
-        self.depth_buffer.device_destroy(&self.state, device);
+        self.uniform_buffers.device_destroy(&self.state, dev);
+        self.sampler.device_destroy(&self.state, dev);
+        self.pipeline.device_destroy(&self.state, dev);
+        self.depth_buffer.device_destroy(&self.state, dev);
         */
         
-        command_control.device_destroy(&state, device);
-        sync_objects.device_destroy(&state, device);
-        swapchain.device_destroy(&state, device);
+        //command_control.device_destroy(&state, dev);
+        command_control.destruct(VkDestructorArguments::Dev(dev));
         
+        sync_objects.destruct(VkDestructorArguments::Dev(dev));
+        swapchain.destruct(VkDestructorArguments::Dev(dev));
         /*
         let swapchain_destruct = self.swapchain.destroy_callback();
-        swapchain_destruct.0(VkDestructorArguments::Dev(&self.device));
+        swapchain_destruct.0(VkDestructorArguments::Dev(&self.dev));
         */
-        
-        _allocator.destruct(VkDestructorArguments::Dev(device));
+        _allocator.destruct(VkDestructorArguments::Dev(dev));
         _device.destruct(VkDestructorArguments::None);
         surface.destruct(VkDestructorArguments::None);
         

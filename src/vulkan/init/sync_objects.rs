@@ -3,10 +3,11 @@ use ash::{
     prelude::VkResult,
 };
 
-use super::{
-    DeviceDestroy,
-    Device,
-};
+use super::logger::sync_objs as logger;
+
+use super::VkDestructor;
+use super::VkDestructorArguments;
+use super::Device;
 
 use crate::{
     State,
@@ -61,12 +62,24 @@ impl SyncObjects {
     }
 }
 
+
+impl VkDestructor for SyncObjects {
+    fn destruct(self, mut args:VkDestructorArguments) {
+        logger::destruct();
+        use constants::fif;
+        let device = args.unwrap_dev();
+        for index in 0..fif::USIZE {
+            unsafe{device.destroy_semaphore(self.image_available_semaphore[index], None)};
+            unsafe{device.destroy_semaphore(self.render_finished_semaphore[index], None)};
+            unsafe{device.destroy_fence(self.inflight_fence[index], None)};
+        }
+    }
+}
+/*
 impl DeviceDestroy for SyncObjects {
     fn device_destroy(&mut self, state:&State, device:&Device) {
         use constants::fif;
         if state.v_nor() {
-            println!("[0]:deleting semaphores");
-            println!("[0]:deleting fence");
         }
         
         for index in 0..fif::USIZE {
@@ -77,3 +90,4 @@ impl DeviceDestroy for SyncObjects {
         
     }
 }
+*/

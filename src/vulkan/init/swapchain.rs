@@ -1,5 +1,4 @@
 use crate::AAError;
-use crate::State;
 use crate::constants::sc_max_images;
 use crate::window::Window;
 use crate::errors::messages::U32_TO_USIZE;
@@ -7,7 +6,7 @@ use crate::errors::messages::SIMPLE_VK_FN;
 use crate::errors::messages::BAD_DESTRUCTOR;
 
 use super::logger::swapchain as logger;
-use super::DeviceDestroy;
+use super::VkDestructor;
 use super::VkDestructorType;
 use super::VkDestructorArguments;
 use super::device::Device;
@@ -188,12 +187,13 @@ impl Swapchain {
     
 }
 
-
-impl DeviceDestroy for Swapchain {
-    fn device_destroy(&mut self, _:&State, device:&Device) {
-        Self::internal_destroy(self, device);
+impl VkDestructor for Swapchain {
+    fn destruct(mut self, mut args:VkDestructorArguments) {
+        let device = args.unwrap_dev();
+        Self::internal_destroy(&mut self, device);
     }
 }
+
 
 impl Swapchain {
     pub fn destroy_callback(&mut self) -> (Box<dyn FnOnce(VkDestructorArguments)>, VkDestructorType) {

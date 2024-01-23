@@ -221,6 +221,28 @@ pub mod image {
     
 }
 
+pub mod sync_objs {
+    use super::*;
+    
+    pub fn destruct() {
+        if LOGGING {
+            log::info!("[0]:deleting semaphores");
+            log::info!("[0]:deleting fence");
+        }
+    }
+}
+
+pub mod command {
+    use super::*;
+    
+    pub fn destruct() {
+        if LOGGING {
+            log::info!("[0]:deallocating command buffer");
+            log::info!("[0]:deleting command pool");
+        }
+    }
+}
+
 pub mod descriptors {
     use super::*;
     

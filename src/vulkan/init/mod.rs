@@ -1,4 +1,3 @@
-use super::DeviceDestroy;
 use super::logger;
 use super::VkDestructor;
 use super::VkDestructorType;
@@ -29,8 +28,8 @@ pub use swapchain::*;
 mod command;
 pub use command::*;
 
-mod sync_obj;
-pub use sync_obj::*;
+mod sync_objects;
+pub use sync_objects::*;
 
 pub mod image;
 pub use image::*;
