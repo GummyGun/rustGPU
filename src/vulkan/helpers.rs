@@ -11,6 +11,7 @@ use super::Image;
 use super::DescriptorLayoutBuilder;
 use super::DescriptorLayout;
 use super::DescriptorPoolAllocator;
+use super::ComputeEffects;
 
 
 type Objects = (
@@ -26,6 +27,7 @@ type Objects = (
     DescriptorLayoutBuilder,
     DescriptorLayout,
     DescriptorPoolAllocator,
+    ComputeEffects
 );
 
 impl VInit {
@@ -42,10 +44,11 @@ impl VInit {
         let render_image = self.render_image.take();
         
         
-        
         let ds_layout_builder = self.ds_layout_builder.take();
         let ds_layout = self.ds_layout.take();
         let ds_pool = self.ds_pool.take();
+        
+        let compute_effects = self.compute_effects.take();
         
         (
             instance,
@@ -60,7 +63,7 @@ impl VInit {
             ds_layout_builder,
             ds_layout,
             ds_pool,
+            compute_effects,
         )
     }
-    
 }

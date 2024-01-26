@@ -1,15 +1,18 @@
 mod window;
 mod vulkan;
+mod imgui;
 mod errors;
-pub use errors::Error as AAError;
 mod logger;
 mod constants;
 mod utility;
-//mod graphics;
+mod graphics; 
 mod player;
+pub use errors::Error as AAError;
 
 use std::time::SystemTime;
+use std::mem::ManuallyDrop;
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Copy)]
 pub struct State {
     verbosity: Verbosity,
@@ -26,25 +29,38 @@ enum Verbosity {
     Dump,
 }
 
+struct HolderStruct {
+    window: ManuallyDrop<window::Window>,
+    v_init: ManuallyDrop<vulkan::VInit>,
+    imgui: ManuallyDrop<imgui::Imgui>,
+}
+
+
 fn main() {
     //let model = graphics::Model::load_gltf();
     
     let state = State::new();
     
     let mut window = window::Window::init(state);
+    let mut v_init = vulkan::VInit::init(state, &mut window);
+    let imgui = imgui::Imgui::init(&mut window, &mut v_init);
     
-    let mut v_init = vulkan::VInit::init(state, &window);
+    let mut holder_struct = HolderStruct::new(window, v_init, imgui);
+    let HolderStruct{
+        window,
+        v_init,
+        imgui,
+    } = &mut holder_struct;
     
-    //let mut last_time = state.secs_from_start();
     println!("===========\n===========");
-    //v_init.test();
     while !window.should_close() {
-        window.poll_events();
+        window.poll_events(imgui);
+        imgui.handle_events(window);
         
-        v_init.handle_events(&window);
+        imgui.draw_ui(window, v_init.get_compute_effects_metadata());
+        v_init.gui_tick(imgui.get_ui_data());
         
-        //v_init.tick();
-        v_init.draw_frame(&window);
+        v_init.draw_frame(imgui);
         
         /*
         let current_time = state.secs_from_start();
@@ -54,10 +70,31 @@ fn main() {
     }
     println!("===========\n===========");
     v_init.wait_idle();
-    //v_init.finalize();
 }
 
 
+impl HolderStruct {
+    fn new(window:window::Window, v_init:vulkan::VInit, imgui:imgui::Imgui) -> Self {
+        HolderStruct{
+            window: ManuallyDrop::new(window),
+            v_init: ManuallyDrop::new(v_init),
+            imgui: ManuallyDrop::new(imgui),
+        }
+        
+    }
+}
+
+impl Drop for HolderStruct {
+    fn drop(&mut self) {
+        unsafe{ManuallyDrop::drop(&mut self.imgui)};
+        unsafe{ManuallyDrop::drop(&mut self.v_init)};
+        unsafe{ManuallyDrop::drop(&mut self.window)};
+    }
+}
+
+
+
+#[allow(dead_code)]
 impl State {
     
     fn new() -> Self {
@@ -91,4 +128,12 @@ impl State {
     }
     
 }
+
+unsafe fn any_as_u8_slice<T: Sized>(p: &T) -> &[u8] {
+    ::core::slice::from_raw_parts(
+        (p as *const T) as *const u8,
+        ::core::mem::size_of::<T>(),
+    )
+}
+
 

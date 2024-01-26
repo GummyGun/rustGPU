@@ -4,9 +4,10 @@ use crate::constants;
 
 use super::logger::pipeline as logger;
 
-use super::super::graphics;
-use super::super::ComputeEffect;
-use super::super::graphics::ComputePushConstants;
+
+use super::super::graphics as vk_graphics;
+use vk_graphics::ComputePushConstants;
+use vk_graphics::ComputeEffectMetadata;
 
 use super::VkDestructorArguments;
 use super::VkDestructor;
@@ -20,6 +21,7 @@ use std::ffi::CStr;
 use ash::vk;
 use nalgebra::Vector4;
 use arrayvec::ArrayString;
+use derivative::Derivative;
 
 
 #[derive(Clone)]
@@ -28,44 +30,66 @@ pub struct ComputePipeline {
     pub pipeline: vk::Pipeline,
 }
 
-/*
-pub fn init_pipeline(device:&mut Device, ds_layout:&DescriptorLayout) -> ComputePipeline {
-    logger::init();
-    ComputePipeline::create(device, ds_layout, constants::comp::COMP_SHADER, constants::comp::COMP_START).unwrap()
+#[derive(Derivative)]
+#[derivative(Debug)]
+pub struct ComputeEffects {
+    pub metadatas: Vec<ComputeEffectMetadata>,
+    #[derivative(Debug="ignore")]
+    pub pipelines: Vec<ComputePipeline>,
 }
-*/
 
-pub fn init_pipelines(device:&mut Device, ds_layout:&DescriptorLayout) -> Vec<ComputeEffect> {
+
+pub fn init_pipelines(device:&mut Device, ds_layout:&DescriptorLayout) -> ComputeEffects {
     logger::init();
-    let mut holder = Vec::new();
-    let gradient = ComputePipeline::create(device, ds_layout, constants::comp::GRADIENT_SHADER, constants::comp::COMP_START).unwrap();
+    let mut metadatas = Vec::new();
+    let mut pipelines = Vec::new();
     let mut effect_name = ArrayString::new();
+    
+    let gradient = ComputePipeline::create(device, ds_layout, constants::comp::GRADIENT_SHADER, constants::comp::COMP_START).unwrap();
     effect_name.push_str("gradient");
-    holder.push(ComputeEffect{
-        name: effect_name,
-        pipeline: gradient,
-        data: ComputePushConstants{
-            data1: Vector4::new(1.0,0.0,0.0,1.0),
-            data2: Vector4::new(1.0,0.0,1.0,1.0),
-            ..Default::default()
-        },
+    metadatas.push(ComputeEffectMetadata{
+        name:effect_name,
+        data: ComputePushConstants([
+            Vector4::new(1.0,0.0,0.0,1.0),
+            Vector4::new(1.0,0.0,1.0,1.0),
+            Vector4::new(0.0,0.0,0.0,0.0),
+            Vector4::new(0.0,0.0,0.0,0.0),
+        ]),
     });
-    
-    let sky = ComputePipeline::create(device, ds_layout, constants::comp::SKY_SHADER, constants::comp::COMP_START).unwrap();
+    pipelines.push(gradient);
     effect_name.clear();
-    effect_name.push_str("sky");
-    holder.push(ComputeEffect{
-        name: effect_name,
-        pipeline: sky,
-        data: ComputePushConstants{
-            data1: Vector4::new(0.1, 0.2, 0.4 ,0.97),
-            ..Default::default()
-        },
-    });
     
-    holder
+    
+    effect_name.push_str("sky 2.0");
+    let sky = ComputePipeline::create(device, ds_layout, constants::comp::SKY_SHADER, constants::comp::COMP_START).unwrap();
+    metadatas.push(ComputeEffectMetadata{
+        name:effect_name,
+        data: ComputePushConstants([
+            Vector4::new(0.1, 0.2, 0.4 ,0.97),
+            Vector4::new(0.0,0.0,0.0,0.0),
+            Vector4::new(0.0,0.0,0.0,0.0),
+            Vector4::new(0.0,0.0,0.0,0.0),
+        ]),
+    });
+    pipelines.push(sky);
+    
+    
+    ComputeEffects{
+        metadatas,
+        pipelines,
+    }
 }
 
+
+impl VkDestructor for ComputeEffects {
+    fn destruct(self, mut args:VkDestructorArguments) {
+        //TODO: add logger
+        let device = args.unwrap_dev();
+        for pipeline in self.pipelines.into_iter() {
+            pipeline.destruct(VkDestructorArguments::Dev(device));
+        }
+    }
+}
 
 
 impl ComputePipeline {
@@ -73,7 +97,7 @@ impl ComputePipeline {
         logger::compute::create(true);
         
         let push_constant_description = vk::PushConstantRange::builder()
-            .size(graphics::ComputePushConstants::size_u32())
+            .size(vk_graphics::ComputePushConstants::size_u32())
             .stage_flags(vk::ShaderStageFlags::COMPUTE);
         
         
@@ -126,6 +150,7 @@ impl ComputePipeline {
         
     }
 }
+
 
 impl VkDestructor for ComputePipeline {
     fn destruct(self, mut args:VkDestructorArguments) {

@@ -3,9 +3,17 @@ name = "c_bind"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+# Defines a feature named `webp` that does not enable any other features.
+default = ["vulkan"]
+vulkan = []
+
+
 [dependencies]
+arrayvec = "0.7.4"
 ash = "0.37.3"
 cstr = "0.2.11"
+derivative = "2.2.0"
 easy-gltf = "1.1.1"
 env_logger = "0.10.1"
 gltf = { version = "1.4.0", features = ["import"] }
@@ -16,7 +24,7 @@ imgui-rs-vulkan-renderer = { version = "1.10.0", features = ["dynamic-rendering"
 imgui-sdl2 = "0.15.3"
 log = "0.4.20"
 memoffset = "0.9.0"
-nalgebra = "0.32.3"
+nalgebra = { version = "0.32.3", features = ["mint"] }
 sdl2 = "0.36.0"
 static_assertions = "1.1.0"
 thiserror = "1.0.50"

@@ -1,7 +1,9 @@
 mod vk_win;
 
+use super::errors::messages::SIMPLE_SDL_FN;
+use super::imgui::Imgui;
+
 use super::{
-    constants,
     State,
     Verbosity,
     player::{
@@ -9,21 +11,14 @@ use super::{
     },
 };
 
-use std::ops::Deref;
 
-//#[derive(Debug)]
+#[allow(dead_code)]
 pub struct Window {
     sdl: sdl2::Sdl,
     video_subsys: sdl2::VideoSubsystem,
     window: sdl2::video::Window,
     event_pump: sdl2::EventPump,
     should_quit: bool,
-    /*
-    pub state: State,
-    pub window: glfw::PWindow,
-    pub events_queue: glfw::GlfwReceiver<(f64, glfw::WindowEvent)>,
-    pub main: glfw::Glfw,
-    */
 }
 
 impl Window {
@@ -40,15 +35,10 @@ impl Window {
             println!("[0]:window");
         }
         
-        use sdl2::pixels::Color;
-        use sdl2::event::Event;
-        use sdl2::keyboard::Keycode;
-        use std::time::Duration;
-        
-        let sdl = sdl2::init().unwrap();
-        let mut video_subsys = sdl.video().unwrap();
+        let sdl = sdl2::init().expect(SIMPLE_SDL_FN);
+        let mut video_subsys = sdl.video().expect(SIMPLE_SDL_FN);
         let window = Self::create_vulkan_builder(&mut video_subsys).unwrap();
-        let event_pump = sdl.event_pump().unwrap();
+        let event_pump = sdl.event_pump().expect(SIMPLE_SDL_FN);
         
         Self{
             sdl,
@@ -61,14 +51,15 @@ impl Window {
     
     pub fn should_close(&self) -> bool {
         self.should_quit
-        //panic!();
     }
     
-    pub fn poll_events(&mut self) -> Movement {
+    pub fn poll_events(&mut self, imgui:&mut Imgui) -> Movement {
         use sdl2::event::Event;
         use sdl2::keyboard::Keycode;
         
+        
         for event in self.event_pump.poll_iter() {
+            imgui.platform.handle_event(&mut imgui.context, &event);
             match event {
                 Event::Quit { .. } | Event::KeyDown{keycode: Some(Keycode::Escape),.. } => {
                     self.should_quit = true;
@@ -110,7 +101,6 @@ impl Window {
     
     pub fn get_pixel_dimensions(&self) -> (i32,i32) {
         panic!("{:?}", self.window.size());
-        panic!();
     }
 }
 

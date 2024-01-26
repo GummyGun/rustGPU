@@ -85,7 +85,7 @@ impl VkDestructorArguments<'_> {
         }
     }
     
-    pub fn unwrap_dev(&mut self) -> &Device {
+    pub fn unwrap_dev(&mut self) -> &mut Device {
         if let VkDestructorArguments::Dev(device) = self {
             device
         } else {

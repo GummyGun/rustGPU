@@ -11,6 +11,7 @@ mod logger;
 use logger::base as b_logger;
 
 use crate::errors::messages::SIMPLE_VK_FN;
+use crate::imgui::InputData;
 
 use super::window::Window;
 use super::constants;
@@ -27,12 +28,13 @@ use ash::vk;
 #[allow(dead_code)]
 pub struct VInit {
     
-    state: State,
     
     frame_control: FrameControl,
+    
     //pub deletion_queue: VecDeque<dyn FnOnce()>,
     
     //pub model: Model,
+    
     pub instance: VkWraper<Instance>,
     messenger: Option<VkWraper<DMessenger>>,
     surface: VkWraper<Surface>,
@@ -42,6 +44,7 @@ pub struct VInit {
     pub swapchain: VkWraper<Swapchain>,
     sync_objects: VkWraper<SyncObjects>,
     pub command_control: VkWraper<CommandControl>,
+    
     /*
     pub depth_buffer: VkObjDevDep<DepthBuffer>,
     pub pipeline: VkObjDevDep<Pipeline>,
@@ -61,7 +64,8 @@ pub struct VInit {
     
     //cp_pipeline: VkWraper<ComputePipeline>,
     
-    cp_pipelines: Vec<ComputeEffect>,
+    compute_effects: VkWraper<ComputeEffects>,
+    
     cp_index: usize,
     test: [f32; 2],
     
@@ -74,7 +78,7 @@ pub struct VInit {
 
 
 impl VInit {
-    pub fn init(state:State, window:&Window) -> VInit {
+    pub fn init(state:State, window:&mut Window) -> VInit {
         
         let mut instance = vk_create_interpreter(Instance::create(&state, window), "instance"); 
         
@@ -106,14 +110,13 @@ impl VInit {
         let uniform_buffers = vk_create_interpreter(UniformBuffers::create(&state, &p_device, &device), "uniform_buffer");
         */
         
-        
         let render_image = vk_create_interpreter(Image::create(&mut device, &mut allocator, swapchain.extent.into(), image::RENDER), "render_image");
         let render_extent = render_image.get_extent2d();
         let mut ds_layout_builder = vk_create_interpreter(DescriptorLayoutBuilder::create(), "descriptor_layout_builder");
         
         let (ds_layout, ds_pool, ds_set) = init_descriptors(&mut device, &mut ds_layout_builder, &render_image);
         //let cp_pipeline = pipeline::init_pipeline(&mut device, &ds_layout);
-        let cp_pipelines = pipeline::init_pipelines(&mut device, &ds_layout);
+        let compute_effects = pipeline::init_pipelines(&mut device, &ds_layout);
         
         
         //let imgui_allocator = vk_create_interpreter(Allocator::create(&instance, &p_device, &device), "allocator").into_inner();
@@ -131,7 +134,6 @@ impl VInit {
         let render = Graphics::new(&mut device, &mut allocator).unwrap();
         
         VInit{
-            state: state,
             frame_control: FrameControl(0),
             
             instance: VkWraper::new(instance),
@@ -161,23 +163,21 @@ impl VInit {
             ds_layout: VkWraper::new(ds_layout),
             ds_pool: VkWraper::new(ds_pool),
             ds_set: ds_set,
-            cp_pipelines,
+            compute_effects: VkWraper::new(compute_effects),
             cp_index:0,
-            //imgui: VkWraper::new(imgui),
             test: Default::default(),
             
             render: render,
         }
     }
     
-    /*
-    pub fn handle_events(
-        &mut self,
-        window: &Window,
-    ) {
-        self.imgui.handle_event(window);
+    pub fn gui_tick(&mut self, data:&InputData) {
+        self.cp_index = data.background_index;
+        for index in 0..4 {
+            self.compute_effects.metadatas[data.background_index].data[index] = data.push_constants[index];
+        }
     }
-    */
+    
     
     #[inline(always)]
     pub fn wait_idle(&self) {
@@ -191,6 +191,10 @@ impl VInit {
     
     fn get_frame(&self) -> usize {
         self.frame_control.get_frame()
+    }
+    
+    pub fn get_compute_effects_metadata(&mut self) ->  &mut [ComputeEffectMetadata] {
+        &mut self.compute_effects.metadatas
     }
     
 }
@@ -211,10 +215,7 @@ pub fn vk_create_interpreter<T, A:std::fmt::Debug>(result:Result<T, A>, name:&st
 impl Drop for VInit {
     
     fn drop(&mut self) {
-        
-        let (instance, messenger, surface, mut _device, mut _allocator, swapchain, sync_objects, command_control, render_image, ds_layout_builder, ds_pool, ds_layout/*, imgui*/) = self.destructure();
-        //let state = self.state;
-        
+        let (instance, messenger, surface, mut _device, mut _allocator, swapchain, sync_objects, command_control, render_image, ds_layout_builder, ds_pool, ds_layout, compute_effects) = self.destructure();
         
         let dev = &mut _device;
         let allocator = &mut _allocator;
@@ -222,9 +223,7 @@ impl Drop for VInit {
         
         //imgui.destruct(VkDestructorArguments::Dev(dev));
         
-        for pipeline in self.cp_pipelines.clone().into_iter() {
-            pipeline.pipeline.destruct(VkDestructorArguments::Dev(dev));
-        }
+        compute_effects.destruct(VkDestructorArguments::Dev(dev));
         
         //cp_pipeline.destruct(VkDestructorArguments::Dev(dev));
         ds_pool.destruct(VkDestructorArguments::Dev(dev));
@@ -240,7 +239,6 @@ impl Drop for VInit {
         self.depth_buffer.device_destroy(&self.state, dev);
         */
         
-        //command_control.device_destroy(&state, dev);
         command_control.destruct(VkDestructorArguments::Dev(dev));
         
         sync_objects.destruct(VkDestructorArguments::Dev(dev));
@@ -273,6 +271,7 @@ impl FrameControl {
     fn get_frame(&self) -> usize {
         self.0 % constants::fif::USIZE
     }
+    
     #[allow(dead_code)]
     #[inline(always)]
     fn get_frame_count(&self) -> usize {

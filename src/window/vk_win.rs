@@ -11,9 +11,10 @@ use ash::vk;
 use sdl2::VideoSubsystem;
 
 impl Window {
-    pub unsafe fn create_surface(&self, instance:&vulkan::Instance, allocator:Option<&vk::AllocationCallbacks>) -> Result<vk::SurfaceKHR, ()> {
+    pub unsafe fn create_surface(&self, instance:&vulkan::Instance/*, allocator:Option<&vk::AllocationCallbacks>*/) -> Result<vk::SurfaceKHR, AAError> {
+        //allocator.unwrap();
         let handle = Handle::as_raw(instance.handle()) as usize;
-        let raw_surface = self.window.vulkan_create_surface(handle).unwrap();
+        let raw_surface = self.window.vulkan_create_surface(handle).map_err(|err|AAError::StringError(err))?;
         let holder = ash::vk::SurfaceKHR::from_raw(raw_surface);
         Ok(holder)
         /*
@@ -32,11 +33,11 @@ impl Window {
         */
     }
     
-    pub fn create_vulkan_builder(video:&mut VideoSubsystem) -> Result<sdl2::video::Window, ()> {
+    pub fn create_vulkan_builder(video:&mut VideoSubsystem) -> Result<sdl2::video::Window, AAError> {
         video.window("rust-sdl2 demo", constants::WIDTH, constants::HEIGTH)
             .position_centered()
             .vulkan()
-            .build().map_err(|_|())
+            .build().map_err(|err|err.into())
     }
 }
     

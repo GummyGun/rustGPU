@@ -88,8 +88,11 @@ const fn extension_logic() -> [&'static str; EXTENSIONS_LEN_PLUS_VAL] {
 
 pub mod comp {
     use super::*;
+    #[allow(dead_code)]
     pub const COMP_SHADER:&str = "res/shaders/sh.comp.spv";
     pub const COMP_START:&CStr = cstr::cstr!(b"main");
+    pub const GRADIENT_SHADER:&str = "res/shaders/gradient_color.comp.spv";
+    pub const SKY_SHADER:&str = "res/shaders/sky.comp.spv";
 }
 
 

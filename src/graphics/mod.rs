@@ -1,16 +1,64 @@
+use crate::errors::messages::COMPILETIME_ASSERT;
+
+use std::ops::Deref;
+use std::ops::DerefMut;
+use std::mem::size_of;
+
+use arrayvec::ArrayString;
+use nalgebra as na;
+use na::Vector4;
+
+#[derive(Debug)]
+pub struct ComputeEffectMetadata {
+    pub name: ArrayString<64>,
+    pub data: ComputePushConstants,
+}
+
+#[repr(C)]
+#[derive(Default, Debug, Clone)]
+pub struct ComputePushConstants(
+    pub [Vector4<f32>;4]
+);
+
+impl Deref for ComputePushConstants {
+    type Target = [Vector4<f32>;4];
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for ComputePushConstants {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+
+const _:u32 = ComputePushConstants::size_u32();
+impl ComputePushConstants {
+    #[allow(dead_code)]
+    pub const fn size_u32() -> u32 {
+        if size_of::<Self>() > u32::MAX as usize {
+            panic!("{}", COMPILETIME_ASSERT);
+        }
+        size_of::<Self>() as u32
+    }
+    
+}
+
+
+
+
+/*
 mod model;
 
+use crate::AAError;
+
 use nalgebra as na;
+use na::Vector2;
+use na::Vector3;
+use na::Matrix4;
 
-use na::{
-    Vector2,
-    Vector3,
-    Matrix4,
-};
-
-use crate::{
-    errors::Error as AAError,
-};
 
 #[repr(C)]
 #[derive(Debug, Default, Clone)]
@@ -158,3 +206,4 @@ impl Vertex {
     }
 }
 
+*/

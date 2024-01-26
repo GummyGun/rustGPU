@@ -39,6 +39,7 @@ pub use descriptors::*;
 
 pub mod pipeline;
 pub use pipeline::ComputePipeline;
+pub use pipeline::ComputeEffects;
 
 /*
 mod imgui;
