@@ -1,5 +1,3 @@
-use crate::State;
-use crate::constants;
 use crate::window::Window;
 use crate::AAError;
 
@@ -21,18 +19,10 @@ pub struct Surface {
 }
 
 impl Surface {
-    pub fn create(state:&State, window:&Window, instance:&Instance) -> Result<Self, AAError> {
+    pub fn create(window:&Window, instance:&mut Instance) -> Result<Self, AAError> {
         logger::create();
         
-        
-        /*
-        if state.v_exp() {
-            println!("{:?}", constants::EXTENSIONS);
-            println!("{:?}", constants::LAYERS);
-        }
-        */
-        
-        let surface = unsafe{window.create_surface(instance, None)}.unwrap();
+        let surface = unsafe{window.create_surface(instance)}.unwrap();
         let surface_loader = ash::extensions::khr::Surface::new(&instance.entry, instance);
         
         Ok(Self{

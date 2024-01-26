@@ -86,6 +86,7 @@ impl PDevice {
             if state.v_exp() {
                 println!("getting memory properties");
             }
+            
             if state.v_dmp() {
                 println!("{:?}", &memory_properties);
             }

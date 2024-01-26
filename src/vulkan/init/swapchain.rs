@@ -3,11 +3,9 @@ use crate::constants::sc_max_images;
 use crate::window::Window;
 use crate::errors::messages::U32_TO_USIZE;
 use crate::errors::messages::SIMPLE_VK_FN;
-use crate::errors::messages::BAD_DESTRUCTOR;
 
 use super::logger::swapchain as logger;
 use super::VkDestructor;
-use super::VkDestructorType;
 use super::VkDestructorArguments;
 use super::device::Device;
 use super::instance::Instance;
@@ -20,6 +18,7 @@ use std::ops::Deref;
 use std::cmp::min;
 
 use ash::vk;
+use arrayvec::ArrayVec;
 
 #[derive(Debug, Default)]
 pub struct SwapchainSupportDetails {
@@ -32,8 +31,8 @@ pub struct SwapchainSupportDetails {
 #[derive(Clone)]
 pub struct Swapchain {
     pub image_count: usize,
-    pub image_views: [vk::ImageView; sc_max_images::USIZE],
-    pub images: [vk::Image; sc_max_images::USIZE],
+    pub image_views: ArrayVec<vk::ImageView, {sc_max_images::USIZE}>,
+    pub images: ArrayVec<vk::Image, {sc_max_images::USIZE}>,
     pub extent: vk::Extent2D,
     pub surface_format: vk::SurfaceFormatKHR,
     pub swapchain: vk::SwapchainKHR,
@@ -107,13 +106,13 @@ impl Swapchain {
         
         
         let images_holder = unsafe{swapchain_loader.get_swapchain_images(swapchain)?};
-        let mut images = [vk::Image::null(); sc_max_images::USIZE];
+        let mut images:ArrayVec<vk::Image, {sc_max_images::USIZE}> = ArrayVec::default();
         
-        for (index, image) in images_holder.into_iter().enumerate() {
-            images[index] = image;
+        for image in images_holder.into_iter() {
+            images.push(image);
         }
         
-        let image_views = Self::create_image_views(&device, &images[0..image_count_usize], surface_format.format)?;
+        let image_views = Self::create_image_views(&device, &images[..], surface_format.format)?;
         
         Ok(Self{
             image_count: image_count_usize,
@@ -127,10 +126,10 @@ impl Swapchain {
     }
     
     
-    fn create_image_views(device:&Device, images:&[vk::Image], format:vk::Format) -> Result<[vk::ImageView; sc_max_images::USIZE], AAError> {
-        let mut image_views_holder = [vk::ImageView::null(); sc_max_images::USIZE];
+    fn create_image_views(device:&Device, images:&[vk::Image], format:vk::Format) -> Result<ArrayVec<vk::ImageView, {sc_max_images::USIZE}>, AAError> {
+        let mut image_views_holder:ArrayVec<vk::ImageView, {sc_max_images::USIZE}> = ArrayVec::new();//[vk::ImageView::null(); sc_max_images::USIZE];
         
-        for (index, image) in images.into_iter().enumerate() {
+        for (index, image) in images.iter().enumerate() {
             logger::sc_image_view_creates(index);
             let holder = Image::create_view(
                 device, 
@@ -138,7 +137,7 @@ impl Swapchain {
                 format, 
                 vk::ImageAspectFlags::COLOR
             )?;
-            image_views_holder[index] = holder;
+            image_views_holder.push(holder);
         }
         
         Ok(image_views_holder)
@@ -195,6 +194,7 @@ impl VkDestructor for Swapchain {
 }
 
 
+/*
 impl Swapchain {
     pub fn destroy_callback(&mut self) -> (Box<dyn FnOnce(VkDestructorArguments)>, VkDestructorType) {
         let target = self.clone();
@@ -209,6 +209,7 @@ impl Swapchain {
         (callback, VkDestructorType::Dev)
     }
 }
+*/
 
 
 

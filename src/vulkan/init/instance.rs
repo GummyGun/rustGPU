@@ -85,9 +85,7 @@ impl Instance {
     pub fn underlying(&self) -> ash::Instance {
         self.instance.clone()
     }
-    pub fn test(&self) {
-        panic!();
-    }
+    
 }
 
 impl VkDestructor for Instance {

@@ -1,6 +1,6 @@
 use super::logger;
 use super::VkDestructor;
-use super::VkDestructorType;
+//use super::VkDestructorType;
 use super::VkDestructorArguments;
     
 
@@ -37,11 +37,13 @@ pub use image::*;
 pub mod descriptors;
 pub use descriptors::*;
 
-mod pipeline;
-pub use pipeline::*;
+pub mod pipeline;
+pub use pipeline::ComputePipeline;
 
+/*
 mod imgui;
 pub use imgui::*;
+*/
 
 /*
 mod render_pass;

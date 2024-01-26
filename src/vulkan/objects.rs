@@ -1,4 +1,3 @@
-use crate::State;
 use crate::errors::messages::BAD_DESTRUCTOR;
 
 use super::Device;
@@ -32,12 +31,6 @@ pub trait VkDestructor {
 pub trait VkDeferedDestructor {
     fn defered_destruct() -> (Box<dyn FnOnce(VkDestructorArguments)>, VkDestructorType);
 }
-
-
-/* 
-dynamic dispached 
-should implement 
-*/
 
 
 pub struct VkWraper<T:VkDestructor>(Option<T>);
@@ -87,7 +80,6 @@ impl VkDestructorArguments<'_> {
     
     pub fn unwrap_none(&mut self) {
         if let VkDestructorArguments::None = self {
-            
         } else {
             panic!("{}", BAD_DESTRUCTOR);
         }

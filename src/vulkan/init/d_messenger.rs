@@ -1,4 +1,3 @@
-use crate::State;
 use crate::AAError;
 
 use super::logger::d_messenger as logger;
@@ -19,7 +18,7 @@ pub struct DMessenger {
 
 impl DMessenger {
     
-    pub fn create(state:&State, instance:&Instance) -> Result<Self, AAError> {
+    pub fn create(instance:&Instance) -> Result<Self, AAError> {
         logger::create();
         
         let debug_utils = ash::extensions::ext::DebugUtils::new(&instance.entry, instance);

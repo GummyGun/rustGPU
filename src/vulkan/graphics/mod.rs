@@ -5,8 +5,10 @@ pub use model::Model;
 */
 
 use crate::window::Window;
+use crate::imgui::Imgui;
 use crate::AAError;
 use crate::errors::messages::SIMPLE_VK_FN;
+use crate::errors::messages::COMPILETIME_ASSERT;
 
 use super::VInit;
 use super::Device;
@@ -15,22 +17,46 @@ use super::Image;
 use super::ComputePipeline;
 
 
-
 use std::slice::from_ref;
+use std::mem::size_of;
 
+use derivative::Derivative;
 use ash::vk;
+use nalgebra as na;
+use na::Vector4;
+use arrayvec::ArrayString;
+
+
+#[repr(C)]
+#[derive(Default, Debug, Clone)]
+pub struct ComputePushConstants{
+    pub data1: Vector4<f32>,
+    pub data2: Vector4<f32>,
+    pub data3: Vector4<f32>,
+    pub data4: Vector4<f32>,
+}
+
 
 pub struct Graphics {
     /*
     render_image: Image,
     render_extent: vk::Extent2D,
     */
-    
 }
+
+
+#[derive(Derivative, Clone)]
+#[derivative(Debug)]
+pub struct ComputeEffect {
+    pub name: ArrayString<64>,
+        #[derivative(Debug="ignore")]
+    pub pipeline: ComputePipeline,
+    pub data: ComputePushConstants,
+}
+
 
 impl Graphics {
     pub fn new(_device:&mut Device, _allocator:&Allocator) -> Result<Self, AAError> {
-        
         Ok(Self{})
     }
 }
@@ -42,16 +68,18 @@ impl VInit {
 //----
     pub fn draw_frame(
         &mut self,
-        window: &Window,
+        window: &mut Window,
+        imgui: &mut Imgui
         
     ) {
         self.frame_update();
         let cf = self.get_frame();
-        let frame_count = self.get_frame_count();
+        //let frame_count = self.get_frame_count();
         
         let VInit{
-            imgui, 
-            cp_pipeline, 
+            //imgui, 
+            cp_pipelines, 
+            cp_index, 
             ds_set, 
             render_image, 
             command_control, 
@@ -60,6 +88,8 @@ impl VInit {
             device, 
             ..
         } = self;
+        
+        let cp_index = cp_index.clone();
         let cmd = command_control.buffers[cf];
         
         let (image_avaliable_semaphore, render_finished_semaphore, inflight_fence) = sync_objects.get_frame(cf);
@@ -80,8 +110,8 @@ impl VInit {
         
         Image::transition_image(device, cmd, r_image_handle, vk::ImageLayout::UNDEFINED, vk::ImageLayout::GENERAL);
         
-        Self::draw_background(device, cmd, render_image, *ds_set, cp_pipeline, frame_count);
-        
+        //panic!("{:?}", &cp_pipelines[cp_index]);
+        Self::draw_background(device, cmd, render_image, *ds_set, &cp_pipelines[cp_index].pipeline, &cp_pipelines[cp_index].data);
         
         Image::transition_image(device, cmd, r_image_handle, vk::ImageLayout::GENERAL, vk::ImageLayout::TRANSFER_SRC_OPTIMAL);
         Image::transition_image(device, cmd, p_image_handle, vk::ImageLayout::UNDEFINED, vk::ImageLayout::TRANSFER_DST_OPTIMAL);
@@ -89,6 +119,7 @@ impl VInit {
         Image::raw_copy_image_to_image(device, cmd, r_image_handle, render_image.extent, p_image_handle, vk::Extent3D::from(swapchain.extent));
         
         Image::transition_image(device, cmd, p_image_handle, vk::ImageLayout::TRANSFER_DST_OPTIMAL, vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL);
+        
         
         imgui.render(window, device, cmd, self.render_extent, p_image_view);
         
@@ -127,7 +158,7 @@ impl VInit {
     }
     
 //----
-    pub fn draw_background(device:&mut Device, cmd:vk::CommandBuffer, image:&Image, ds_set:vk::DescriptorSet, cp_pipeline:&ComputePipeline, frame:usize) {
+    pub fn draw_background(device:&mut Device, cmd:vk::CommandBuffer, image:&Image, ds_set:vk::DescriptorSet, cp_pipeline:&ComputePipeline, push_constants:&ComputePushConstants) {
         /*
         //let rgba_component = (self.get_frame_count()%100) as f32/100 as f32;
         let rgba_component = (frame%100) as f32/100 as f32;
@@ -135,8 +166,21 @@ impl VInit {
         let subresource = Self::subresource_range(vk::ImageAspectFlags::COLOR);
         unsafe{device.cmd_clear_color_image(cmd, image, vk::ImageLayout::GENERAL, &clear_color, from_ref(&subresource))};
         */
+        
         unsafe{device.cmd_bind_pipeline(cmd, vk::PipelineBindPoint::COMPUTE, cp_pipeline.pipeline)};
         unsafe{device.cmd_bind_descriptor_sets(cmd, vk::PipelineBindPoint::COMPUTE, cp_pipeline.layout, 0, from_ref(&ds_set), &[])};
+        
+        /*
+        let push_constants = ComputePushConstants{
+            data1: Vector4::new(1.0,1.0,0.0,1.0),
+            data2: Vector4::new(1.0,0.0,1.0,1.0),
+            ..Default::default()
+        };
+        */
+        
+        let push_constants_slice = unsafe{crate::any_as_u8_slice(push_constants)};
+        unsafe{device.cmd_push_constants(cmd, cp_pipeline.layout, vk::ShaderStageFlags::COMPUTE, 0, push_constants_slice)};
+        
         unsafe{device.cmd_dispatch(cmd, image.extent.width/16, image.extent.height/16, 1)};
         
     }
@@ -289,6 +333,19 @@ impl VInit {
     }
     */
     
+    
+}
+
+
+const _:u32 = ComputePushConstants::size_u32();
+impl ComputePushConstants {
+    #[allow(dead_code)]
+    pub const fn size_u32() -> u32 {
+        if size_of::<Self>() > u32::MAX as usize {
+            panic!("{}", COMPILETIME_ASSERT);
+        }
+        size_of::<Self>() as u32
+    }
     
 }
 

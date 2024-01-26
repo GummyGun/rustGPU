@@ -84,7 +84,7 @@ impl DescriptorLayoutBuilder {
         self.type_count.add_type_count(d_type, 1);
     }
     
-    pub fn clear(&mut self) {
+    pub fn reset(&mut self) {
         self.bindings.clear();
     }
     
@@ -108,6 +108,7 @@ impl DescriptorLayoutBuilder {
         
         Ok((holder_layout, holder_count))
     }
+    
 }
 
 
