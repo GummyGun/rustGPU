@@ -305,28 +305,54 @@ pub mod pipeline {
     use super::*;
     
     
-    pub fn init() {
-        if LOGGING {
-            log::info!("\tiniting:\tdescriptor structs");
-        }
-    }
-    
     pub mod compute {
         use super::*;
+        
+        pub fn init() {
+            if LOGGING {
+                log::info!("\tiniting:\tdescriptor structs");
+            }
+        }
         
         pub fn create(state:bool) {
             if LOGGING {
                 if state {
                     log::info!("\nCREATING:\tPIPELINE_LAYOUT");
                 } else {
-                    log::info!("\nCREATING:\tPIPELINE");
+                    log::info!("\nCREATING:\tCOMPUTE_PIPELINE");
                 }
             }
         }
         
         pub fn destruct() {
             if LOGGING {
-                log::info!("[0]:deleting pipeline");
+                log::info!("[0]:deleting compute_pipeline");
+                log::info!("[0]:deleting pipeline_layout");
+            }
+        }
+        
+    }
+    
+    pub mod graphics {
+        use super::*;
+        
+        /*
+        pub fn init() {
+            if LOGGING {
+                log::info!("\tiniting:\tdescriptor structs");
+            }
+        }
+        */
+        
+        pub fn creating_builder() {
+            if LOGGING {
+                log::info!("\nCREATING:\tGRAPHICS_PIPELINE_BUILDER");
+            }
+        }
+        
+        pub fn destruct() {
+            if LOGGING {
+                log::info!("[0]:deleting graphics_pipeline");
                 log::info!("[0]:deleting pipeline_layout");
             }
         }

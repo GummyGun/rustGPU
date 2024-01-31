@@ -65,9 +65,9 @@ pub struct VInit {
     //cp_pipeline: VkWraper<ComputePipeline>,
     
     compute_effects: VkWraper<ComputeEffects>,
+    graphics_pipeline: VkWraper<GPipeline>,
     
     cp_index: usize,
-    test: [f32; 2],
     
     
     //pub imgui: VkWraper<Imgui>,
@@ -115,8 +115,8 @@ impl VInit {
         let mut ds_layout_builder = vk_create_interpreter(DescriptorLayoutBuilder::create(), "descriptor_layout_builder");
         
         let (ds_layout, ds_pool, ds_set) = init_descriptors(&mut device, &mut ds_layout_builder, &render_image);
-        //let cp_pipeline = pipeline::init_pipeline(&mut device, &ds_layout);
-        let compute_effects = pipeline::init_pipelines(&mut device, &ds_layout);
+        
+        let compute_effects = c_pipeline::init_pipelines(&mut device, &ds_layout);
         
         
         //let imgui_allocator = vk_create_interpreter(Allocator::create(&instance, &p_device, &device), "allocator").into_inner();
@@ -132,6 +132,10 @@ impl VInit {
         */
         
         let render = Graphics::new(&mut device, &mut allocator).unwrap();
+        
+        let graphics_pipeline = g_pipeline::init_pipeline(&mut device, &render_image);
+        
+        //hola.destruct(VkDestructorArguments::Dev(&mut device));
         
         VInit{
             frame_control: FrameControl(0),
@@ -165,7 +169,7 @@ impl VInit {
             ds_set: ds_set,
             compute_effects: VkWraper::new(compute_effects),
             cp_index:0,
-            test: Default::default(),
+            graphics_pipeline: VkWraper::new(graphics_pipeline),
             
             render: render,
         }
@@ -215,15 +219,15 @@ pub fn vk_create_interpreter<T, A:std::fmt::Debug>(result:Result<T, A>, name:&st
 impl Drop for VInit {
     
     fn drop(&mut self) {
-        let (instance, messenger, surface, mut _device, mut _allocator, swapchain, sync_objects, command_control, render_image, ds_layout_builder, ds_pool, ds_layout, compute_effects) = self.destructure();
+        let (instance, messenger, surface, mut _device, mut _allocator, swapchain, sync_objects, command_control, render_image, ds_layout_builder, ds_pool, ds_layout, compute_effects, graphics_pipeline) = self.destructure();
         
         let dev = &mut _device;
         let allocator = &mut _allocator;
         
         
-        //imgui.destruct(VkDestructorArguments::Dev(dev));
-        
+        graphics_pipeline.destruct(VkDestructorArguments::Dev(dev));
         compute_effects.destruct(VkDestructorArguments::Dev(dev));
+        
         
         //cp_pipeline.destruct(VkDestructorArguments::Dev(dev));
         ds_pool.destruct(VkDestructorArguments::Dev(dev));

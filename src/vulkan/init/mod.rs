@@ -37,10 +37,14 @@ pub use image::*;
 pub mod descriptors;
 pub use descriptors::*;
 
-pub mod pipeline;
-pub use pipeline::ComputePipeline;
-pub use pipeline::ComputeEffects;
+pub mod c_pipeline;
+pub use c_pipeline::ComputePipeline;
+pub use c_pipeline::ComputeEffects;
 
+pub mod g_pipeline;
+pub use g_pipeline::GPipeline;
+
+pub mod pipeline;
 /*
 mod imgui;
 pub use imgui::*;

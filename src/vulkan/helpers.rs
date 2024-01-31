@@ -12,6 +12,7 @@ use super::DescriptorLayoutBuilder;
 use super::DescriptorLayout;
 use super::DescriptorPoolAllocator;
 use super::ComputeEffects;
+use super::GPipeline;
 
 
 type Objects = (
@@ -27,7 +28,8 @@ type Objects = (
     DescriptorLayoutBuilder,
     DescriptorLayout,
     DescriptorPoolAllocator,
-    ComputeEffects
+    ComputeEffects,
+    GPipeline,
 );
 
 impl VInit {
@@ -49,6 +51,7 @@ impl VInit {
         let ds_pool = self.ds_pool.take();
         
         let compute_effects = self.compute_effects.take();
+        let graphics_pipeline = self.graphics_pipeline.take();
         
         (
             instance,
@@ -64,6 +67,10 @@ impl VInit {
             ds_layout,
             ds_pool,
             compute_effects,
+            graphics_pipeline,
         )
     }
+    
 }
+
+
