@@ -7,6 +7,7 @@ mod constants;
 mod utility;
 mod graphics; 
 mod player;
+mod macros;
 pub use errors::Error as AAError;
 
 use std::time::SystemTime;

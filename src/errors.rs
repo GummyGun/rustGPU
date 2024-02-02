@@ -34,6 +34,9 @@ pub enum Error {
     #[error("swapchain support is strange")]
     SwapchainImageSize,
     
+    #[error("layout not set on pipeline creation")]
+    LayoutNotSet,
+    
     #[error("invalid load transform")]
     InvalidLoadTransform,
     #[error("lobj error")]
@@ -62,6 +65,7 @@ pub mod messages {
     pub const GPU_FREE:&'static str = "gpu free should not fail";
     pub const STANDARD_CONV:&'static str = "conversion is granted by de standard";
     pub const GRANTED:&'static str = "things the programer knows but the compiled does not";
+    pub const RESOURCE_FILE:&'static str = "the resource file should be found in a particular path";
     
     pub const COMPILETIME_ASSERT:&'static str = "things the programer knows but the compiled does not";
     

@@ -81,7 +81,7 @@ impl Imgui {
             context,
             platform,
             renderer: ManuallyDrop::new(renderer),
-            ui_data: InputData::initial_data(),
+            ui_data: InputData::default(),
         }
     }
     

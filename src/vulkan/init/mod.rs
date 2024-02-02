@@ -38,7 +38,7 @@ pub mod descriptors;
 pub use descriptors::*;
 
 pub mod c_pipeline;
-pub use c_pipeline::ComputePipeline;
+pub use c_pipeline::CPipeline;
 pub use c_pipeline::ComputeEffects;
 
 pub mod g_pipeline;

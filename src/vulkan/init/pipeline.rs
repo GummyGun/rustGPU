@@ -5,7 +5,6 @@ use crate::constants;
 use super::Device;
 
 use std::fs::File;
-use std::ffi::CStr;
 
 use ash::vk;
 

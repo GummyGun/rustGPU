@@ -1,3 +1,4 @@
+use crate::macros;
 use crate::AAError;
 use crate::errors::messages::STANDARD_CONV;
 use crate::errors::messages::GRANTED;
@@ -10,7 +11,6 @@ use super::Device;
 use super::Image;
 
 use std::slice::from_ref;
-use std::ops::Deref;
 use std::ops::Add;
 use std::ops::AddAssign;
 use std::ops::Mul;
@@ -31,11 +31,13 @@ pub struct DescriptorLayout {
     set_layout: vk::DescriptorSetLayout,
 }
 
+macros::impl_deref!(DescriptorLayout, vk::DescriptorSetLayout, set_layout);
+
+
 #[derive(Default, Debug, Clone)]
 pub struct DescriptorPoolCount {
     count: [u32; DESCRIPTOR_TYPE_COUNT],
 }
-
 
 pub struct DescriptorPoolAllocator {
     pool: vk::DescriptorPool,
@@ -124,13 +126,6 @@ impl VkDestructor for DescriptorLayout {
         logger::dl::destruct();
         let device = args.unwrap_dev();
         unsafe{device.destroy_descriptor_set_layout(self.set_layout, None)};
-    }
-}
-
-impl Deref for DescriptorLayout {
-    type Target = vk::DescriptorSetLayout;
-    fn deref(&self) -> &Self::Target {
-        &self.set_layout
     }
 }
 

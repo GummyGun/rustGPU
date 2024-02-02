@@ -9,8 +9,6 @@ use super::window::Window;
 use crate::graphics::ComputePushConstants;
 use crate::graphics::ComputeEffectMetadata;
 
-use nalgebra as na;
-use na::Vector4;
 
 #[derive(Default, Debug)]
 pub struct InputData {
@@ -68,12 +66,13 @@ impl Imgui{
     }
 }
 
+/*
 impl InputData {
     pub fn initial_data() -> Self {
         InputData{
             background_index: 0,
             push_constants:ComputePushConstants([
-            Vector4::new(0.1, 0.2, 0.4 ,0.97),
+            Vector4::new(3.1, 3.2, 0.4 ,0.97),
             Vector4::new(0.0, 0.0, 0.0 ,0.0),
             Vector4::new(0.0, 0.0, 0.0 ,0.0),
             Vector4::new(0.0, 0.0, 0.0 ,0.0),
@@ -81,4 +80,4 @@ impl InputData {
         }
     }
 }
-
+*/

@@ -32,7 +32,6 @@ pub struct VInit {
     frame_control: FrameControl,
     
     //pub deletion_queue: VecDeque<dyn FnOnce()>,
-    
     //pub model: Model,
     
     pub instance: VkWraper<Instance>,
@@ -62,7 +61,7 @@ pub struct VInit {
     ds_pool: VkWraper<DescriptorPoolAllocator>,
     ds_set: vk::DescriptorSet,
     
-    //cp_pipeline: VkWraper<ComputePipeline>,
+    //cp_pipeline: VkWraper<CPipeline>,
     
     compute_effects: VkWraper<ComputeEffects>,
     graphics_pipeline: VkWraper<GPipeline>,

@@ -15,7 +15,7 @@ use super::VInit;
 use super::Device;
 use super::Allocator;
 use super::Image;
-use super::ComputePipeline;
+use super::CPipeline;
 use super::GPipeline;
 use super::pipeline;
 
@@ -134,7 +134,7 @@ impl VInit {
     }
     
 //----
-    pub fn draw_background(device:&mut Device, cmd:vk::CommandBuffer, image:&Image, ds_set:vk::DescriptorSet, cp_pipeline:&ComputePipeline, push_constants:&ComputePushConstants) {
+    pub fn draw_background(device:&mut Device, cmd:vk::CommandBuffer, image:&Image, ds_set:vk::DescriptorSet, cp_pipeline:&CPipeline, push_constants:&ComputePushConstants) {
         /*
         //let rgba_component = (self.get_frame_count()%100) as f32/100 as f32;
         let rgba_component = (frame%100) as f32/100 as f32;

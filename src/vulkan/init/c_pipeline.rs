@@ -2,8 +2,6 @@ use crate::AAError;
 use crate::errors::messages::GRANTED;
 use crate::constants;
 
-
-
 use super::super::graphics as vk_graphics;
 use vk_graphics::ComputePushConstants;
 use vk_graphics::ComputeEffectMetadata;
@@ -16,7 +14,6 @@ use super::DescriptorLayout;
 use super::pipeline;
 
 use std::slice::from_ref;
-use std::ffi::CStr;
 
 use ash::vk;
 use nalgebra::Vector4;
@@ -25,7 +22,7 @@ use derivative::Derivative;
 
 
 #[derive(Clone)]
-pub struct ComputePipeline {
+pub struct CPipeline {
     pub layout: vk::PipelineLayout,
     pub pipeline: vk::Pipeline,
 }
@@ -35,7 +32,7 @@ pub struct ComputePipeline {
 pub struct ComputeEffects {
     pub metadatas: Vec<ComputeEffectMetadata>,
     #[derivative(Debug="ignore")]
-    pub pipelines: Vec<ComputePipeline>,
+    pub pipelines: Vec<CPipeline>,
 }
 
 
@@ -45,7 +42,7 @@ pub fn init_pipelines(device:&mut Device, ds_layout:&DescriptorLayout) -> Comput
     let mut pipelines = Vec::new();
     let mut effect_name = ArrayString::new();
     
-    let gradient = ComputePipeline::create(device, ds_layout, constants::comp::GRADIENT_SHADER).unwrap();
+    let gradient = CPipeline::create(device, ds_layout, constants::comp::GRADIENT_SHADER).unwrap();
     effect_name.push_str("gradient");
     metadatas.push(ComputeEffectMetadata{
         name:effect_name,
@@ -60,7 +57,7 @@ pub fn init_pipelines(device:&mut Device, ds_layout:&DescriptorLayout) -> Comput
     effect_name.clear();
     
     
-    let gradient = ComputePipeline::create(device, ds_layout, constants::comp::COMP_SHADER).unwrap();
+    let gradient = CPipeline::create(device, ds_layout, constants::comp::COMP_SHADER).unwrap();
     effect_name.push_str("square fade");
     metadatas.push(ComputeEffectMetadata{
         name:effect_name,
@@ -76,7 +73,7 @@ pub fn init_pipelines(device:&mut Device, ds_layout:&DescriptorLayout) -> Comput
     
     
     effect_name.push_str("sky 2.0");
-    let sky = ComputePipeline::create(device, ds_layout, constants::comp::SKY_SHADER).unwrap();
+    let sky = CPipeline::create(device, ds_layout, constants::comp::SKY_SHADER).unwrap();
     metadatas.push(ComputeEffectMetadata{
         name:effect_name,
         data: ComputePushConstants([
@@ -109,7 +106,7 @@ impl VkDestructor for ComputeEffects {
 }
 
 
-impl ComputePipeline {
+impl CPipeline {
     pub fn create(device:&mut Device, ds_layout:&DescriptorLayout, file:&str) -> Result<Self, AAError> {
         logger::create(true);
         
@@ -130,6 +127,7 @@ impl ComputePipeline {
         let compute_pipeline_create_info = vk::ComputePipelineCreateInfo::builder()
             .layout(layout)
             .stage(compute_shader_stage);
+        
         
         let pipeline = match unsafe{device.create_compute_pipelines(vk::PipelineCache::null(), from_ref(&compute_pipeline_create_info), None)} {
             Ok(mut pipeline) => {
@@ -152,7 +150,7 @@ impl ComputePipeline {
 }
 
 
-impl VkDestructor for ComputePipeline {
+impl VkDestructor for CPipeline {
     fn destruct(self, mut args:VkDestructorArguments) {
         let device = args.unwrap_dev();
         logger::destruct();

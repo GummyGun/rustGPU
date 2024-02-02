@@ -11,6 +11,63 @@ mod memory
 mod swapchain 
 mod image 
 */
+
+#[macro_export]
+macro_rules! tmp {
+    ($a:literal, $b:expr $(, $r:literal, $s:expr)* $(,)?) => {
+        println!("---- hola");
+        create!($($r-$s),*);
+    };
+    () => {
+        println!("(((((((())))))))empty");
+    };
+}
+pub(in super::super) use tmp;
+
+
+#[macro_export]
+macro_rules! create {
+    ($target:literal) => {
+        {
+            use convert_case::{Case, Casing};
+            log::log!(target:&$target.to_case(Case::Lower), log::Level::Trace, "CREATING {}", $target.to_case(Case::ScreamingSnake));
+        }
+    };
+}
+pub(in super::super) use create;
+
+
+/*
+#[macro_export]
+macro_rules! __various_log {
+    ($b:expr, $a:literal $(, $s:expr, $r:literal)* $(,)?) => {
+        println!("hola {}", local);
+        log::log!($b, $a);
+        __various_log!($(, $r, $s)*);
+    };
+    () => {
+        println!("(((((((())))))))empty");
+    };
+}
+pub(in super::super) use __various_log;
+*/
+
+pub(in super::super) use log::Level;
+#[macro_export]
+macro_rules! various_log {
+    ($target:expr, $b:expr, $a:literal $(, $s:expr, $r:literal)* $(,)?) => {
+        {
+            use convert_case::{Case, Casing};
+            log::log!(target:&$target.to_case(Case::Lower), $b, $a);
+            various_log!($target $(, $s, $r)*);
+        }
+    };
+    ($target:expr) => {
+    };
+}
+pub use various_log;
+
+
     
 pub mod base {
     use super::*;
@@ -40,21 +97,6 @@ pub mod base {
     }
 }
 
-pub mod instance {
-    use super::*;
-    
-    pub fn create() {
-        if LOGGING {
-            log::info!("\nCREATING:\tINSTANCE");
-        }
-    }
-    
-    pub fn destruct() {
-        if LOGGING {
-            log::info!("[0]:deleting instance");
-        }
-    }
-}
 
 pub mod d_messenger {
     use super::*;

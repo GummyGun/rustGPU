@@ -1,4 +1,5 @@
 use crate::State;
+use crate::macros;
 use crate::AAError;
 use crate::constants;
 
@@ -11,7 +12,6 @@ use super::p_device::PDevice;
 use super::p_device::QueueFamilyIndices;
 
 
-use std::ops::Deref;
 use std::collections::HashSet;
 use std::ffi::CStr;
 use std::ffi::c_char;
@@ -22,6 +22,9 @@ pub struct Device {
     device: ash::Device,
     pub queue_handles: QueueHandles,
 }
+
+macros::impl_deref!(Device, ash::Device, device);
+macros::impl_underlying!(Device, ash::Device, device);
 
 pub struct QueueHandles {
     pub graphics: vk::Queue,
@@ -107,9 +110,6 @@ impl Device {
         }
     }
     
-    pub fn underlying(&self) -> ash::Device {
-        self.device.clone()
-    }
     
 }
 
@@ -167,13 +167,6 @@ impl Extensions {
     }
 }
 
-
-impl Deref for Device {
-    type Target = ash::Device;
-    fn deref(&self) -> &Self::Target {
-        &self.device
-    }
-}
 
 impl VkDestructor for Device {
     fn destruct(self, mut args:VkDestructorArguments) {

@@ -1,16 +1,17 @@
-use crate::State;
-use crate::constants;
 use crate::window::Window;
+use crate::macros;
 use crate::AAError;
+use crate::constants;
 
-use super::logger::instance as logger;
+use crate::State;
+
+use super::logger;
 use super::VkDestructor;
 use super::VkDestructorArguments;
 use super::d_messenger::DMessenger;
 
 use std::ffi::c_char;
 use std::ffi::CStr;
-use std::ops::Deref;
 use std::collections::HashSet;
 
 use ash::vk;
@@ -19,12 +20,34 @@ pub struct Instance {
     pub entry: ash::Entry,
     instance: ash::Instance,
 }
+macros::impl_deref!(Instance, ash::Instance, instance);
 
 impl Instance {
     
     pub fn create(state:&State, window:&Window) -> Result<Instance, AAError> {
+        /*
+        let a = 3;
+        sum!(a,12,a);
+        logger::create2!("aa", a);
+        logger::create2!();
         logger::create();
+        */
+        
+        /*
+        println!("aas",);
+        create3!("aa"-a, "aa"-a);
+        create3!();
+        logger::create4!("aa", a, );
+        logger::create4!("aa", a, );
+        */
+        //logger::create!("instance");
         let entry = unsafe {ash::Entry::load().unwrap()};
+        
+        use crate::various_log;
+        logger::various_log!("instance", 
+            logger::Level::Trace, "aaaa",
+            logger::Level::Warn, "aaaa"
+        );
         
         match entry.try_enumerate_instance_version()? {
             // Vulkan 1.1+
@@ -78,7 +101,7 @@ impl Instance {
         
         let instance_holder = unsafe{entry.create_instance(&create_info, None)?};
         
-        
+        panic!();
         Ok(Self{entry:entry, instance:instance_holder})
     }
     
@@ -90,19 +113,14 @@ impl Instance {
 
 impl VkDestructor for Instance {
     fn destruct(self, mut args:VkDestructorArguments) {
-        logger::destruct();
+        logger2::destruct();
         args.unwrap_none();
         unsafe{self.destroy_instance(None)};
     }
     
 }
 
-impl Deref for Instance {
-    type Target = ash::Instance;
-    fn deref(&self) -> &Self::Target {
-        &self.instance
-    }
-}
+
 
 struct Extensions(Vec<vk::ExtensionProperties>);
 
@@ -221,3 +239,47 @@ impl Layers {
         }
     }
 }
+
+mod logger2 {
+    use crate::constants::LOGGING;
+    
+    #[macro_export]
+    macro_rules! create2 {
+        () => {
+            println!("empty");
+        };
+        ($a:literal, $b:tt) => {
+            println!("hola");
+            println!("hola {:?}", $a);
+            //crate2!($a, $b);
+        };
+    }
+    pub(super) use create2;
+    
+    #[macro_export]
+    macro_rules! create4 {
+        ($a:literal, $b:expr $(, $r:literal, $s:expr)* $(,)?) => {
+            println!("---- hola");
+            create3!($($r-$s),*);
+        };
+        () => {
+            println!("(((((((())))))))empty");
+        };
+    }
+    pub(super) use create4;
+
+    
+    #[macro_export]
+    pub fn create() {
+        if LOGGING {
+            log::log!(target:"Instance", log::Level::Info, "CREATING:\tINSTANCE");
+        }
+    }
+    
+    pub fn destruct() {
+        if LOGGING {
+            log::info!("[0]:deleting instance");
+        }
+    }
+}
+

@@ -1,4 +1,5 @@
 use crate::AAError;
+use crate::macros;
 use crate::errors::messages::GPU_FREE;
 
 use super::logger::image as logger;
@@ -20,6 +21,8 @@ pub struct Image {
     pub extent: vk::Extent3D,
     pub format: vk::Format,
 }
+
+macros::impl_underlying!(Image, vk::Image, image);
 
 #[derive(Debug)]
 pub struct ImageMetadata {
@@ -50,11 +53,6 @@ impl Image {
             width: self.extent.width,
             height: self.extent.height,
         }
-    }
-    
-//----
-    pub fn underlying(&self) -> vk::Image {
-        self.image
     }
     
 //----

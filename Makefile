@@ -7,3 +7,5 @@ shader:
 	glslang -V src/ssrc/sh.comp -o res/shaders/sh.comp.spv
 	glslang -V src/ssrc/gradient_color.comp -o res/shaders/gradient_color.comp.spv
 	glslang -V src/ssrc/sky.comp -o res/shaders/sky.comp.spv
+	glslang -V src/ssrc/triangle.vert -o res/shaders/triangle.vert.spv
+	glslang -V src/ssrc/triangle.frag -o res/shaders/triangle.frag.spv

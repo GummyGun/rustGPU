@@ -1,4 +1,5 @@
 use crate::window::Window;
+use crate::macros;
 use crate::AAError;
 
 
@@ -8,15 +9,13 @@ use super::VkDestructorArguments;
 use super::instance::Instance;
 
 
-use std::ops::Deref;
-
 use ash::vk;
-
 
 pub struct Surface {
     pub surface: vk::SurfaceKHR,
     surface_loader: ash::extensions::khr::Surface,
 }
+macros::impl_deref!(Surface, ash::extensions::khr::Surface, surface_loader);
 
 impl Surface {
     pub fn create(window:&Window, instance:&mut Instance) -> Result<Self, AAError> {
@@ -31,14 +30,6 @@ impl Surface {
         })
     }
     
-}
-
-
-impl Deref for Surface {
-    type Target = ash::extensions::khr::Surface;
-    fn deref(&self) -> &Self::Target {
-        &self.surface_loader
-    }
 }
 
 impl VkDestructor for Surface {

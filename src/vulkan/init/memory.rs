@@ -1,4 +1,5 @@
 use crate::AAError;
+use crate::macros;
 use crate::errors::messages::GPU_ALLOCATION;
 
 use super::logger::memory as logger;
@@ -8,8 +9,6 @@ use super::instance::Instance;
 use super::p_device::PDevice;
 use super::device::Device;
 
-use std::ops::Deref;
-use std::ops::DerefMut;
 use std::mem::ManuallyDrop;
 
 use ash::vk;
@@ -19,6 +18,10 @@ use gpu_allocator as gpu_all;
 pub struct Allocator {
     allocator:ManuallyDrop<gpu_vk::Allocator>,
 }
+
+macros::impl_deref_mut!(Allocator, gpu_vk::Allocator, allocator);
+
+
 
 impl Allocator {
     pub fn create(
@@ -64,19 +67,6 @@ impl Allocator {
     
     pub fn into_inner(self) -> gpu_vk::Allocator {
         ManuallyDrop::into_inner(self.allocator)
-    }
-}
-
-impl Deref for Allocator {
-    type Target = gpu_vk::Allocator;
-    fn deref(&self) -> &Self::Target {
-        &self.allocator
-    }
-}
-
-impl DerefMut for Allocator {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.allocator
     }
 }
 

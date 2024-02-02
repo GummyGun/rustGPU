@@ -1,8 +1,9 @@
+use crate::macros;
 use crate::AAError;
-use crate::constants::sc_max_images;
 use crate::window::Window;
 use crate::errors::messages::U32_TO_USIZE;
 use crate::errors::messages::SIMPLE_VK_FN;
+use crate::constants::sc_max_images;
 
 use super::logger::swapchain as logger;
 use super::VkDestructor;
@@ -13,8 +14,6 @@ use super::surface::Surface;
 use super::p_device::PDevice;
 use super::image::Image;
 
-
-use std::ops::Deref;
 use std::cmp::min;
 
 use ash::vk;
@@ -39,13 +38,8 @@ pub struct Swapchain {
     swapchain_loader: ash::extensions::khr::Swapchain,
 }
 
-impl Deref for Swapchain {
-    type Target = ash::extensions::khr::Swapchain;
-    fn deref(&self) -> &Self::Target {
-        &self.swapchain_loader
-    }
-    
-}
+macros::impl_deref!(Swapchain, ash::extensions::khr::Swapchain, swapchain_loader);
+
 
 impl Swapchain {
     
