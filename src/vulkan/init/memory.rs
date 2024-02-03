@@ -15,6 +15,7 @@ use ash::vk;
 use gpu_allocator::vulkan as gpu_vk;
 use gpu_allocator as gpu_all;
 
+pub use gpu_all::MemoryLocation::*;
 pub struct Allocator {
     allocator:ManuallyDrop<gpu_vk::Allocator>,
 }
@@ -47,12 +48,12 @@ impl Allocator {
         })
     }
     
-    pub fn allocate_gpu_only(
+    pub fn allocate(
         &mut self,
         name: &str,
         requirements: vk::MemoryRequirements,
+        location: gpu_all::MemoryLocation,
     ) -> gpu_vk::Allocation {
-        
         
         logger::various_log!("allocator", 
             (logger::Trace, "Allocation name: {:?}", name),
@@ -61,12 +62,12 @@ impl Allocator {
         let alloc_info = gpu_vk::AllocationCreateDesc{
             name: name,
             requirements: requirements,
-            location: gpu_all::MemoryLocation::GpuOnly,
+            location: location,
             linear: true,
             allocation_scheme: gpu_vk::AllocationScheme::GpuAllocatorManaged,
         };
         
-        self.allocate(&alloc_info).expect(GPU_ALLOCATION)
+        self.allocator.allocate(&alloc_info).expect(GPU_ALLOCATION)
     }
     
     pub fn into_inner(self) -> gpu_vk::Allocator {
@@ -84,20 +85,21 @@ impl VkDestructor for Allocator {
 }
 
 
-/*
 pub fn find_memory_type_index(
-    state:&State, 
     p_device:&PDevice, 
     memory_requirements:&vk::MemoryRequirements, 
     flags:vk::MemoryPropertyFlags,
 ) -> Result<u32, AAError> { 
     
+    /*
     if state.v_exp() {
         println!("finding memory");
     }
+    */
     let memory_prop = &p_device.memory_properties;
     let memory_type_count = usize::try_from(memory_prop.memory_type_count).expect("GPUs doesn't have that much memory types");
     
+    /*
     if state.v_dmp() {
         println!("{:#?}", memory_prop);
         println!("{:#?}", memory_requirements);
@@ -106,6 +108,7 @@ pub fn find_memory_type_index(
     if state.v_dmp() {
         println!("{:#?}", memory_prop);
     }
+    */
     memory_prop.memory_types[..memory_type_count]
     .iter() .enumerate()
     .find(|(index, memory_type)| {
@@ -115,6 +118,7 @@ pub fn find_memory_type_index(
     }).ok_or(AAError::NoSuitableMemory)
 }
 
+/*
 pub fn copy_buffer_2_buffer(
     state: &State, 
     device: &Device, 

@@ -18,6 +18,7 @@ use super::Image;
 use super::CPipeline;
 use super::GPipeline;
 use super::pipeline;
+use super::Buffer;
 
 use std::slice::from_ref;
 
@@ -29,6 +30,12 @@ pub struct Graphics {
     render_image: Image,
     render_extent: vk::Extent2D,
     */
+}
+
+pub struct GPUMeshBuffers {
+    indexBuffer: Buffer,
+    vertexBuffer: Buffer,
+    vertexBufferAddress: vk::DeviceAddress,
 }
 
 

@@ -7,7 +7,6 @@ use std::ops::Deref;
 use std::ops::DerefMut;
 
 const DROPED_ERR_TEXT:&'static str = "can't run methods on destroyed objects";
-//const NON_DEV_DROPED_ERR_TEXT:&'static str = "dropping non-destroyed object use device_drop";
 const NON_DROPED_ERR_TEXT:&'static str = "dropping non-destroyed object use active_drop";
 
 

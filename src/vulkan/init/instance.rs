@@ -21,6 +21,7 @@ pub struct Instance {
     instance: ash::Instance,
 }
 macros::impl_deref!(Instance, ash::Instance, instance);
+macros::impl_underlying!(Instance, ash::Instance, instance);
 
 impl Instance {
     
@@ -83,9 +84,6 @@ impl Instance {
         Ok(Self{entry:entry, instance:instance_holder})
     }
     
-    pub fn underlying(&self) -> ash::Instance {
-        self.instance.clone()
-    }
     
 }
 

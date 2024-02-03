@@ -7,17 +7,17 @@ use super::VkDestructor;
 use super::VkDestructorArguments;
 use super::Device;
 use super::Allocator;
+use super::memory;
 
 use std::slice::from_ref;
 
 use ash::vk;
-use gpu_allocator::vulkan as vkmem;
-//use gpu_allocator as gpuall;
+use gpu_allocator::vulkan as gpu_vk;
 
 pub struct Image {
     pub image: vk::Image,
     pub view: vk::ImageView,
-    pub allocation: vkmem::Allocation,
+    pub allocation: gpu_vk::Allocation,
     pub extent: vk::Extent3D,
     pub format: vk::Format,
 }
@@ -81,11 +81,11 @@ impl Image {
         let memory_requirements = unsafe{device.get_image_memory_requirements(image)};
         
         
-        let allocation = allocator.allocate_gpu_only(metadata.d_name.unwrap_or_default(), memory_requirements);
+        let allocation = allocator.allocate(metadata.d_name.unwrap_or_default(), memory_requirements, memory::GpuOnly);
         
         unsafe{device.bind_image_memory(image, allocation.memory(), allocation.offset())}?;
         
-        let view = Self::create_view(device, image, format, metadata.aspect_flags)?;//unsafe{device.create_image_view(&view_create_info, None)}?;
+        let view = Self::create_view(device, image, format, metadata.aspect_flags)?;
         
         Ok(Self{image, view, allocation, extent, format})
     }
@@ -241,7 +241,7 @@ impl Image {
 
 impl VkDestructor for Image {
     fn destruct(self, mut args:VkDestructorArguments) {
-        //logger::destruct();
+        logger::destruct!("image");
         let (device, allocator) = args.unwrap_dev_all();
         unsafe{device.destroy_image_view(self.view, None)};
         unsafe{device.destroy_image(self.image, None)};

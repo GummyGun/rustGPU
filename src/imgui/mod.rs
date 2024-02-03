@@ -54,9 +54,7 @@ impl Imgui{
                     .build();
                 
             }
-            
             ui.text("Dangerous button");
-            
             
         }
         

@@ -39,8 +39,7 @@ struct HolderStruct {
 
 fn main() {
     //let model = graphics::Model::load_gltf();
-    
-    let state = State::new();
+    let _state = State::init();
     
     let mut window = window::Window::init();
     let mut v_init = vulkan::VInit::init(&mut window);
@@ -98,11 +97,12 @@ impl Drop for HolderStruct {
 #[allow(dead_code)]
 impl State {
     
-    fn new() -> Self {
+    fn init() -> Self {
         env_logger::init();
         State{time:SystemTime::now(), verbosity:Verbosity::default()}
     }
     
+/*
     fn v_nor(&self) -> bool {
         match self.verbosity {
             Verbosity::Silent => false,
@@ -127,6 +127,7 @@ impl State {
     fn secs_from_start(&self) -> f32 {
         self.time.elapsed().unwrap().as_secs_f32()
     }
+*/
     
 }
 

@@ -30,7 +30,6 @@ pub(super) use chossing;
 macro_rules! destruct {
     ($target:literal) => {
         {
-            
             if crate::constants::LOGGING {
                 use convert_case::{Case, Casing};
                 log::log!(target:&$target.to_case(Case::Snake), log::Level::Debug, "[0]:DELETING {}", $target.to_case(Case::ScreamingSnake));

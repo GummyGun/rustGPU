@@ -13,7 +13,6 @@ use crate::errors::messages::SIMPLE_VK_FN;
 
 use super::window::Window;
 use super::constants;
-use super::State;
 
 use objects::VkWraper;
 use objects::VkDestructor;
@@ -96,6 +95,12 @@ impl VInit {
         
         let graphics_pipeline = g_pipeline::init_pipeline(&mut device, &render_image);
         
+        let mut buffer = Buffer::create(&p_device, &mut device, &mut allocator, Some("name"), 255, vk::BufferUsageFlags::INDEX_BUFFER, gpu_allocator::MemoryLocation::CpuToGpu).unwrap();
+        
+        println!("{:?}", buffer.get_slice_mut());
+        
+        buffer.destruct(VkDestructorArguments::DevAll(&mut device, &mut allocator));
+        
         VInit{
             frame_control: FrameControl(0),
             
@@ -124,6 +129,7 @@ impl VInit {
             
             render: render,
         }
+        
     }
     
     pub fn gui_tick(&mut self, data:&InputData) {
