@@ -1,12 +1,12 @@
 use crate::AAError;
-use crate::errors::messages::GRANTED;
 use crate::constants;
+use crate::logger;
+use crate::errors::messages::GRANTED;
 
 use super::super::graphics as vk_graphics;
 use vk_graphics::ComputePushConstants;
 use vk_graphics::ComputeEffectMetadata;
 
-use super::logger::pipeline::compute as logger;
 use super::VkDestructorArguments;
 use super::VkDestructor;
 use super::Device;
@@ -37,13 +37,20 @@ pub struct ComputeEffects {
 
 
 pub fn init_pipelines(device:&mut Device, ds_layout:&DescriptorLayout) -> ComputeEffects {
-    logger::init();
+    
+    logger::various_log!("compute_pipeline",
+        (logger::Warn, "Instancing simple compute effects pipeline")
+    );
+    
     let mut metadatas = Vec::new();
     let mut pipelines = Vec::new();
     let mut effect_name = ArrayString::new();
     
     let gradient = CPipeline::create(device, ds_layout, constants::comp::GRADIENT_SHADER).unwrap();
     effect_name.push_str("gradient");
+    logger::various_log!("compute_pipeline",
+        (logger::Warn, "Instancing {} compute pipeline", effect_name)
+    );
     metadatas.push(ComputeEffectMetadata{
         name:effect_name,
         data: ComputePushConstants([
@@ -59,6 +66,9 @@ pub fn init_pipelines(device:&mut Device, ds_layout:&DescriptorLayout) -> Comput
     
     let gradient = CPipeline::create(device, ds_layout, constants::comp::COMP_SHADER).unwrap();
     effect_name.push_str("square fade");
+    logger::various_log!("compute_pipeline",
+        (logger::Warn, "Instancing {} compute pipeline", effect_name)
+    );
     metadatas.push(ComputeEffectMetadata{
         name:effect_name,
         data: ComputePushConstants([
@@ -73,6 +83,9 @@ pub fn init_pipelines(device:&mut Device, ds_layout:&DescriptorLayout) -> Comput
     
     
     effect_name.push_str("sky 2.0");
+    logger::various_log!("compute_pipeline",
+        (logger::Warn, "Instancing {} compute pipeline", effect_name)
+    );
     let sky = CPipeline::create(device, ds_layout, constants::comp::SKY_SHADER).unwrap();
     metadatas.push(ComputeEffectMetadata{
         name:effect_name,
@@ -96,8 +109,7 @@ pub fn init_pipelines(device:&mut Device, ds_layout:&DescriptorLayout) -> Comput
 
 impl VkDestructor for ComputeEffects {
     fn destruct(self, mut args:VkDestructorArguments) {
-        
-        //TODO: add logger
+        logger::destruct!("compute_effects");
         let device = args.unwrap_dev();
         for pipeline in self.pipelines.into_iter() {
             pipeline.destruct(VkDestructorArguments::Dev(device));
@@ -108,7 +120,7 @@ impl VkDestructor for ComputeEffects {
 
 impl CPipeline {
     pub fn create(device:&mut Device, ds_layout:&DescriptorLayout, file:&str) -> Result<Self, AAError> {
-        logger::create(true);
+        logger::create!("compute_pipeline");
         
         let push_constant_description = vk::PushConstantRange::builder()
             .size(vk_graphics::ComputePushConstants::size_u32())
@@ -153,7 +165,7 @@ impl CPipeline {
 impl VkDestructor for CPipeline {
     fn destruct(self, mut args:VkDestructorArguments) {
         let device = args.unwrap_dev();
-        logger::destruct();
+        logger::destruct!("command_pipeline");
         unsafe{device.destroy_pipeline_layout(self.layout, None)}
         unsafe{device.destroy_pipeline(self.pipeline, None)};
     }

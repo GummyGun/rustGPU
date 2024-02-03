@@ -1,11 +1,11 @@
-use crate::window::Window;
-use crate::macros;
 use crate::AAError;
+use crate::macros;
 use crate::constants;
+use crate::errors::messages::SIMPLE_VK_FN;
+use crate::errors::messages::GRANTED;
+use crate::window::Window;
 
-use crate::State;
-
-use super::logger;
+use crate::logger;
 use super::VkDestructor;
 use super::VkDestructorArguments;
 use super::d_messenger::DMessenger;
@@ -24,30 +24,10 @@ macros::impl_deref!(Instance, ash::Instance, instance);
 
 impl Instance {
     
-    pub fn create(state:&State, window:&Window) -> Result<Instance, AAError> {
-        /*
-        let a = 3;
-        sum!(a,12,a);
-        logger::create2!("aa", a);
-        logger::create2!();
-        logger::create();
-        */
+    pub fn create(window:&Window) -> Result<Instance, AAError> {
         
-        /*
-        println!("aas",);
-        create3!("aa"-a, "aa"-a);
-        create3!();
-        logger::create4!("aa", a, );
-        logger::create4!("aa", a, );
-        */
-        //logger::create!("instance");
-        let entry = unsafe {ash::Entry::load().unwrap()};
-        
-        use crate::various_log;
-        logger::various_log!("instance", 
-            logger::Level::Trace, "aaaa",
-            logger::Level::Warn, "aaaa"
-        );
+        logger::create!("instance");
+        let entry = unsafe {ash::Entry::load().expect(SIMPLE_VK_FN)};
         
         match entry.try_enumerate_instance_version()? {
             // Vulkan 1.1+
@@ -58,32 +38,31 @@ impl Instance {
                 let minor = vk::version_minor(version);
                 #[allow(deprecated)]
                 let patch = vk::version_patch(version);
-                if state.v_exp() {
-                    println!("supported version is: {}.{}.{}", major, minor, patch);
-                }
+                logger::various_log!("instance", 
+                    (logger::Warn, "supported version is: {}.{}.{}", major, minor, patch),
+                );
             },
-            // Vulkan 1.0
             None => {
                 panic!("only version 1.0 is suported");
             },
         }
         
         let app_info = vk::ApplicationInfo::builder()
-            .application_name(CStr::from_bytes_with_nul(b"Hello Triangle\0").unwrap())
-            .application_name(CStr::from_bytes_with_nul(b"AdAstra\0").unwrap())
+            .application_name(CStr::from_bytes_with_nul(b"Hello Triangle\0").expect(GRANTED))
+            .application_name(CStr::from_bytes_with_nul(b"AdAstra\0").expect(GRANTED))
             .application_version(vk::make_api_version(1, 0, 0, 0))
             .engine_version(vk::make_api_version(1, 0, 0, 0))
             .api_version(vk::API_VERSION_1_3);
         
         let av_extensions = Extensions::get(&entry);
-        av_extensions.debug_print(state);
-        let extensions_ptr = av_extensions.handle_logic(state, window);
+        av_extensions.log();
+        let extensions_ptr = av_extensions.handle_logic(window);
         
         
         
         let av_layers = Layers::get(&entry);
-        av_layers.debug_print(state);
-        let layers_ptr = av_layers.handle_logic(state);
+        av_layers.log();
+        let layers_ptr = av_layers.handle_logic();
         
         
         let mut create_info = vk::InstanceCreateInfo::builder()
@@ -101,7 +80,6 @@ impl Instance {
         
         let instance_holder = unsafe{entry.create_instance(&create_info, None)?};
         
-        panic!();
         Ok(Self{entry:entry, instance:instance_holder})
     }
     
@@ -113,7 +91,7 @@ impl Instance {
 
 impl VkDestructor for Instance {
     fn destruct(self, mut args:VkDestructorArguments) {
-        logger2::destruct();
+        logger::destruct!("instance");
         args.unwrap_none();
         unsafe{self.destroy_instance(None)};
     }
@@ -127,30 +105,31 @@ struct Extensions(Vec<vk::ExtensionProperties>);
 impl Extensions {
     
     fn get(entry:&ash::Entry) -> Self {
-        let extension_list = entry.enumerate_instance_extension_properties(None).unwrap();
+        let extension_list = entry.enumerate_instance_extension_properties(None).expect(SIMPLE_VK_FN);
         Self(
             extension_list
         )
     }
     
-    fn debug_print(&self, state:&State) {
+    fn log(&self) {
         
-        if state.v_exp() {
-            println!("Extensions:");
-            for extension in &self.0 {
-                /*TODO: there is a bug descrived by https://github.com/ash-rs/ash/issues/830#issue-2010032912 */
-                // work arround requires discarting the last char of extension_name
-                /*
-                let name_len:usize = extension.extension_name.len();
-                let u8slice = unsafe { &*(&extension.extension_name[..name_len-1] as *const [i8] as *const [u8]) };
-                
-                
-                let name_holder = std::str::from_utf8(u8slice).expect("after workarround on last char all names should be utf8 valid code should work");
-                */
-                let name_holder = unsafe{CStr::from_ptr(extension.extension_name.as_ptr())}.to_string_lossy();
-                println!("\t{}:\t{:?}", extension.spec_version, name_holder);
-                
-            }
+        logger::various_log!("instance", 
+            (logger::Trace, "Extensions:"),
+        );
+        for extension in &self.0 {
+            /*TODO: there is a bug descrived by https://github.com/ash-rs/ash/issues/830#issue-2010032912 */
+            // work arround requires discarting the last char of extension_name
+            /*
+            let name_len:usize = extension.extension_name.len();
+            let u8slice = unsafe { &*(&extension.extension_name[..name_len-1] as *const [i8] as *const [u8]) };
+            
+            
+            let name_holder = std::str::from_utf8(u8slice).expect("after workarround on last char all names should be utf8 valid code should work");
+            */
+            let name_holder = unsafe{CStr::from_ptr(extension.extension_name.as_ptr())}.to_string_lossy();
+            logger::various_log!("instance", 
+                (logger::Trace, "\t{}:\t{:?}", extension.spec_version, name_holder),
+            );
         }
         
     }
@@ -175,14 +154,15 @@ impl Extensions {
         }
     }
     
-    fn handle_logic(&self, state:&State, window:&Window) -> Vec<*const c_char> {
-        match (state.v_exp(), self.validate(window)) {
-            (true, Ok(holder)) => {
-                println!("all extensions layers found");
+    fn handle_logic(&self, window:&Window) -> Vec<*const c_char> {
+        match self.validate(window) {
+            Ok(holder) => {
+                logger::various_log!("instance", 
+                    (logger::Trace, "All extensions available"),
+                );
                 holder
             }
-            (false, Ok(holder)) => {holder}
-            (_, Err(err)) => {panic!("Extensions required by window and validation extensions should be available: {:?}", err);}
+            Err(err) => {panic!("Extensions required by window and validation extensions should be available: {:?}", err);}
         }
     }
 }
@@ -193,17 +173,19 @@ struct Layers(Vec<vk::LayerProperties>);
 impl Layers {
     
     fn get(entry:&ash::Entry) -> Self {
-        let av_layers = entry.enumerate_instance_layer_properties().unwrap();
+        let av_layers = entry.enumerate_instance_layer_properties().expect(SIMPLE_VK_FN);
         Self(av_layers)
     }
     
-    fn debug_print(&self, state:&State) {
-        if state.v_exp() {
-            println!("Layers:");
-            for layer in &self.0 {
-                let name_holder = unsafe{CStr::from_ptr(layer.layer_name.as_ptr())};
-                println!("\t{:?}", name_holder);
-            }
+    fn log(&self) {
+        logger::various_log!("instance", 
+            (logger::Trace, "Layers:"),
+        );
+        for layer in &self.0 {
+            let name_holder = unsafe{CStr::from_ptr(layer.layer_name.as_ptr())};
+            logger::various_log!("instance", 
+                (logger::Trace, "\t\t{:?}", name_holder),
+            );
         }
     }
     
@@ -224,62 +206,19 @@ impl Layers {
         }
     }
     
-    fn handle_logic(&self, state:&State) -> Vec<*const c_char> {
+    fn handle_logic(&self) -> Vec<*const c_char> {
         if constants::VALIDATION {
-            match (state.v_exp(), self.validate()) {
-                (true, Ok(holder)) => {
-                    println!("all validation layers found");
+            match self.validate() {
+                Ok(holder) => {
+                    logger::various_log!("instance", 
+                        (logger::Trace, "All layers available"),
+                    );
                     holder
                 }
-                (false, Ok(holder)) => {holder}
-                (_, Err(err)) => {panic!("all hard coded validation layers should be available: {:?}", err);}
+                Err(err) => {panic!("all hard coded validation layers should be available: {:?}", err);}
             }
         } else {
             Vec::new()
         }
     }
 }
-
-mod logger2 {
-    use crate::constants::LOGGING;
-    
-    #[macro_export]
-    macro_rules! create2 {
-        () => {
-            println!("empty");
-        };
-        ($a:literal, $b:tt) => {
-            println!("hola");
-            println!("hola {:?}", $a);
-            //crate2!($a, $b);
-        };
-    }
-    pub(super) use create2;
-    
-    #[macro_export]
-    macro_rules! create4 {
-        ($a:literal, $b:expr $(, $r:literal, $s:expr)* $(,)?) => {
-            println!("---- hola");
-            create3!($($r-$s),*);
-        };
-        () => {
-            println!("(((((((())))))))empty");
-        };
-    }
-    pub(super) use create4;
-
-    
-    #[macro_export]
-    pub fn create() {
-        if LOGGING {
-            log::log!(target:"Instance", log::Level::Info, "CREATING:\tINSTANCE");
-        }
-    }
-    
-    pub fn destruct() {
-        if LOGGING {
-            log::info!("[0]:deleting instance");
-        }
-    }
-}
-

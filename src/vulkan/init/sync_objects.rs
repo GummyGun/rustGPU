@@ -1,19 +1,12 @@
-use ash::{
-    vk,
-    prelude::VkResult,
-};
-
-use super::logger::sync_objs as logger;
+use crate::AAError;
+use crate::constants;
+use crate::logger;
 
 use super::VkDestructor;
 use super::VkDestructorArguments;
 use super::Device;
 
-use crate::{
-    State,
-    constants,
-};
-
+use ash::vk;
 
 pub struct SyncObjects {
     pub image_available_semaphore: [vk::Semaphore; constants::fif::USIZE],
@@ -22,12 +15,10 @@ pub struct SyncObjects {
 }
 
 impl SyncObjects {
-    pub fn create(state:&State, device:&Device) -> VkResult<Self> {
+    pub fn create(device:&mut Device) -> Result<Self, AAError> {
         use constants::fif;
         
-        if state.v_exp() {
-            println!("\nCREATING:\tSYNC OBJECTS");
-        }
+        logger::create!("sync_objects");
         
         let semaphore_create_info = vk::SemaphoreCreateInfo::builder();
         let fence_create_info = vk::FenceCreateInfo::builder()
@@ -38,9 +29,11 @@ impl SyncObjects {
         let mut inflight_fence = [vk::Fence::null(); fif::USIZE];
         
         for index in 0..fif::USIZE {
-            if state.v_exp() {
-                println!("creating sync objects for frame {}", index);
-            }
+            
+            logger::various_log!("sync_objects",
+                (logger::Trace, "Creating sync objects for frame {}", index),
+            );
+            
             image_available_semaphore[index] = unsafe{device.create_semaphore(&semaphore_create_info, None)}?;
             render_finished_semaphore[index] = unsafe{device.create_semaphore(&semaphore_create_info, None)}?;
             inflight_fence[index] =  unsafe{device.create_fence(&fence_create_info, None)}?;
@@ -65,7 +58,7 @@ impl SyncObjects {
 
 impl VkDestructor for SyncObjects {
     fn destruct(self, mut args:VkDestructorArguments) {
-        logger::destruct();
+        logger::destruct!("sync_objects");
         use constants::fif;
         let device = args.unwrap_dev();
         for index in 0..fif::USIZE {

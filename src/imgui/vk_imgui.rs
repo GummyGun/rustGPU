@@ -1,3 +1,5 @@
+use crate::logger;
+
 use crate::window::Window;
 use crate::vulkan::VInit;
 use crate::vulkan::Device;
@@ -6,7 +8,6 @@ use crate::vulkan::memory::Allocator;
 use crate::vulkan::vk_create_interpreter;
 use crate::vulkan::pipeline;
 
-use super::logger;
 use super::InputData;
 
 use std::sync::Arc;
@@ -43,7 +44,7 @@ impl Imgui {
             ..
         } = v_init;
         
-        let imgui_allocator = vk_create_interpreter(Allocator::create(&instance, &p_device, &device), "allocator").into_inner();
+        let imgui_allocator = vk_create_interpreter(Allocator::create(instance, &p_device, device), "allocator").into_inner();
         Self::create(window, device, swapchain, &command_control.pool, imgui_allocator)
     }
     
@@ -55,8 +56,8 @@ impl Imgui {
         allocator: gpu_vk::Allocator,
         
     ) -> Self {
+        logger::create!("imgui");
         
-        logger::create();
         let graphics_queue: vk::Queue = device.queue_handles.graphics;
         
         let mut context = imgui::Context::create();
@@ -118,7 +119,7 @@ impl Imgui {
 
 impl Drop for Imgui {
     fn drop(&mut self) {
-        logger::destruct();
+        logger::destruct!("imgui");
         unsafe{ManuallyDrop::drop(&mut self.renderer)};
     }
 }

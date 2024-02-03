@@ -1,8 +1,8 @@
 use crate::AAError;
 use crate::macros;
+use crate::logger;
 use crate::errors::messages::GPU_FREE;
 
-use super::logger::image as logger;
 use super::VkDestructor;
 use super::VkDestructorArguments;
 use super::Device;
@@ -36,7 +36,7 @@ pub const RENDER:ImageMetadata = {
     use vk::ImageUsageFlags as IUF;
     use vk::ImageAspectFlags as IAF;
     ImageMetadata{
-        d_name: Some("RENDER"),
+        d_name: Some("RENDER IMAGE"),
         format: vk::Format::R16G16B16A16_SFLOAT,
         usage: IUF::from_raw(0x1b),
         //IUF::TRANSFER_SRC | IUF::TRANSFER_DST
@@ -62,7 +62,16 @@ impl Image {
         extent: vk::Extent3D,
         metadata: ImageMetadata,
     ) -> Result<Self, AAError> {
-        logger::create(metadata.d_name);
+        logger::create!("image");
+        
+        match metadata.d_name {
+            Some(d_name) => {
+                logger::various_log!("image",
+                    (logger::Trace, "Image name {:?}", d_name)
+                );
+            }
+            None => {}
+        }
         
         let format = metadata.format;
         let extent = extent;
@@ -196,7 +205,7 @@ impl Image {
         old_layout: vk::ImageLayout,
         new_layout: vk::ImageLayout,
     ) {
-        logger::transitioning_image(old_layout, new_layout);
+        //logger::transitioning_image(old_layout, new_layout);
         
         let image_aspect = match new_layout {
             vk::ImageLayout::DEPTH_ATTACHMENT_OPTIMAL => {
@@ -232,7 +241,7 @@ impl Image {
 
 impl VkDestructor for Image {
     fn destruct(self, mut args:VkDestructorArguments) {
-        logger::destruct();
+        //logger::destruct();
         let (device, allocator) = args.unwrap_dev_all();
         unsafe{device.destroy_image_view(self.view, None)};
         unsafe{device.destroy_image(self.image, None)};

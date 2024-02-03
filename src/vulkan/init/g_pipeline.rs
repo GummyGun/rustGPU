@@ -1,7 +1,8 @@
 use crate::AAError;
+use crate::macros;
 use crate::constants;
+use crate::logger;
 
-use super::logger::pipeline::graphics as logger;
 use super::VkDestructorArguments;
 use super::VkDestructor;
 use super::Device;
@@ -9,6 +10,7 @@ use super::Image;
 use super::pipeline;
 
 use std::slice::from_ref;
+
 use arrayvec::ArrayVec;
 use ash::vk;
 
@@ -17,7 +19,9 @@ pub struct GPipeline {
     pipeline: vk::Pipeline,
 }
 
-#[derive(Default)]
+macros::impl_underlying!(GPipeline, vk::Pipeline, pipeline);
+
+#[derive(Default, Debug)]
 pub struct GPipelineBuilder {
     shader_stages: ArrayVec<vk::PipelineShaderStageCreateInfo, 16>,
     
@@ -33,6 +37,10 @@ pub struct GPipelineBuilder {
 
 
 pub fn init_pipeline(device:&mut Device, render_image:&Image) -> GPipeline {
+    
+    logger::various_log!("graphics_pipeline",
+        (logger::Warn, "Instancing simple triangle graphics pipeline")
+    );
     
     let vert_shader = pipeline::create_shader_module(device, constants::graph::TRIANGLE_VERT).unwrap();
     let frag_shader = pipeline::create_shader_module(device, constants::graph::TRIANGLE_FRAG).unwrap();
@@ -65,12 +73,18 @@ impl GPipelineBuilder {
     
 //----
     pub fn new() -> Self {
-        logger::creating_builder();
+        //logger::creating_builder();
+        
         Self::default()
     }
     
 //----
     pub fn build(mut self, device:&mut Device) -> Result<GPipeline, AAError> {
+        
+        logger::create!("graphics_pipeline");
+        logger::various_log!("graphics_pipeline",
+            (logger::Trace, "{:#?}", &self)
+        );
         
         let layout = match self.layout {
             Some(layout) => layout,
@@ -208,16 +222,10 @@ impl GPipelineBuilder {
 }
 
 
-impl GPipeline {
-    pub fn underlying(&self ) -> vk::Pipeline {
-        self.pipeline
-    }
-}
-
 impl VkDestructor for GPipeline {
     fn destruct(self, mut args:VkDestructorArguments) {
         let device = args.unwrap_dev();
-        logger::destruct();
+        logger::destruct!("graphics_pipeline");
         unsafe{device.destroy_pipeline_layout(self.layout, None)}
         unsafe{device.destroy_pipeline(self.pipeline, None)};
     }

@@ -1,6 +1,7 @@
 use crate::constants::LOGGING;
 use ash::vk;
 
+#[allow(dead_code)]
 /*
 mod base 
 mod instance 
@@ -12,61 +13,57 @@ mod swapchain
 mod image 
 */
 
-#[macro_export]
-macro_rules! tmp {
-    ($a:literal, $b:expr $(, $r:literal, $s:expr)* $(,)?) => {
-        println!("---- hola");
-        create!($($r-$s),*);
-    };
-    () => {
-        println!("(((((((())))))))empty");
-    };
-}
-pub(in super::super) use tmp;
-
-
+/*
 #[macro_export]
 macro_rules! create {
     ($target:literal) => {
         {
             use convert_case::{Case, Casing};
-            log::log!(target:&$target.to_case(Case::Lower), log::Level::Trace, "CREATING {}", $target.to_case(Case::ScreamingSnake));
+            log::log!(target:&$target.to_case(Case::Snake), log::Level::Debug, "CREATING {}", $target.to_case(Case::ScreamingSnake));
         }
     };
 }
 pub(in super::super) use create;
 
-
-/*
 #[macro_export]
-macro_rules! __various_log {
-    ($b:expr, $a:literal $(, $s:expr, $r:literal)* $(,)?) => {
-        println!("hola {}", local);
-        log::log!($b, $a);
-        __various_log!($(, $r, $s)*);
-    };
-    () => {
-        println!("(((((((())))))))empty");
-    };
-}
-pub(in super::super) use __various_log;
-*/
-
-pub(in super::super) use log::Level;
-#[macro_export]
-macro_rules! various_log {
-    ($target:expr, $b:expr, $a:literal $(, $s:expr, $r:literal)* $(,)?) => {
+macro_rules! chossing {
+    ($target:literal) => {
         {
             use convert_case::{Case, Casing};
-            log::log!(target:&$target.to_case(Case::Lower), $b, $a);
-            various_log!($target $(, $s, $r)*);
+            log::log!(target:&$target.to_case(Case::Snake), log::Level::Debug, "CHOSSING {}", $target.to_case(Case::ScreamingSnake));
         }
     };
-    ($target:expr) => {
+}
+pub(in super::super) use chossing;
+
+#[macro_export]
+macro_rules! destruct {
+    ($target:literal) => {
+        {
+            use convert_case::{Case, Casing};
+            log::log!(target:&$target.to_case(Case::Snake), log::Level::Debug, "[0]:DELETING {}", $target.to_case(Case::ScreamingSnake));
+        }
     };
 }
-pub use various_log;
+pub(in super::super) use destruct;
 
+
+pub(in super::super) use log::Level::*;
+#[macro_export]
+macro_rules! various_log {
+    ($target:expr, ($level:expr, $format:expr $(, $args:expr)*) $(, ($left_level:expr, $left_format:expr $(, $left_args:expr)*))* $(,)?) => {
+        {
+            use convert_case::{Case, Casing};
+            log::log!(target:&$target.to_case(Case::Snake), $level, $format $(, $args)*);
+            
+            crate::various_log!($target $(, ($left_level, $left_format $(, $left_args)*))*);
+        }
+    };
+    ($target:expr) => {};
+}
+pub(in super::super) use various_log;
+
+*/
 
     
 pub mod base {
@@ -74,68 +71,36 @@ pub mod base {
     
     pub fn create(name:&str) {
         if LOGGING {
-            log::info!("[0]:{}", name);
+            //log::info!("[0]:{}", name);
         }
     }
     
     pub fn debug_messenger_create() {
         if LOGGING {
-            log::info!("[0]:messenger");
+            //log::info!("[0]:messenger");
         }
     }
     
     pub fn no_debug_messenger_create() {
         if LOGGING {
-            log::info!("[X]:messenger");
+            //log::info!("[X]:messenger");
         }
     }
     
     pub fn debug_messenger_destruct() {
         if LOGGING {
-            log::info!("No Messenger to delete");
+            //log::info!("No Messenger to delete");
         }
     }
 }
 
-
-pub mod d_messenger {
-    use super::*;
-    
-    pub fn create() {
-        if LOGGING {
-            log::info!("\nCREATING:\tDEBUG_MESSENGER\nvalidation layers activated");
-        }
-    }
-    
-    pub fn destruct() {
-        if LOGGING {
-            log::info!("[0]:deleting debug messenger");
-        }
-    }
-}
-
-pub mod surface {
-    use super::*;
-    
-    pub fn create() {
-        if LOGGING {
-            log::info!("\nCREATING:\tSURFACE");
-        }
-    }
-    
-    pub fn destruct() {
-        if LOGGING {
-            log::info!("[0]:deleting surface");
-        }
-    }
-}
 
 pub mod device {
     use super::*;
     
     pub fn destruct() {
         if LOGGING {
-            log::info!("[0]:deleting device");
+            //log::info!("[0]:deleting device");
         }
     }
 }
@@ -148,19 +113,19 @@ pub mod memory {
         
         pub fn create() {
             if LOGGING {
-                log::info!("\nCREATING:\tALLOCATOR");
+                //log::info!("\nCREATING:\tALLOCATOR");
             }
         }
         
         pub fn gpu_allocation(name:&str) {
             if LOGGING {
-                log::info!("allocating gpu memory for :\t{}", name);
+                //log::info!("allocating gpu memory for :\t{}", name);
             }
         }
         
         pub fn destruct() {
             if LOGGING {
-                log::info!("[0]:deleting allocator");
+                //log::info!("[0]:deleting allocator");
             }
         }
     }
@@ -173,61 +138,61 @@ pub mod swapchain {
     
     pub fn create() {
         if LOGGING {
-            log::info!("\nCREATING:\tSWAPCHAIN");
+            //log::info!("\nCREATING:\tSWAPCHAIN");
         }
     }
     
     pub fn destruct(state:bool) {
         if LOGGING {
             if state {
-                log::info!("[0]:deleting images");
+                //log::info!("[0]:deleting images");
             } else {
-                log::info!("[0]:deleting swapchain");
+                //log::info!("[0]:deleting swapchain");
             }
         }
     }
     
     pub fn format_chossing(surface_formats: &[vk::SurfaceFormatKHR]) {
         if LOGGING {
-            log::info!("{:#?}", surface_formats);
+            //log::info!("{:#?}", surface_formats);
         }
     }
     
     pub fn found_format(found: bool, format: vk::SurfaceFormatKHR) {
         if LOGGING {
             if found {
-                log::info!("found target {:#?}", format);
+                //log::info!("found target {:#?}", format);
             } else {
-                log::info!("didn't found target settling for {:#?}", format);
+                //log::info!("didn't found target settling for {:#?}", format);
             }
         }
     }
     
     pub fn present_chossing(present: &[vk::PresentModeKHR]) {
         if LOGGING {
-            log::info!("{:#?}", present);
+            //log::info!("{:#?}", present);
         }
     }
     
     pub fn found_present(found: bool) {
         if LOGGING {
             if found {
-                log::info!("found target Mailbox");
+                //log::info!("found target Mailbox");
             } else {
-                log::info!("MAILBOX not available settling for FIFO");
+                //log::info!("MAILBOX not available settling for FIFO");
             }
         }
     }
     
     pub fn sc_image_view_creates(index: usize) {
         if LOGGING {
-            log::info!("creating swapchain image {index}");
+            //log::info!("creating swapchain image {index}");
         }
     }
     
     pub fn extent_chossing(extent: vk::Extent2D) {
         if LOGGING {
-            log::info!("normal display width:{} height:{}", extent.width, extent.height);
+            //log::info!("normal display width:{} height:{}", extent.width, extent.height);
         }
     }
     
@@ -239,10 +204,10 @@ pub mod image {
         if LOGGING {
             match name {
                 Some(d_name) => {
-                    log::info!("\nCREATING:\tIMAGE\nType: \t{}",d_name);
+                    //log::info!("\nCREATING:\tIMAGE\nType: \t{}",d_name);
                 }
                 None => {
-                    log::info!("\nCREATING:\tIMAGE");
+                    //log::info!("\nCREATING:\tIMAGE");
                 }
             }
         }
@@ -251,13 +216,13 @@ pub mod image {
     
     pub fn transitioning_image(old: vk::ImageLayout, new: vk::ImageLayout) {
         if LOGGING {
-            log::trace!("transitioning image from old:{:?} to new:{:?}", old, new);
+            //log::trace!("transitioning image from old:{:?} to new:{:?}", old, new);
         }
     }
     
     pub fn destruct() {
         if LOGGING {
-            log::info!("[0]:deleting image");
+            //log::info!("[0]:deleting image");
         }
     }
     
@@ -268,8 +233,8 @@ pub mod sync_objs {
     
     pub fn destruct() {
         if LOGGING {
-            log::info!("[0]:deleting semaphores");
-            log::info!("[0]:deleting fence");
+            //log::info!("[0]:deleting semaphores");
+            //log::info!("[0]:deleting fence");
         }
     }
 }
@@ -279,8 +244,8 @@ pub mod command {
     
     pub fn destruct() {
         if LOGGING {
-            log::info!("[0]:deallocating command buffer");
-            log::info!("[0]:deleting command pool");
+            //log::info!("[0]:deallocating command buffer");
+            //log::info!("[0]:deleting command pool");
         }
     }
 }
@@ -291,7 +256,7 @@ pub mod descriptors {
     
     pub fn init() {
         if LOGGING {
-            log::info!("\tiniting:\tdescriptor structs");
+            //log::info!("\tiniting:\tdescriptor structs");
         }
     }
     
@@ -299,13 +264,13 @@ pub mod descriptors {
         use super::*;
         pub fn create() {
             if LOGGING {
-                log::info!("\nCREATING:\tLAYOUT_BUILDER");
+                //log::info!("\nCREATING:\tLAYOUT_BUILDER");
             }
         }
         
         pub fn destruct() {
             if LOGGING {
-                log::info!("[0]:deleting layout_builder");
+                //log::info!("[0]:deleting layout_builder");
             }
         }
     }
@@ -314,13 +279,13 @@ pub mod descriptors {
         use super::*;
         pub fn create() {
             if LOGGING {
-                log::info!("\nCREATING:\tDESCRIPTOR_LAYOUT");
+                //log::info!("\nCREATING:\tDESCRIPTOR_LAYOUT");
             }
         }
         
         pub fn destruct() {
             if LOGGING {
-                log::info!("[0]:deleting descriptor_layout");
+                //log::info!("[0]:deleting descriptor_layout");
             }
         }
     }
@@ -329,13 +294,13 @@ pub mod descriptors {
         use super::*;
         pub fn create() {
             if LOGGING {
-                log::info!("\nCREATING:\tDESCRIPTOR_POOL");
+                //log::info!("\nCREATING:\tDESCRIPTOR_POOL");
             }
         }
         
         pub fn destruct() {
             if LOGGING {
-                log::info!("[0]:deleting descriptor_pool");
+                //log::info!("[0]:deleting descriptor_pool");
             }
         }
     }
@@ -352,24 +317,24 @@ pub mod pipeline {
         
         pub fn init() {
             if LOGGING {
-                log::info!("\tiniting:\tdescriptor structs");
+                //log::info!("\tiniting:\tdescriptor structs");
             }
         }
         
         pub fn create(state:bool) {
             if LOGGING {
                 if state {
-                    log::info!("\nCREATING:\tPIPELINE_LAYOUT");
+                    //log::info!("\nCREATING:\tPIPELINE_LAYOUT");
                 } else {
-                    log::info!("\nCREATING:\tCOMPUTE_PIPELINE");
+                    //log::info!("\nCREATING:\tCOMPUTE_PIPELINE");
                 }
             }
         }
         
         pub fn destruct() {
             if LOGGING {
-                log::info!("[0]:deleting compute_pipeline");
-                log::info!("[0]:deleting pipeline_layout");
+                //log::info!("[0]:deleting compute_pipeline");
+                //log::info!("[0]:deleting pipeline_layout");
             }
         }
         
@@ -381,21 +346,21 @@ pub mod pipeline {
         /*
         pub fn init() {
             if LOGGING {
-                log::info!("\tiniting:\tdescriptor structs");
+                //log::info!("\tiniting:\tdescriptor structs");
             }
         }
         */
         
         pub fn creating_builder() {
             if LOGGING {
-                log::info!("\nCREATING:\tGRAPHICS_PIPELINE_BUILDER");
+                //log::info!("\nCREATING:\tGRAPHICS_PIPELINE_BUILDER");
             }
         }
         
         pub fn destruct() {
             if LOGGING {
-                log::info!("[0]:deleting graphics_pipeline");
-                log::info!("[0]:deleting pipeline_layout");
+                //log::info!("[0]:deleting graphics_pipeline");
+                //log::info!("[0]:deleting pipeline_layout");
             }
         }
         
@@ -408,13 +373,13 @@ pub mod imgui {
     
     pub fn create() {
         if LOGGING {
-            log::info!("\nCREATING:\tIMGUI");
+            //log::info!("\nCREATING:\tIMGUI");
         }
     }
     
     pub fn destruct() {
         if LOGGING {
-            log::info!("[0]:deleting imgui");
+            //log::info!("[0]:deleting imgui");
         }
     }
 

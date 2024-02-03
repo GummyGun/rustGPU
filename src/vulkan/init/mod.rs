@@ -1,4 +1,3 @@
-use super::logger;
 use super::VkDestructor;
 //use super::VkDestructorType;
 use super::VkDestructorArguments;

@@ -1,15 +1,9 @@
 mod vk_win;
 
-use super::errors::messages::SIMPLE_SDL_FN;
-use super::imgui::Imgui;
-
-use super::{
-    State,
-    Verbosity,
-    player::{
-        Movement,
-    },
-};
+use crate::logger;
+use crate::errors::messages::SIMPLE_SDL_FN;
+use crate::imgui::Imgui;
+use crate::player::Movement;
 
 
 #[allow(dead_code)]
@@ -21,6 +15,7 @@ pub struct Window {
     should_quit: bool,
 }
 
+
 impl Window {
     pub fn event_pump(&self) -> &sdl2::EventPump {
         &self.event_pump
@@ -30,10 +25,9 @@ impl Window {
         &self.window
     }
     
-    pub fn init(state: State) -> Window {
-        if let Verbosity::Expresive | Verbosity::Normal = state.verbosity {
-            println!("[0]:window");
-        }
+    pub fn init() -> Window {
+        
+        logger::create!("window");
         
         let sdl = sdl2::init().expect(SIMPLE_SDL_FN);
         let mut video_subsys = sdl.video().expect(SIMPLE_SDL_FN);

@@ -1,27 +1,16 @@
-use ash::{
-    vk,
-    prelude::VkResult,
-};
+use crate::AAError;
+use crate::constants;
 
-use super::logger::command as logger;
+use crate::logger;
 
 use super::VkDestructor;
 use super::VkDestructorArguments;
 use super::device::Device;
 use super::p_device::PDevice;
 
-/*
-use super::super::{
-    Model,
-};
-*/
-
-use crate::{
-    State,
-    constants,
-};
-
 use std::slice::from_ref;
+
+use ash::vk;
 
 pub struct CommandControl{
     pub pool: vk::CommandPool,
@@ -31,12 +20,10 @@ pub struct CommandControl{
 
 
 impl CommandControl {
-    pub fn create(state:&State, p_device:&PDevice, device:&Device) -> VkResult<Self> {
+    pub fn create(p_device:&PDevice, device:&mut Device) -> Result<Self, AAError> {
         use constants::fif;
         
-        if state.v_exp() {
-            println!("\nCREATING:\tCOMMAND CONTROL STRUCTURES");
-        }
+        logger::create!("command_control");
         
         let create_info = vk::CommandPoolCreateInfo::builder()
             .flags(vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER)
@@ -44,10 +31,12 @@ impl CommandControl {
         
         let command_pool = unsafe{device.create_command_pool(&create_info, None)}?;
         
-        if state.v_exp() {
-            println!("\nALLOCATING:\tCOMMAND BUFFERS");
-            println!("allocating graphics command buffers");
-        }
+        /*
+        logger::various_log!("command_control",
+            (logger::Trace, "creating sync objects for frame {}", index),
+        );
+        */
+        
         let create_info = vk::CommandBufferAllocateInfo::builder()
             .command_pool(command_pool)
             .level(vk::CommandBufferLevel::PRIMARY)
@@ -55,9 +44,6 @@ impl CommandControl {
         
         let buffer_vec = unsafe{device.allocate_command_buffers(&create_info)}?;
         
-        if state.v_exp() {
-            println!("allocating staging command buffer");
-        }
         let sb_create_info = vk::CommandBufferAllocateInfo::builder()
             .command_pool(command_pool)
             .level(vk::CommandBufferLevel::PRIMARY)
@@ -197,7 +183,7 @@ impl CommandControl {
 
 impl VkDestructor for CommandControl {
     fn destruct(self, mut args:VkDestructorArguments) {
-        logger::destruct();
+        logger::destruct!("command_control");
         let device = args.unwrap_dev();
         unsafe{device.destroy_command_pool(self.pool, None)};
     }

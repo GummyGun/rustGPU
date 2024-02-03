@@ -4,7 +4,7 @@ use crate::errors::messages::STANDARD_CONV;
 use crate::errors::messages::GRANTED;
 use crate::errors::messages::SIMPLE_VK_FN;
 
-use super::logger::descriptors as logger;
+//use super::logger::descriptors as logger;
 use super::VkDestructor;
 use super::VkDestructorArguments;
 use super::Device;
@@ -45,7 +45,7 @@ pub struct DescriptorPoolAllocator {
 
 
 pub fn init_descriptors(device:&mut Device, ds_layout_builder:&mut DescriptorLayoutBuilder, render_image:&Image) -> (DescriptorLayout, DescriptorPoolAllocator, vk::DescriptorSet) {
-    logger::init();
+    //logger::init();
     ds_layout_builder.add_binding(0, vk::DescriptorType::STORAGE_IMAGE);
     let (ds_layout, mut types_in_layout) = ds_layout_builder.build(device, vk::ShaderStageFlags::COMPUTE).unwrap();
     
@@ -70,7 +70,7 @@ pub fn init_descriptors(device:&mut Device, ds_layout_builder:&mut DescriptorLay
 impl DescriptorLayoutBuilder {
     
     pub fn create() -> Result<Self, ()> {
-        logger::dlb::create();
+        //logger::dlb::create();
         Ok(Self{
             bindings: Vec::new(),
             type_count: DescriptorPoolCount::default(),
@@ -92,7 +92,7 @@ impl DescriptorLayoutBuilder {
     
     pub fn build(&mut self, device:&mut Device, shader_stage:vk::ShaderStageFlags) -> Result<(DescriptorLayout, DescriptorPoolCount), AAError> {
         
-        logger::dl::create();
+        //logger::dl::create();
         for binding in self.bindings.iter_mut(){
             binding.stage_flags |= shader_stage;
         }
@@ -116,14 +116,14 @@ impl DescriptorLayoutBuilder {
 
 impl VkDestructor for DescriptorLayoutBuilder {
     fn destruct(self, mut args:VkDestructorArguments) {
-        logger::dlb::destruct();
+        //logger::dlb::destruct();
         args.unwrap_none();
     }
 }
 
 impl VkDestructor for DescriptorLayout {
     fn destruct(self, mut args:VkDestructorArguments) {
-        logger::dl::destruct();
+        //logger::dl::destruct();
         let device = args.unwrap_dev();
         unsafe{device.destroy_descriptor_set_layout(self.set_layout, None)};
     }
@@ -254,7 +254,7 @@ impl AddAssign<&Self> for DescriptorPoolCount {
 impl DescriptorPoolAllocator {
     
     pub fn create(device:&mut Device, count:DescriptorPoolCount) -> Result<Self, AAError> {
-        logger::dpa::create();
+        //logger::dpa::create();
         
         let mut pool_sizes:[vk::DescriptorPoolSize; DESCRIPTOR_TYPE_COUNT] = Default::default();
         let max_sets = count.max_sets();
@@ -291,7 +291,7 @@ impl DescriptorPoolAllocator {
 
 impl VkDestructor for DescriptorPoolAllocator {
     fn destruct(self, mut args:VkDestructorArguments) {
-        logger::dpa::destruct();
+        //logger::dpa::destruct();
         let device = args.unwrap_dev();
         unsafe{device.destroy_descriptor_pool(self.pool, None)};
     }

@@ -1,6 +1,6 @@
 use crate::AAError;
+use crate::logger;
 
-use super::logger::d_messenger as logger;
 use super::VkDestructor;
 use super::VkDestructorArguments;
 use super::instance::Instance;
@@ -19,7 +19,7 @@ pub struct DMessenger {
 impl DMessenger {
     
     pub fn create(instance:&Instance) -> Result<Self, AAError> {
-        logger::create();
+        logger::create!("debug_messenger");
         
         let debug_utils = ash::extensions::ext::DebugUtils::new(&instance.entry, instance);
         let messenger = unsafe{debug_utils.create_debug_utils_messenger(&Self::populate_create_info(), None)?};
@@ -77,7 +77,7 @@ impl DMessenger {
 
 impl VkDestructor for DMessenger {
     fn destruct(self, mut args:VkDestructorArguments) {
-        logger::destruct();
+        logger::destruct!("debug_messenger");
         args.unwrap_none();
         unsafe{self.debug_utils.destroy_debug_utils_messenger(self.messenger, None)};
     }

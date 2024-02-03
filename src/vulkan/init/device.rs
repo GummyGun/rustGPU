@@ -1,10 +1,9 @@
-use crate::State;
 use crate::macros;
 use crate::AAError;
 use crate::constants;
+use crate::logger;
 
 
-use super::logger::device as logger;
 use super::VkDestructor;
 use super::VkDestructorArguments;
 use super::instance::Instance;
@@ -33,10 +32,9 @@ pub struct QueueHandles {
 
 
 impl Device {
-    pub fn create(state:&State, instance:&Instance, p_device:&PDevice) -> Result<Self, AAError> {
-        if state.v_exp() {
-            println!("\nCREATING:\tDEVICE");
-        }
+    pub fn create(instance:&mut Instance, p_device:&PDevice) -> Result<Self, AAError> {
+        logger::create!("device");
+        
         
         let mut queue_create_info:Vec<vk::DeviceQueueCreateInfo> = Vec::new();
         let priority_arr = [1.0];
@@ -54,8 +52,8 @@ impl Device {
         }
         
         let av_extensions = Extensions::get(instance, p_device);
-        av_extensions.debug_print(state);
-        let extensions = av_extensions.handle_logic(state);
+        av_extensions.log();
+        let extensions = av_extensions.handle_logic();
         
         
         let mut dynamic_rendering = vk::PhysicalDeviceDynamicRenderingFeatures::builder()
@@ -90,10 +88,6 @@ impl Device {
         let device = unsafe{instance.create_device(p_device.underlying(), &device_create_info, None)}?;
         let queue_handles = Self::get_queue_handles(&device, &p_device.queues);
         
-        if state.v_dmp() {
-            println!("queue handles fetched");
-        }
-        
         
         Ok(Self{
             device: device,
@@ -121,13 +115,15 @@ impl Extensions {
         Self(holder)
     }
     
-    fn debug_print(&self, state:&State) {
-        if state.v_exp() {
-            println!("Device Extensions:");
-            for layer in &self.0 {
-                let name_holder = unsafe{CStr::from_ptr(layer.extension_name.as_ptr())};
-                println!("\t{:?}", name_holder);
-            }
+    fn log(&self) {
+        logger::various_log!("device", 
+            (logger::Trace, "Device Extensions:"),
+        );
+        for layer in &self.0 {
+            let name_holder = unsafe{CStr::from_ptr(layer.extension_name.as_ptr())};
+            logger::various_log!("device", 
+                (logger::Trace, "\t\t{:?}", name_holder),
+            );
         }
     }
     
@@ -142,7 +138,6 @@ impl Extensions {
             let name_holder = unsafe{CStr::from_ptr(extension.extension_name.as_ptr())}.to_string_lossy();
             if set.remove(&name_holder as &str) {
                 holder.push(extension.extension_name.as_ptr() as *const c_char);
-                println!("{}", name_holder);
             }
         }
         
@@ -155,14 +150,15 @@ impl Extensions {
         
     }
     
-    fn handle_logic(&self, state:&State) -> Vec<*const c_char> {
-        match (state.v_exp(), self.validate()) {
-            (true, Ok(holder)) => {
-                println!("all device extensions found");
+    fn handle_logic(&self) -> Vec<*const c_char> {
+        match self.validate() {
+            Ok(holder) => {
+                logger::various_log!("device", 
+                    (logger::Trace, "All device extensions found"),
+                );
                 holder
             }
-            (false, Ok(holder)) => {holder}
-            (_, Err(err)) => {panic!("Extensions required were not available: {:?}", err);}
+            Err(err) => {panic!("Extensions required were not available: {:?}", err);}
         }
     }
 }
@@ -170,7 +166,7 @@ impl Extensions {
 
 impl VkDestructor for Device {
     fn destruct(self, mut args:VkDestructorArguments) {
-        logger::destruct();
+        logger::destruct!("device");
         args.unwrap_none();
         unsafe{self.device.destroy_device(None)};
     }

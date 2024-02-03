@@ -42,8 +42,8 @@ fn main() {
     
     let state = State::new();
     
-    let mut window = window::Window::init(state);
-    let mut v_init = vulkan::VInit::init(state, &mut window);
+    let mut window = window::Window::init();
+    let mut v_init = vulkan::VInit::init(&mut window);
     let imgui = imgui::Imgui::init(&mut window, &mut v_init);
     
     let mut holder_struct = HolderStruct::new(window, v_init, imgui);

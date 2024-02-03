@@ -1,11 +1,12 @@
-use crate::macros;
 use crate::AAError;
+use crate::macros;
+use crate::logger;
+
 use crate::window::Window;
 use crate::errors::messages::U32_TO_USIZE;
 use crate::errors::messages::SIMPLE_VK_FN;
 use crate::constants::sc_max_images;
 
-use super::logger::swapchain as logger;
 use super::VkDestructor;
 use super::VkDestructorArguments;
 use super::device::Device;
@@ -43,8 +44,8 @@ macros::impl_deref!(Swapchain, ash::extensions::khr::Swapchain, swapchain_loader
 
 impl Swapchain {
     
-    pub fn create(window:&Window, instance:&Instance, surface:&Surface, p_device:&PDevice, device:&mut Device) -> Result<Self, AAError> {
-        logger::create();
+    pub fn create(window:&Window, instance:&mut Instance, surface:&Surface, p_device:&PDevice, device:&mut Device) -> Result<Self, AAError> {
+        logger::create!("swapchain");
         
         let surface_format = p_device.swapchain_details.choose_surface_format();
         let present_mode = p_device.swapchain_details.choose_present_mode();
@@ -124,7 +125,9 @@ impl Swapchain {
         let mut image_views_holder:ArrayVec<vk::ImageView, {sc_max_images::USIZE}> = ArrayVec::new();//[vk::ImageView::null(); sc_max_images::USIZE];
         
         for (index, image) in images.iter().enumerate() {
-            logger::sc_image_view_creates(index);
+            logger::various_log!("swapchain",
+                (logger::Trace, "Creating swapchain image {index}"),
+            );
             let holder = Image::create_view(
                 device, 
                 *image, 
@@ -170,11 +173,10 @@ impl Swapchain {
     */
     
     fn internal_destroy(inself:&mut Self, device:&Device) {//inself
-        logger::destruct(true);
+        logger::destruct!("swapchain");
         for view in inself.image_views.iter() {
             unsafe{device.destroy_image_view(*view, None)};
         }
-        logger::destruct(false);
         unsafe{inself.destroy_swapchain(inself.swapchain, None)};
     }
     
@@ -226,7 +228,9 @@ impl SwapchainSupportDetails {
     }
     
     fn choose_surface_format(&self) -> vk::SurfaceFormatKHR {
-        logger::format_chossing(&self.surface_formats);
+        logger::various_log!("swapchain",
+            (logger::Trace, "Surface formats \n{:#?}", &self.surface_formats),
+        );
         
         for format in &self.surface_formats {
             match (format.format, format.color_space) {
@@ -236,36 +240,51 @@ impl SwapchainSupportDetails {
                 }
             }
             let format = *format;
-            logger::found_format(true, format);
+            logger::various_log!("swapchain",
+                (logger::Debug, "Found desired format \n{:#?}", format),
+            );
             return format;
         }
-        logger::found_format(true, self.surface_formats[0]);
+        
+        logger::various_log!("swapchain",
+            (logger::Debug, "Desired format not found setting for \n{:#?}", self.surface_formats[0])
+        );
         
         self.surface_formats[0]
     }
     
     fn choose_present_mode(&self) -> vk::PresentModeKHR {
         
-        logger::present_chossing(&self.present_modes);
+        logger::various_log!("swapchain",
+            (logger::Trace, "Present modes \n{:#?}", &self.present_modes),
+        );
+        //logger::present_chossing(&self.present_modes);
         
         for mode in &self.present_modes {
             if mode == &vk::PresentModeKHR::MAILBOX {
-                logger::found_present(true);
+                logger::various_log!("swapchain",
+                    (logger::Debug, "Found desired present mode \n{:#?}", vk::PresentModeKHR::MAILBOX)
+                );
                 return vk::PresentModeKHR::MAILBOX;
             }
             
         }
-        logger::found_present(false);
+        logger::various_log!("swapchain",
+            (logger::Debug, "Desired present mode not found setting for \n{:#?}", vk::PresentModeKHR::FIFO)
+        );
         vk::PresentModeKHR::FIFO
     }
     
     fn choose_swap_extent(&self, window:&Window) -> vk::Extent2D {
         if self.surface_capabilities.current_extent.width != u32::MAX {
-            logger::extent_chossing(self.surface_capabilities.current_extent);
+            logger::various_log!("swapchain",
+                (logger::Debug, "Normal display width:{} height:{}", self.surface_capabilities.current_extent.width, self.surface_capabilities.current_extent.height)
+            );
+            
             self.surface_capabilities.current_extent
         } else {
             let (_width, _height) = window.get_pixel_dimensions();
-            todo!("high DPI displays not supported!");
+            todo!("high DPI displays not supported yet!");
         }
     }
 }

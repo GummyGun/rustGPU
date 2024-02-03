@@ -1,8 +1,8 @@
 use crate::AAError;
 use crate::macros;
+use crate::logger;
 use crate::errors::messages::GPU_ALLOCATION;
 
-use super::logger::memory as logger;
 use super::VkDestructor;
 use super::VkDestructorArguments;
 use super::instance::Instance;
@@ -25,11 +25,11 @@ macros::impl_deref_mut!(Allocator, gpu_vk::Allocator, allocator);
 
 impl Allocator {
     pub fn create(
-        instance: &Instance,
+        instance: &mut Instance,
         p_device: &PDevice,
-        device: &Device,
+        device: &mut Device,
     ) -> Result<Self, AAError> {
-        logger::alloc::create();
+        logger::create!("allocator");
         
         let create_info = gpu_vk::AllocatorCreateDesc {
             instance: instance.underlying(),
@@ -53,7 +53,11 @@ impl Allocator {
         requirements: vk::MemoryRequirements,
     ) -> gpu_vk::Allocation {
         
-        logger::alloc::gpu_allocation(name);
+        
+        logger::various_log!("allocator", 
+            (logger::Trace, "Allocation name: {:?}", name),
+        );
+        
         let alloc_info = gpu_vk::AllocationCreateDesc{
             name: name,
             requirements: requirements,
@@ -74,7 +78,7 @@ impl Allocator {
 impl VkDestructor for Allocator {
     fn destruct(mut self, mut args:VkDestructorArguments) {
         args.unwrap_dev();
-        logger::alloc::destruct();
+        logger::destruct!("allocator");
         unsafe{ManuallyDrop::drop(&mut self.allocator)};
     }
 }

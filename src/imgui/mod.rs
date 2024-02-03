@@ -3,9 +3,7 @@ mod vk_imgui;
 #[cfg(feature = "vulkan")]
 pub use vk_imgui::Imgui;
 
-mod logger;
-use super::window::Window;
-
+use crate::window::Window;
 use crate::graphics::ComputePushConstants;
 use crate::graphics::ComputeEffectMetadata;
 

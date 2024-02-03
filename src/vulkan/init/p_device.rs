@@ -1,23 +1,15 @@
-use ash::{
-    vk,
-};
+use crate::AAError;
+use crate::macros;
+use crate::constants;
+use crate::logger;
 
-use crate::{
-    State,
-    constants,
-    errors::Error as AAError,
-};
+use super::instance::Instance;
+use super::surface::Surface;
+use super::swapchain::SwapchainSupportDetails;
 
-use super::{
-    instance::Instance,
-    surface::Surface,
-    swapchain::SwapchainSupportDetails,
-};
-
-use std::{
-    collections::HashSet,
-    ffi::CStr,
-};
+use std::collections::HashSet;
+use std::ffi::CStr;
+use ash::vk;
 
 pub struct PDevice {
     p_device: vk::PhysicalDevice,
@@ -27,6 +19,9 @@ pub struct PDevice {
     pub memory_properties: vk::PhysicalDeviceMemoryProperties,
     pub properties: vk::PhysicalDeviceProperties,
 }
+
+macros::impl_underlying!(PDevice, vk::PhysicalDevice, p_device);
+
 
 #[derive(Debug, Default, Clone, Copy)]
 pub struct QueueFamilyOptionalIndices {
@@ -42,10 +37,9 @@ pub struct QueueFamilyIndices {
 
 impl PDevice {
     
-    pub fn chose(state:&State, instance:&Instance, surface:&Surface) -> Result<Self, AAError> {
-        if state.v_exp() {
-            println!("\nCHOSSING:\tPHYSICAL DEVICE");
-        }
+    pub fn chose(instance:&Instance, surface:&Surface) -> Result<Self, AAError> {
+        logger::chossing!("p device");
+        
         let p_devices = unsafe{instance.enumerate_physical_devices().unwrap()};
         if p_devices.len() == 0 {
             return Err(AAError::NoGPU);
@@ -60,7 +54,7 @@ impl PDevice {
         
         for p_device in p_devices.into_iter() {
             
-            if let Ok((current_score, current_queue, sc_support_details, properties, features)) = Self::rate(state, instance, surface, p_device) {
+            if let Ok((current_score, current_queue, sc_support_details, properties, features)) = Self::rate(instance, surface, p_device) {
                 if current_score > best_score {
                     best_score = current_score;
                     best_queue = current_queue;
@@ -74,22 +68,24 @@ impl PDevice {
         
         
         if best != vk::PhysicalDevice::null() {
-            if state.v_exp() {
-                println!("physical device succesfully selected");
-            }
+            
+            logger::various_log!("p_device", 
+                (logger::Trace, "physical device succesfully selected"),
+            );
+            
             
             let queue = QueueFamilyIndices::from(best_queue);
             assert!(!queue.different_families(), "queues should be the same");
             
+            logger::various_log!("p_device", 
+                (logger::Trace, "getting memory properties"),
+            );
+            
             let memory_properties = unsafe{instance.get_physical_device_memory_properties(best)};
             
-            if state.v_exp() {
-                println!("getting memory properties");
-            }
-            
-            if state.v_dmp() {
-                println!("{:?}", &memory_properties);
-            }
+            logger::various_log!("p_device", 
+                (logger::Trace, "{:#?}", &memory_properties)
+            );
             
             Ok(Self{
                 p_device: best,
@@ -104,13 +100,13 @@ impl PDevice {
         }
     }
     
-    fn rate(state:&State, 
+    fn rate(
         instance:&Instance, 
         surface:&Surface, 
         p_device:vk::PhysicalDevice
     ) -> Result<(i64, QueueFamilyOptionalIndices, SwapchainSupportDetails, vk::PhysicalDeviceProperties, vk::PhysicalDeviceFeatures), ()> {
         
-        let queues = Self::find_queue_families(state, instance, surface, p_device);
+        let queues = Self::find_queue_families(instance, surface, p_device);
         if !queues.complete() && !Self::check_device_support(instance, p_device) {
             return Err(());
         }
@@ -144,11 +140,12 @@ impl PDevice {
         let mut score:i64 = 0;
         let properties = unsafe{instance.get_physical_device_properties(p_device)};
         
-        if state.v_dmp() {
-            println!("{:#?}", properties);
-            println!("{:#?}", available_features);
-            println!("{:#?}", enabled_features);
-        }
+        
+        logger::various_log!("p_device", 
+            (logger::Trace, "{:#?}", properties),
+            (logger::Trace, "{:#?}", available_features),
+            (logger::Trace, "{:#?}", enabled_features),
+        );
         
         if properties.device_type == vk::PhysicalDeviceType::DISCRETE_GPU {
             score += 100;
@@ -160,7 +157,6 @@ impl PDevice {
     
 
     fn find_queue_families(
-        state:&State, 
         instance:&Instance, 
         surface:&Surface, 
         p_device:vk::PhysicalDevice
@@ -168,9 +164,10 @@ impl PDevice {
         let mut holder = QueueFamilyOptionalIndices::default();
         let properties = unsafe{instance.get_physical_device_queue_family_properties(p_device)};
         
-        if state.v_dmp() {
-            println!("{:#?}", &properties);
-        }
+        
+        logger::various_log!("p_device", 
+            (logger::Trace, "{:#?}", &properties),
+        );
         
         for (index, queue) in properties.iter().enumerate() {
             let index_u32 = u32::try_from(index).expect("no gpu has that much queues");
@@ -232,9 +229,6 @@ impl PDevice {
         }
     }
     
-    pub fn underlying(&self) -> vk::PhysicalDevice {
-        self.p_device
-    }
 }
 
 impl QueueFamilyOptionalIndices {
