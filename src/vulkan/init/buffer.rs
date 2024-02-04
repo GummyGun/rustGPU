@@ -1,12 +1,11 @@
 use crate::AAError;
+use crate::macros;
 use crate::logger;
 use crate::errors::messages::GPU_FREE;
 
 use super::VkDestructor;
 use super::VkDestructorArguments;
-use super::PDevice;
 use super::Device;
-use super::memory;
 use super::Allocator;
 
 
@@ -15,13 +14,13 @@ use gpu_allocator::vulkan as gpu_vk;
 use gpu_allocator as gpu_all;
 
 pub struct Buffer{
-    buffer: vk::Buffer,
-    allocation: gpu_vk::Allocation,
+    pub buffer: vk::Buffer,
+    pub allocation: gpu_vk::Allocation,
 }
+macros::impl_underlying!(Buffer, vk::Buffer, buffer);
 
 impl Buffer{
     pub fn create(
-        p_device: &PDevice, 
         device:&mut Device, 
         allocator: &mut Allocator,
         name_arg: Option<&str>,
@@ -56,6 +55,12 @@ impl Buffer{
     
     pub fn get_slice_mut(&mut self) -> Option<&mut [u8]> {
         self.allocation.mapped_slice_mut()
+    }
+    
+    pub fn get_device_address(&self, device:&Device) -> vk::DeviceAddress {
+        let device_address_info = vk::BufferDeviceAddressInfo::builder()
+            .buffer(self.buffer);
+        unsafe{device.get_buffer_device_address(&device_address_info)}
     }
 }
 

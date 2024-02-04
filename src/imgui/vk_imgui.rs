@@ -58,6 +58,14 @@ impl Imgui {
     ) -> Self {
         logger::create!("imgui");
         
+        /*
+        let create_info = vk::CommandPoolCreateInfo::builder()
+            .flags(vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER)
+            .queue_family_index(0);
+        let command_pool = unsafe{device.create_command_pool(&create_info, None)}.unwrap();
+        */
+        
+        
         let graphics_queue: vk::Queue = device.queue_handles.graphics;
         
         let mut context = imgui::Context::create();
@@ -112,7 +120,6 @@ impl Imgui {
         unsafe{device.cmd_begin_rendering(cmd, &rendering_info)};
         self.renderer.cmd_draw(cmd, draw_data).unwrap();
         unsafe{device.cmd_end_rendering(cmd)};
-        
     }
     
 }

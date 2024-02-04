@@ -7,6 +7,7 @@ use std::mem::size_of;
 use arrayvec::ArrayString;
 use nalgebra as na;
 use na::Vector4;
+use na::Vector3;
 
 #[derive(Debug)]
 pub struct ComputeEffectMetadata {
@@ -19,6 +20,7 @@ pub struct ComputeEffectMetadata {
 pub struct ComputePushConstants(
     pub [Vector4<f32>;4]
 );
+
 
 impl Deref for ComputePushConstants {
     type Target = [Vector4<f32>;4];
@@ -33,6 +35,17 @@ impl DerefMut for ComputePushConstants {
     }
 }
 
+#[repr(C)]
+#[derive(Default, Debug, Clone, Copy)]
+pub struct Vertex {
+	pub position: Vector3<f32>,
+	pub uv_x: f32,
+	pub normal: Vector3<f32>,
+	pub uv_y: f32,
+	pub color: Vector4<f32>,
+}
+
+
 
 const _:u32 = ComputePushConstants::size_u32();
 impl ComputePushConstants {
@@ -43,7 +56,6 @@ impl ComputePushConstants {
         }
         size_of::<Self>() as u32
     }
-    
 }
 
 

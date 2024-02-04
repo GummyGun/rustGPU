@@ -49,6 +49,10 @@ pub struct VInit {
     compute_effects: VkWraper<ComputeEffects>,
     graphics_pipeline: VkWraper<GPipeline>,
     
+    mesh_pipeline: VkWraper<GPipeline>,
+    mesh:VkWraper<GPUMeshBuffers>,
+    
+    
     cp_index: usize,
     
     pub render:graphics::Graphics,
@@ -81,7 +85,7 @@ impl VInit {
         let mut allocator = vk_create_interpreter(Allocator::create(&mut instance, &p_device, &mut device), "allocator");
         let swapchain = vk_create_interpreter(Swapchain::create(&window, &mut instance, &surface, &p_device, &mut device), "swapchain");
         let sync_objects = vk_create_interpreter(SyncObjects::create(&mut device), "sync_objects");
-        let command_control = vk_create_interpreter(CommandControl::create(&p_device, &mut device), "command_control");
+        let mut command_control = vk_create_interpreter(CommandControl::create(&p_device, &mut device), "command_control");
         
         let render_image = vk_create_interpreter(Image::create(&mut device, &mut allocator, swapchain.extent.into(), image::RENDER), "render_image");
         let render_extent = render_image.get_extent2d();
@@ -95,11 +99,16 @@ impl VInit {
         
         let graphics_pipeline = g_pipeline::init_pipeline(&mut device, &render_image);
         
-        let mut buffer = Buffer::create(&p_device, &mut device, &mut allocator, Some("name"), 255, vk::BufferUsageFlags::INDEX_BUFFER, gpu_allocator::MemoryLocation::CpuToGpu).unwrap();
-        
+        /*
+        let mut buffer = Buffer::create(&mut device, &mut allocator, Some("name"), 255, vk::BufferUsageFlags::INDEX_BUFFER, gpu_allocator::MemoryLocation::CpuToGpu).unwrap();
         println!("{:?}", buffer.get_slice_mut());
-        
         buffer.destruct(VkDestructorArguments::DevAll(&mut device, &mut allocator));
+        */
+        
+        let mesh_pipeline = g_pipeline::init_mesh_pipeline(&mut device, &render_image);
+        let mesh = graphics::init_square_mesh(&mut device, &mut allocator, &mut command_control);
+        
+        //mesh.destruct(VkDestructorArguments::DevAll(&mut device, &mut allocator));
         
         VInit{
             frame_control: FrameControl(0),
@@ -126,6 +135,9 @@ impl VInit {
             compute_effects: VkWraper::new(compute_effects),
             cp_index:0,
             graphics_pipeline: VkWraper::new(graphics_pipeline),
+            
+            mesh_pipeline: VkWraper::new(mesh_pipeline),
+            mesh:VkWraper::new(mesh),
             
             render: render,
         }
@@ -175,12 +187,14 @@ pub fn vk_create_interpreter<T, A:std::fmt::Debug>(result:Result<T, A>, name:&st
 impl Drop for VInit {
     
     fn drop(&mut self) {
-        let (instance, messenger, surface, mut _device, mut _allocator, swapchain, sync_objects, command_control, render_image, ds_layout_builder, ds_pool, ds_layout, compute_effects, graphics_pipeline) = self.destructure();
+        let (instance, messenger, surface, mut _device, mut _allocator, swapchain, sync_objects, command_control, render_image, ds_layout_builder, ds_pool, ds_layout, compute_effects, graphics_pipeline, mesh_pipeline, mesh) = self.destructure();
         
         let dev = &mut _device;
-        let allocator = &mut _allocator;
+        let all = &mut _allocator;
         
         
+        mesh.destruct(VkDestructorArguments::DevAll(dev, all));
+        mesh_pipeline.destruct(VkDestructorArguments::Dev(dev));
         graphics_pipeline.destruct(VkDestructorArguments::Dev(dev));
         compute_effects.destruct(VkDestructorArguments::Dev(dev));
         
@@ -188,7 +202,7 @@ impl Drop for VInit {
         ds_layout.destruct(VkDestructorArguments::Dev(dev));
         ds_layout_builder.destruct(VkDestructorArguments::None);
         
-        render_image.destruct(VkDestructorArguments::DevAll(dev, allocator));
+        render_image.destruct(VkDestructorArguments::DevAll(dev, all));
         command_control.destruct(VkDestructorArguments::Dev(dev));
         
         sync_objects.destruct(VkDestructorArguments::Dev(dev));
@@ -207,9 +221,7 @@ impl Drop for VInit {
                 );
             }
         }
-        
         instance.destruct(VkDestructorArguments::None);
-        
     }
 }
 

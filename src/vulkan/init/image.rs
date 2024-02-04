@@ -156,7 +156,6 @@ impl Image {
 
 //----
     pub fn copy_from_image(&mut self, device:&Device, cmd:vk::CommandBuffer, src:Image) {
-        
         Self::raw_copy_image_to_image(device, cmd, src.image, src.extent, self.image, self.extent);
     }
     

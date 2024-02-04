@@ -1,5 +1,7 @@
 use crate::AAError;
 use crate::constants;
+use crate::errors::messages::SIMPLE_VK_FN;
+
 
 use crate::logger;
 
@@ -65,19 +67,19 @@ impl CommandControl {
     
     pub fn setup_su_buffer(&self, device:&Device) -> vk::CommandBuffer {
         
-        unsafe{device.reset_command_buffer(self.s_u_buffer, vk::CommandBufferResetFlags::empty())}.expect("reseting buffer should not fail");
+        unsafe{device.reset_command_buffer(self.s_u_buffer, vk::CommandBufferResetFlags::empty())}.expect(SIMPLE_VK_FN);
         
         let begin_info = ash::vk::CommandBufferBeginInfo::builder()
             .flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
         
-        unsafe{device.begin_command_buffer(self.s_u_buffer, &begin_info)}.expect("should not fail");
+        unsafe{device.begin_command_buffer(self.s_u_buffer, &begin_info)}.expect(SIMPLE_VK_FN);
         
         self.s_u_buffer
     }
     
     pub fn submit_su_buffer(&self, device:&Device) {
         
-        unsafe{device.end_command_buffer(self.s_u_buffer)}.expect("should not fail");
+        unsafe{device.end_command_buffer(self.s_u_buffer)}.expect(SIMPLE_VK_FN);
         
         let submit_info = [
             vk::SubmitInfo::builder()
@@ -85,8 +87,8 @@ impl CommandControl {
                 .build(),
         ];
         
-        unsafe{device.queue_submit(device.queue_handles.graphics, &submit_info[..], vk::Fence::null())}.expect("should not fail");
-        unsafe{device.device_wait_idle()}.expect("waiting for iddle should not fail");
+        unsafe{device.queue_submit(device.queue_handles.graphics, &submit_info[..], vk::Fence::null())}.expect(SIMPLE_VK_FN);
+        unsafe{device.device_wait_idle()}.expect(SIMPLE_VK_FN);
     }
     
     /*

@@ -37,6 +37,9 @@ pub enum Error {
     #[error("layout not set on pipeline creation")]
     LayoutNotSet,
     
+    #[error("cant create mesh from empty arrays")]
+    EmptyMesh,
+    
     #[error("invalid load transform")]
     InvalidLoadTransform,
     #[error("lobj error")]
@@ -58,6 +61,7 @@ use crate::errors::messages:: ;
 */
 pub mod messages {
     pub const U32_TO_USIZE:&'static str = "conversion should be granted on regular architecture";
+    pub const VK_CAST:&'static str = "vk castings that are granted not give problems";
     pub const SIMPLE_VK_FN:&'static str = "simple vk functions should not fail";
     pub const SIMPLE_SDL_FN:&'static str = "simple sdl2 functions should not fail";
     pub const BAD_DESTRUCTOR:&'static str = "destruct did not receive the right information";

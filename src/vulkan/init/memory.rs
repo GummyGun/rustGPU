@@ -5,11 +5,14 @@ use crate::errors::messages::GPU_ALLOCATION;
 
 use super::VkDestructor;
 use super::VkDestructorArguments;
-use super::instance::Instance;
-use super::p_device::PDevice;
-use super::device::Device;
+use super::Instance;
+use super::PDevice;
+use super::Device;
+use super::CommandControl;
+use super::Buffer;
 
 use std::mem::ManuallyDrop;
+use std::slice::from_ref;
 
 use ash::vk;
 use gpu_allocator::vulkan as gpu_vk;
@@ -85,6 +88,31 @@ impl VkDestructor for Allocator {
 }
 
 
+pub fn copy_buffer_2_buffer(
+    device: &Device, 
+    cmd: &CommandControl,
+    src_buf: &Buffer, 
+    src_offset: u64,
+    dst_buf: &mut Buffer, 
+    dst_offset: u64,
+    size: vk::DeviceSize,
+) {
+    
+    logger::various_log!("memory",
+        (logger::Error, "test")
+    );
+    let buffer = cmd.setup_su_buffer(device);
+    
+    let buffer_copy = vk::BufferCopy::builder()
+        .size(size)
+        .src_offset(src_offset)
+        .dst_offset(dst_offset);
+    
+    unsafe{device.cmd_copy_buffer(buffer, src_buf.buffer, dst_buf.buffer, from_ref(&buffer_copy))};
+    cmd.submit_su_buffer(device);
+}
+
+/*
 pub fn find_memory_type_index(
     p_device:&PDevice, 
     memory_requirements:&vk::MemoryRequirements, 
@@ -117,42 +145,23 @@ pub fn find_memory_type_index(
         index as _
     }).ok_or(AAError::NoSuitableMemory)
 }
+*/
 
 /*
-pub fn copy_buffer_2_buffer(
-    state: &State, 
-    device: &Device, 
-    command: &CommandControl,
-    src_buf: &Buffer, 
-    dst_buf: &mut Buffer, 
-    size: vk::DeviceSize,
-) {
-    if state.v_exp() {
-        println!("copying buffer");
-    }
-    let buffer = command.setup_su_buffer(device);
-    
-    let buffer_copy = vk::BufferCopy::builder()
-        .size(size);
-    
-    unsafe{device.cmd_copy_buffer(buffer, src_buf.buffer, dst_buf.buffer, from_ref(&buffer_copy))};
-    
-    command.submit_su_buffer(device);
-}
 
 pub fn copy_buffer_2_image(
-    state: &State, 
     device: &Device, 
     command: &CommandControl,
     src_buf: &Buffer, 
     dst_img: &mut vk::Image, 
     extent: &vk::Extent3D,
 ) {
+    /*
     if state.v_exp() {
         println!("copying buffer");
     }
+    */
     let buffer = command.setup_su_buffer(device);
-    
     
     let subresource = vk::ImageSubresourceLayers::builder()
         .aspect_mask(vk::ImageAspectFlags::COLOR)
@@ -178,5 +187,5 @@ pub fn copy_buffer_2_image(
     
     command.submit_su_buffer(device);
 }
-*/
 
+*/
