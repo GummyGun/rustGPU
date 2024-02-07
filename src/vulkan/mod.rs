@@ -50,7 +50,8 @@ pub struct VInit {
     graphics_pipeline: VkWraper<GPipeline>,
     
     mesh_pipeline: VkWraper<GPipeline>,
-    mesh:VkWraper<GPUMeshBuffers>,
+    //mesh: VkWraper<GPUMeshBuffers>,
+    mesh_assets: VkWraper<MeshAssets>,
     
     
     cp_index: usize,
@@ -62,6 +63,7 @@ pub struct VInit {
 
 impl VInit {
     pub fn init(window:&mut Window) -> VInit {
+        
         
         let mut instance = vk_create_interpreter(Instance::create(window), "instance"); 
         
@@ -106,9 +108,8 @@ impl VInit {
         */
         
         let mesh_pipeline = g_pipeline::init_mesh_pipeline(&mut device, &render_image);
-        let mesh = graphics::init_square_mesh(&mut device, &mut allocator, &mut command_control);
+        let mesh_assets = load_gltf(&mut device, &mut allocator, &mut command_control,"res/gltf/basicmesh.glb").expect("runtime error");
         
-        //mesh.destruct(VkDestructorArguments::DevAll(&mut device, &mut allocator));
         
         VInit{
             frame_control: FrameControl(0),
@@ -137,7 +138,7 @@ impl VInit {
             graphics_pipeline: VkWraper::new(graphics_pipeline),
             
             mesh_pipeline: VkWraper::new(mesh_pipeline),
-            mesh:VkWraper::new(mesh),
+            mesh_assets: VkWraper::new(mesh_assets),
             
             render: render,
         }
@@ -187,13 +188,30 @@ pub fn vk_create_interpreter<T, A:std::fmt::Debug>(result:Result<T, A>, name:&st
 impl Drop for VInit {
     
     fn drop(&mut self) {
-        let (instance, messenger, surface, mut _device, mut _allocator, swapchain, sync_objects, command_control, render_image, ds_layout_builder, ds_pool, ds_layout, compute_effects, graphics_pipeline, mesh_pipeline, mesh) = self.destructure();
+        let (
+            instance, 
+            messenger, 
+            surface, 
+            mut _device, 
+            mut _allocator, 
+            swapchain, 
+            sync_objects, 
+            command_control, 
+            render_image, 
+            ds_layout_builder, 
+            ds_pool, 
+            ds_layout, 
+            compute_effects, 
+            graphics_pipeline, 
+            mesh_pipeline, 
+            mesh_assets,
+        ) = self.destructure();
         
         let dev = &mut _device;
         let all = &mut _allocator;
         
         
-        mesh.destruct(VkDestructorArguments::DevAll(dev, all));
+        mesh_assets.destruct(VkDestructorArguments::DevAll(dev, all));
         mesh_pipeline.destruct(VkDestructorArguments::Dev(dev));
         graphics_pipeline.destruct(VkDestructorArguments::Dev(dev));
         compute_effects.destruct(VkDestructorArguments::Dev(dev));

@@ -13,7 +13,7 @@ use super::DescriptorLayout;
 use super::DescriptorPoolAllocator;
 use super::ComputeEffects;
 use super::GPipeline;
-use super::GPUMeshBuffers;
+use super::MeshAssets;
 
 
 type Objects = (
@@ -32,7 +32,7 @@ type Objects = (
     ComputeEffects,
     GPipeline,
     GPipeline,
-    GPUMeshBuffers,
+    MeshAssets,
 );
 
 impl VInit {
@@ -56,7 +56,7 @@ impl VInit {
         let compute_effects = self.compute_effects.take();
         let graphics_pipeline = self.graphics_pipeline.take();
         let mesh_pipeline = self.mesh_pipeline.take();
-        let mesh = self.mesh.take();
+        let mesh_assets = self.mesh_assets.take();
         
         (
             instance,
@@ -74,7 +74,7 @@ impl VInit {
             compute_effects,
             graphics_pipeline,
             mesh_pipeline,
-            mesh,
+            mesh_assets,
         )
     }
     

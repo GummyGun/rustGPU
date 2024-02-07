@@ -1,6 +1,6 @@
 mod mesh;
-pub use mesh::GPUMeshBuffers;
-pub use mesh::init_square_mesh;
+pub use mesh::load_gltf;
+pub use mesh::MeshAssets;
 /*
 mod types;
 mod model;
@@ -12,6 +12,8 @@ use crate::imgui::Imgui;
 use crate::errors::messages::SIMPLE_VK_FN;
 use crate::errors::messages::COMPILETIME_ASSERT;
 
+pub use crate::graphics::MeshAssetMetadata;
+pub use crate::graphics::GeoSurface;
 pub use crate::graphics::ComputePushConstants;
 pub use crate::graphics::ComputeEffectMetadata;
 pub use crate::graphics::Vertex;
@@ -28,7 +30,6 @@ use super::pipeline;
 
 use std::slice::from_ref;
 use std::mem::size_of;
-use derivative::Derivative;
 
 use memoffset::offset_of;
 use ash::vk;
@@ -83,7 +84,7 @@ impl VInit {
             device, 
             graphics_pipeline,
             mesh_pipeline,
-            mesh,
+            mesh_assets,
             ..
         } = self;
         
@@ -112,7 +113,7 @@ impl VInit {
         
         Image::transition_image(device, cmd, r_image_handle, vk::ImageLayout::GENERAL, vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL);
         
-        Self::draw_geometry(device, cmd, render_image, graphics_pipeline, mesh_pipeline, mesh);
+        Self::draw_geometry(device, cmd, render_image, graphics_pipeline, mesh_pipeline, mesh_assets, 2);
         
         Image::transition_image(device, cmd, r_image_handle, vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL, vk::ImageLayout::TRANSFER_SRC_OPTIMAL);
         Image::transition_image(device, cmd, p_image_handle, vk::ImageLayout::UNDEFINED, vk::ImageLayout::TRANSFER_DST_OPTIMAL);
@@ -170,7 +171,7 @@ impl VInit {
 
 
 //----
-    pub fn draw_geometry(device:&mut Device, cmd:vk::CommandBuffer, image:&Image, graphics_pipeline:&GPipeline, mesh_pipeline:&GPipeline, mesh:&GPUMeshBuffers) {
+    pub fn draw_geometry(device:&mut Device, cmd:vk::CommandBuffer, image:&Image, graphics_pipeline:&GPipeline, mesh_pipeline:&GPipeline, meshes:&MeshAssets, mesh_selector:usize) {
         
         let color_attachment_info = pipeline::rendering_attachment_info(image.view, None, vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL);
         let extent_holder = image.get_extent2d();
@@ -191,24 +192,19 @@ impl VInit {
         
         unsafe{device.cmd_bind_pipeline(cmd, vk::PipelineBindPoint::GRAPHICS, graphics_pipeline.underlying())};
         unsafe{device.cmd_draw(cmd, 3, 1, 0, 0)};
-        /*
-        */
+        
         
         let mut push_constant_tmp = GPUDrawPushConstants::default();
-        push_constant_tmp.vertex_buffer = mesh.vertex_buffer_address;
-        
-        
+        push_constant_tmp.vertex_buffer = meshes.meshes[mesh_selector].vertex_buffer_address;
+        push_constant_tmp.world_matrix[(1,1)] *= -1.0;
+        //panic!("{:#?}", meshes);
         
         let push_constants_slice = unsafe{crate::any_as_u8_slice(&push_constant_tmp)};
         
-        //panic!("{}", push_constants_slice.len());
-        //panic!("{}", push_constants_slice.len());
-        
-        //unsafe{device.cmd_push_constants(cmd, mesh_pipeline.layout, vk::ShaderStageFlags::VERTEX, 0, &push_constants_slice[..68])};
+        unsafe{device.cmd_push_constants(cmd, mesh_pipeline.layout, vk::ShaderStageFlags::VERTEX, 0, push_constants_slice)};
         unsafe{device.cmd_bind_pipeline(cmd, vk::PipelineBindPoint::GRAPHICS, mesh_pipeline.underlying())};
-        unsafe{device.cmd_bind_index_buffer(cmd, mesh.index_buffer.underlying(), 0, vk::IndexType::UINT32)};
-        unsafe{device.cmd_bind_vertex_buffers(cmd, 0, from_ref(&mesh.vertex_buffer.underlying()), &[0])};
-        unsafe{device.cmd_draw_indexed(cmd, 6, 1, 0, 0, 0)};
+        unsafe{device.cmd_bind_index_buffer(cmd, meshes.meshes[mesh_selector].index_buffer.underlying(), 0, vk::IndexType::UINT32)};
+        unsafe{device.cmd_draw_indexed(cmd, meshes.metadatas[mesh_selector].surfaces[0].count, 1, meshes.metadatas[mesh_selector].surfaces[0].start_index, 0, 0)};
         
         unsafe{device.cmd_end_rendering(cmd)};
     }
@@ -364,6 +360,8 @@ impl VInit {
     
 }
 
+
+#[allow(dead_code)]
 impl Vertex {
     pub const fn binding_description() -> &'static[vk::VertexInputBindingDescription] {
         const HOLDER:[vk::VertexInputBindingDescription; 1] = [
@@ -418,10 +416,18 @@ impl Vertex {
 
 impl Default for GPUDrawPushConstants {
     fn default() -> Self {
+        /*
         Self{
             world_matrix:Matrix4::<f32>::identity(),
             vertex_buffer:vk::DeviceAddress::default(),
         }
+        */
+        let mut holder = Self{
+            world_matrix:Matrix4::<f32>::identity()/3.0,
+            vertex_buffer:vk::DeviceAddress::default(),
+        };
+        holder.world_matrix[(3,3)] = 1.0;
+        holder
     }
 }
 

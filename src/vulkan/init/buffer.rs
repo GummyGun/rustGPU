@@ -8,6 +8,7 @@ use super::VkDestructorArguments;
 use super::Device;
 use super::Allocator;
 
+use std::mem::align_of;
 
 use ash::vk;
 use gpu_allocator::vulkan as gpu_vk;
@@ -53,8 +54,19 @@ impl Buffer{
         })
     }
     
+    /*
     pub fn get_slice_mut(&mut self) -> Option<&mut [u8]> {
         self.allocation.mapped_slice_mut()
+    }
+    */
+    
+    pub fn get_align<T>(&mut self, offset:usize, size:u64) -> Option<ash::util::Align<T>> {
+        let ptr = self.allocation.mapped_ptr()?;
+        let real_ptr = unsafe{ptr.as_ptr().byte_add(offset)};
+        
+        Some(unsafe{ash::util::Align::new(real_ptr, align_of::<T>() as u64, size)})
+        //let mut index_align:ash::util::Align<T> = unsafe{ash::util::Align::new(real_ptr, align_of::<T>() as u64, size)};
+        //Some(index_align)
     }
     
     pub fn get_device_address(&self, device:&Device) -> vk::DeviceAddress {

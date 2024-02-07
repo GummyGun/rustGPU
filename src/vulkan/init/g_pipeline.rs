@@ -87,8 +87,8 @@ pub fn init_mesh_pipeline(device:&mut Device, render_image:&Image) -> GPipeline 
         .stage_flags(vk::ShaderStageFlags::VERTEX);
     
     
-    let layout_ci = vk::PipelineLayoutCreateInfo::builder();
-        //.push_constant_ranges(from_ref(&push_constant_description));
+    let layout_ci = vk::PipelineLayoutCreateInfo::builder()
+        .push_constant_ranges(from_ref(&push_constant_description));
     
     let layout = unsafe{device.create_pipeline_layout(&layout_ci, None)}.unwrap();
     
@@ -102,8 +102,8 @@ pub fn init_mesh_pipeline(device:&mut Device, render_image:&Image) -> GPipeline 
         .set_blending_disabled()
         .set_depthtest_none()
         .set_color_attachment_format(render_image.format)
-        .set_depth_format(vk::Format::UNDEFINED)
-        .set_vertex_input_state(vk_graphics::Vertex::binding_description(), vk_graphics::Vertex::attribute_description());
+        .set_depth_format(vk::Format::UNDEFINED);
+        //.set_vertex_input_state(vk_graphics::Vertex::binding_description(), vk_graphics::Vertex::attribute_description());
     
     let mesh_pipeline = builder.build(device);
     

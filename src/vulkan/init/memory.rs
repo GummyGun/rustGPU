@@ -99,7 +99,7 @@ pub fn copy_buffer_2_buffer(
 ) {
     
     logger::various_log!("memory",
-        (logger::Error, "test")
+        (logger::Trace, "copying from 1 buffer to another")
     );
     let buffer = cmd.setup_su_buffer(device);
     
