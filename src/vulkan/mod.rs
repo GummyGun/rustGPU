@@ -20,6 +20,7 @@ use objects::VkDestructor;
 use objects::VkDestructorArguments;
 
 use ash::vk;
+use nalgebra as na;
 
 
 #[allow(dead_code)]
@@ -40,6 +41,8 @@ pub struct VInit {
     
     render_image: VkWraper<Image>,
     render_extent: vk::Extent2D,
+    depth_image: VkWraper<Image>,
+    
     
     ds_layout_builder: VkWraper<DescriptorLayoutBuilder>,
     ds_layout: VkWraper<DescriptorLayout>,
@@ -48,13 +51,18 @@ pub struct VInit {
     
     compute_effects: VkWraper<ComputeEffects>,
     graphics_pipeline: VkWraper<GPipeline>,
+    compute_effect_index: usize,
     
     mesh_pipeline: VkWraper<GPipeline>,
     //mesh: VkWraper<GPUMeshBuffers>,
     mesh_assets: VkWraper<MeshAssets>,
+    mesh_index: usize,
     
     
-    cp_index: usize,
+    field_of_view:na::Vector3<f32>,
+    
+    
+
     
     pub render:graphics::Graphics,
     
@@ -91,6 +99,7 @@ impl VInit {
         
         let render_image = vk_create_interpreter(Image::create(&mut device, &mut allocator, swapchain.extent.into(), image::RENDER), "render_image");
         let render_extent = render_image.get_extent2d();
+        let depth_image = vk_create_interpreter(Image::create(&mut device, &mut allocator, swapchain.extent.into(), image::DEPTH), "depth_image");
         let mut ds_layout_builder = vk_create_interpreter(DescriptorLayoutBuilder::create(), "descriptor_layout_builder");
         
         let (ds_layout, ds_pool, ds_set) = init_descriptors(&mut device, &mut ds_layout_builder, &render_image);
@@ -99,7 +108,7 @@ impl VInit {
         
         let render = Graphics::new(&mut device, &mut allocator).unwrap();
         
-        let graphics_pipeline = g_pipeline::init_pipeline(&mut device, &render_image);
+        let graphics_pipeline = g_pipeline::init_pipeline(&mut device, &render_image, &depth_image);
         
         /*
         let mut buffer = Buffer::create(&mut device, &mut allocator, Some("name"), 255, vk::BufferUsageFlags::INDEX_BUFFER, gpu_allocator::MemoryLocation::CpuToGpu).unwrap();
@@ -107,7 +116,7 @@ impl VInit {
         buffer.destruct(VkDestructorArguments::DevAll(&mut device, &mut allocator));
         */
         
-        let mesh_pipeline = g_pipeline::init_mesh_pipeline(&mut device, &render_image);
+        let mesh_pipeline = g_pipeline::init_mesh_pipeline(&mut device, &render_image, &depth_image);
         let mesh_assets = load_gltf(&mut device, &mut allocator, &mut command_control,"res/gltf/basicmesh.glb").expect("runtime error");
         
         
@@ -115,10 +124,12 @@ impl VInit {
             frame_control: FrameControl(0),
             
             instance: VkWraper::new(instance),
+            
             messenger: match messenger {
                 Some(holder) => {Some(VkWraper::new(holder))}
                 None => None
             },
+            
             p_device: p_device,
             surface: VkWraper::new(surface),
             device: VkWraper::new(device),
@@ -129,16 +140,22 @@ impl VInit {
             
             render_image: VkWraper::new(render_image),
             render_extent,
+            depth_image: VkWraper::new(depth_image),
             ds_layout_builder: VkWraper::new(ds_layout_builder),
             ds_layout: VkWraper::new(ds_layout),
             ds_pool: VkWraper::new(ds_pool),
             ds_set: ds_set,
+            
             compute_effects: VkWraper::new(compute_effects),
-            cp_index:0,
+            compute_effect_index:0,
+            
             graphics_pipeline: VkWraper::new(graphics_pipeline),
             
             mesh_pipeline: VkWraper::new(mesh_pipeline),
             mesh_assets: VkWraper::new(mesh_assets),
+            mesh_index: 0,
+            
+            field_of_view:na::Vector3::new(10000.0,0.01,70.0),
             
             render: render,
         }
@@ -146,7 +163,7 @@ impl VInit {
     }
     
     pub fn gui_tick(&mut self, data:&InputData) {
-        self.cp_index = data.background_index;
+        self.compute_effect_index = data.background_index;
         for index in 0..4 {
             self.compute_effects.metadatas[data.background_index].data[index] = data.push_constants[index];
         }
@@ -167,9 +184,11 @@ impl VInit {
         self.frame_control.get_frame()
     }
     
-    pub fn get_compute_effects_metadata(&mut self) ->  &mut [ComputeEffectMetadata] {
-        &mut self.compute_effects.metadatas
+    pub fn get_compute_effects_metadata(&mut self) ->  (&mut [ComputeEffectMetadata], &mut [MeshAssetMetadata], &mut usize, &mut na::Vector3<f32>,) {
+        (&mut self.compute_effects.metadatas, &mut self.mesh_assets.metadatas, &mut self.mesh_index, &mut self.field_of_view)
     }
+    
+    
     
 }
 
@@ -198,6 +217,7 @@ impl Drop for VInit {
             sync_objects, 
             command_control, 
             render_image, 
+            depth_image, 
             ds_layout_builder, 
             ds_pool, 
             ds_layout, 
@@ -221,6 +241,7 @@ impl Drop for VInit {
         ds_layout_builder.destruct(VkDestructorArguments::None);
         
         render_image.destruct(VkDestructorArguments::DevAll(dev, all));
+        depth_image.destruct(VkDestructorArguments::DevAll(dev, all));
         command_control.destruct(VkDestructorArguments::Dev(dev));
         
         sync_objects.destruct(VkDestructorArguments::Dev(dev));

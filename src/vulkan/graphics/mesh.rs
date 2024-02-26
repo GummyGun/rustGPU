@@ -42,47 +42,6 @@ pub struct GPUMeshBuffers {
     pub vertex_buffer_address: vk::DeviceAddress,
 }
 
-pub fn init_square_mesh(
-        device: &mut Device,
-        allocator: &mut Allocator,
-        command_control: &mut CommandControl,
-    ) -> GPUMeshBuffers {
-    let mut indices = vec![1u32;6];
-    let mut vertices = vec![super::Vertex::default();4];
-    
-    
-    /*
-    indices[0] = 0;
-	indices[1] = 1;
-	indices[2] = 2;
-	indices[3] = 2;
-	indices[4] = 1;
-	indices[5] = 3;
-    */
-
-    
-    indices[0] = 0;
-	indices[1] = 1;
-	indices[2] = 2;
-	indices[3] = 2;
-	indices[4] = 1;
-	indices[5] = 3;
-
-    vertices[0].position = Vector3::new(0.5, -0.5, 0.0);
-    vertices[1].position = Vector3::new(0.5, 0.5, 0.0);
-    vertices[2].position = Vector3::new(-0.5, -0.5, 0.0);
-    vertices[3].position = Vector3::new(-0.5, 0.5, 0.0);
-    
-    
-    vertices[0].color = Vector4::new(0.0, 0.0, 0.0, 1.0);
-    vertices[1].color = Vector4::new(0.5, 0.5, 0.5, 1.0);
-    vertices[2].color = Vector4::new(1.0, 0.0, 0.0, 1.0);
-    vertices[3].color = Vector4::new(0.0, 1.0, 0.0, 1.0);
-    
-    let mesh = GPUMeshBuffers::upload_mesh(device, allocator, command_control, &indices[..], &vertices[..]).unwrap();
-    
-    mesh
-}
 
 pub fn load_gltf<P: AsRef<Path>>(
     device: &mut Device,
@@ -150,7 +109,6 @@ pub fn load_gltf<P: AsRef<Path>>(
                 let mut vertex_holder = Vertex::default();
                 vertex_holder.position = Vector3::from(pos);
                 vertices_vec.push(vertex_holder);
-                
             }
             
             let normals = reader.read_normals().unwrap();
@@ -159,6 +117,8 @@ pub fn load_gltf<P: AsRef<Path>>(
                 vertices_vec[index].normal = Vector3::from(norm);
                 vertices_vec[index].color = Vector4::new(norm[0], norm[1], norm[2], 1.0);
             }
+            
+            
             
             
             surface.count = u32::try_from(indices_vec.len()).expect(MODEL_DENSITY);

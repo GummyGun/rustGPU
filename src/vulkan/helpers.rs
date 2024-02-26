@@ -26,6 +26,7 @@ type Objects = (
     SyncObjects,
     CommandControl,
     Image,
+    Image,
     DescriptorLayoutBuilder,
     DescriptorLayout,
     DescriptorPoolAllocator,
@@ -46,7 +47,9 @@ impl VInit {
         let swapchain = self.swapchain.take();
         let sync_objects = self.sync_objects.take();
         let command_control = self.command_control.take();
+        
         let render_image = self.render_image.take();
+        let depth_image = self.depth_image.take();
         
         
         let ds_layout_builder = self.ds_layout_builder.take();
@@ -68,6 +71,7 @@ impl VInit {
             sync_objects,
             command_control,
             render_image,
+            depth_image,
             ds_layout_builder,
             ds_layout,
             ds_pool,

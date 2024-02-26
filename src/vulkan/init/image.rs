@@ -45,6 +45,18 @@ pub const RENDER:ImageMetadata = {
     }
 };
 
+pub const DEPTH:ImageMetadata = {
+    use vk::ImageUsageFlags as IUF;
+    use vk::ImageAspectFlags as IAF;
+    ImageMetadata{
+        d_name: Some("DEPTH IMAGE"),
+        format: vk::Format::D32_SFLOAT,
+        usage: IUF::from_raw(0x20),
+        //IUF::DEPTH_STENCIL_ATTACHMENT
+        aspect_flags: IAF::DEPTH,
+    }
+};
+
 impl Image {
     
 //----

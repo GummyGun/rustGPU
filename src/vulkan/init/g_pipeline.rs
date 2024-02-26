@@ -39,7 +39,7 @@ pub struct GPipelineBuilder {
 }
 
 
-pub fn init_pipeline(device:&mut Device, render_image:&Image) -> GPipeline {
+pub fn init_pipeline(device:&mut Device, render_image:&Image, depth_image:&Image) -> GPipeline {
     
     logger::various_log!("graphics_pipeline",
         (logger::Warn, "Instancing simple triangle graphics pipeline")
@@ -60,9 +60,10 @@ pub fn init_pipeline(device:&mut Device, render_image:&Image) -> GPipeline {
         .set_cull_mode(vk::CullModeFlags::NONE, vk::FrontFace::CLOCKWISE)
         .set_multisampling_none()
         .set_blending_disabled()
-        .set_depthtest_none()
         .set_color_attachment_format(render_image.format)
-        .set_depth_format(vk::Format::UNDEFINED);
+        .set_depth_format(depth_image.format)
+        //.set_depthtest_enable();
+        .set_depthtest_none();
     
     let triangle_pipeline = builder.build(device);
     
@@ -72,7 +73,7 @@ pub fn init_pipeline(device:&mut Device, render_image:&Image) -> GPipeline {
     triangle_pipeline.unwrap()
 }
 
-pub fn init_mesh_pipeline(device:&mut Device, render_image:&Image) -> GPipeline {
+pub fn init_mesh_pipeline(device:&mut Device, render_image:&Image, depth_image:&Image) -> GPipeline {
     
     logger::various_log!("graphics_pipeline",
         (logger::Warn, "Instancing mesh pipeline")
@@ -100,9 +101,10 @@ pub fn init_mesh_pipeline(device:&mut Device, render_image:&Image) -> GPipeline 
         .set_cull_mode(vk::CullModeFlags::NONE, vk::FrontFace::CLOCKWISE)
         .set_multisampling_none()
         .set_blending_disabled()
-        .set_depthtest_none()
         .set_color_attachment_format(render_image.format)
-        .set_depth_format(vk::Format::UNDEFINED);
+        .set_depth_format(depth_image.format)
+        .set_depthtest_enable();
+        //.set_depthtest_none();
         //.set_vertex_input_state(vk_graphics::Vertex::binding_description(), vk_graphics::Vertex::attribute_description());
     
     let mesh_pipeline = builder.build(device);
@@ -252,7 +254,21 @@ impl GPipelineBuilder {
         depth_stencil.front = vk::StencilOpState::default();
         depth_stencil.back = vk::StencilOpState::default();
         depth_stencil.min_depth_bounds = 0f32;
-        depth_stencil.max_depth_bounds = 0f32;
+        depth_stencil.max_depth_bounds = 1f32;
+        self
+    }
+
+    pub fn set_depthtest_enable(&mut self) -> &mut Self {
+        let Self{ depth_stencil, .. } = self;
+        depth_stencil.depth_test_enable = vk::TRUE;
+        depth_stencil.depth_write_enable = vk::TRUE;
+        depth_stencil.depth_compare_op = vk::CompareOp::GREATER_OR_EQUAL;
+        depth_stencil.depth_bounds_test_enable = vk::FALSE;
+        depth_stencil.stencil_test_enable = vk::FALSE;
+        depth_stencil.front = vk::StencilOpState::default();
+        depth_stencil.back = vk::StencilOpState::default();
+        depth_stencil.min_depth_bounds = 0f32;
+        depth_stencil.max_depth_bounds = 1f32;
         self
     }
     

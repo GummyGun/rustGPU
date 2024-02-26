@@ -58,7 +58,26 @@ impl ComputePushConstants {
     }
 }
 
+#[derive(Debug, Default)]
+pub struct GeoSurface {
+    pub start_index: u32,
+    pub count: u32,
+}
 
+#[derive(Debug, Default)]
+pub struct MeshAssetMetadata {
+    pub name: ArrayString<64>,
+    pub surfaces: Vec<GeoSurface>,
+}
+
+/*
+#[derive(Debug, Default)]
+pub struct RawMeshAsset {
+    metadata: MeshAssetMetadata,
+    indices: Vec<i32>,
+    vertices: Vec<Vertex>,
+}
+*/
 
 
 /*

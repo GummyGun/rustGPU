@@ -54,8 +54,8 @@ pub fn init_pipelines(device:&mut Device, ds_layout:&DescriptorLayout) -> Comput
     metadatas.push(ComputeEffectMetadata{
         name:effect_name,
         data: ComputePushConstants([
-            Vector4::new(1.0,0.0,0.0,1.0),
-            Vector4::new(1.0,0.0,1.0,1.0),
+            Vector4::new(0.4,0.4,0.4,1.0),
+            Vector4::new(0.4,0.4,0.4,1.0),
             Vector4::new(0.0,0.0,0.0,0.0),
             Vector4::new(0.0,0.0,0.0,0.0),
         ]),

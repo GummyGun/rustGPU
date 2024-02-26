@@ -54,6 +54,10 @@ pub enum Error {
     StringError(String),
     #[error("WindowBuild error")]
     SDL2Error(#[from] video::WindowBuildError),
+    
+    #[error("gltf error")]
+    GLTFError(#[from] gltf::Error),
+    
 }
 
 /*
@@ -72,6 +76,7 @@ pub mod messages {
     pub const RESOURCE_FILE:&'static str = "the resource file should be found in a particular path";
     
     pub const COMPILETIME_ASSERT:&'static str = "things the programer knows but the compiled does not";
+    pub const MODEL_DENSITY:&'static str = "model vertex indices should fit in a u32";
     
     
 }

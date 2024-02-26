@@ -34,6 +34,7 @@ use std::mem::size_of;
 use memoffset::offset_of;
 use ash::vk;
 use nalgebra as na;
+use nalgebra_glm as glm;
 use na::Matrix4;
 
 
@@ -75,20 +76,25 @@ impl VInit {
         
         let VInit{
             compute_effects, 
-            cp_index, 
+            compute_effect_index, 
             ds_set, 
             render_image, 
+            depth_image,
             command_control, 
             sync_objects, 
             swapchain, 
             device, 
             graphics_pipeline,
+            
             mesh_pipeline,
             mesh_assets,
+            mesh_index,
+            
+            field_of_view,
             ..
         } = self;
         
-        let cp_index = cp_index.clone();
+        let compute_effect_index = compute_effect_index.clone();
         let cmd = command_control.buffers[cf];
         
         let (image_avaliable_semaphore, render_finished_semaphore, inflight_fence) = sync_objects.get_frame(cf);
@@ -106,14 +112,16 @@ impl VInit {
         
         
         let r_image_handle = render_image.underlying();
+        let d_image_handle = depth_image.underlying();
         
         Image::transition_image(device, cmd, r_image_handle, vk::ImageLayout::UNDEFINED, vk::ImageLayout::GENERAL);
         
-        Self::draw_background(device, cmd, render_image, *ds_set, &compute_effects.pipelines[cp_index], &compute_effects.metadatas[cp_index].data);
+        Self::draw_background(device, cmd, render_image, *ds_set, &compute_effects.pipelines[compute_effect_index], &compute_effects.metadatas[compute_effect_index].data);
         
+        Image::transition_image(device, cmd, d_image_handle, vk::ImageLayout::UNDEFINED, vk::ImageLayout::DEPTH_ATTACHMENT_OPTIMAL);
         Image::transition_image(device, cmd, r_image_handle, vk::ImageLayout::GENERAL, vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL);
         
-        Self::draw_geometry(device, cmd, render_image, graphics_pipeline, mesh_pipeline, mesh_assets, 2);
+        Self::draw_geometry(device, cmd, swapchain.extent, render_image, depth_image, graphics_pipeline, mesh_pipeline, mesh_assets, *mesh_index, field_of_view);
         
         Image::transition_image(device, cmd, r_image_handle, vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL, vk::ImageLayout::TRANSFER_SRC_OPTIMAL);
         Image::transition_image(device, cmd, p_image_handle, vk::ImageLayout::UNDEFINED, vk::ImageLayout::TRANSFER_DST_OPTIMAL);
@@ -171,11 +179,22 @@ impl VInit {
 
 
 //----
-    pub fn draw_geometry(device:&mut Device, cmd:vk::CommandBuffer, image:&Image, graphics_pipeline:&GPipeline, mesh_pipeline:&GPipeline, meshes:&MeshAssets, mesh_selector:usize) {
-        
+    pub fn draw_geometry(
+        device: &mut Device, 
+        cmd: vk::CommandBuffer, 
+        extent: vk::Extent2D, 
+        image: &Image, 
+        depth: &Image, 
+        graphics_pipeline: &GPipeline, 
+        mesh_pipeline: &GPipeline, 
+        meshes: &MeshAssets, 
+        mesh_selector: usize, 
+        field_of_view: &na::Vector3<f32>
+    ) {
         let color_attachment_info = pipeline::rendering_attachment_info(image.view, None, vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL);
+        let depth_attachment_info = pipeline::depth_attachment_info(depth.view, vk::ImageLayout::DEPTH_ATTACHMENT_OPTIMAL);
         let extent_holder = image.get_extent2d();
-        let rendering_info = pipeline::rendering_info(extent_holder, &color_attachment_info, None);
+        let rendering_info = pipeline::rendering_info(extent_holder, &color_attachment_info, Some(&depth_attachment_info));
         
         
         unsafe{device.cmd_begin_rendering(cmd, &rendering_info)};
@@ -191,23 +210,91 @@ impl VInit {
         unsafe{device.cmd_set_scissor(cmd, 0, from_ref(&scissor))};
         
         unsafe{device.cmd_bind_pipeline(cmd, vk::PipelineBindPoint::GRAPHICS, graphics_pipeline.underlying())};
-        unsafe{device.cmd_draw(cmd, 3, 1, 0, 0)};
+        //unsafe{device.cmd_draw(cmd, 3, 1, 0, 0)};
         
         
         let mut push_constant_tmp = GPUDrawPushConstants::default();
         push_constant_tmp.vertex_buffer = meshes.meshes[mesh_selector].vertex_buffer_address;
-        push_constant_tmp.world_matrix[(1,1)] *= -1.0;
-        //panic!("{:#?}", meshes);
-        
+        push_constant_tmp.world_matrix = Self::tmp_perspective_matrix(extent, field_of_view, 0.0);
         let push_constants_slice = unsafe{crate::any_as_u8_slice(&push_constant_tmp)};
+        
         
         unsafe{device.cmd_push_constants(cmd, mesh_pipeline.layout, vk::ShaderStageFlags::VERTEX, 0, push_constants_slice)};
         unsafe{device.cmd_bind_pipeline(cmd, vk::PipelineBindPoint::GRAPHICS, mesh_pipeline.underlying())};
         unsafe{device.cmd_bind_index_buffer(cmd, meshes.meshes[mesh_selector].index_buffer.underlying(), 0, vk::IndexType::UINT32)};
         unsafe{device.cmd_draw_indexed(cmd, meshes.metadatas[mesh_selector].surfaces[0].count, 1, meshes.metadatas[mesh_selector].surfaces[0].start_index, 0, 0)};
         
+        /*
+        push_constant_tmp.world_matrix = Self::tmp_perspective_matrix(extent, field_of_view, 1.0);
+        let push_constants_slice = unsafe{crate::any_as_u8_slice(&push_constant_tmp)};
+        unsafe{device.cmd_push_constants(cmd, mesh_pipeline.layout, vk::ShaderStageFlags::VERTEX, 0, push_constants_slice)};
+        unsafe{device.cmd_draw_indexed(cmd, meshes.metadatas[mesh_selector].surfaces[0].count, 1, meshes.metadatas[mesh_selector].surfaces[0].start_index, 0, 0)};
+        */
+        
         unsafe{device.cmd_end_rendering(cmd)};
     }
+    
+//----
+    pub fn tmp_perspective_matrix(extent:vk::Extent2D, field_of_view:&na::Vector3<f32>, index:f32) -> na::Matrix4<f32> {
+        let mut view = Matrix4::<f32>::identity();
+        view.prepend_translation_mut(&na::Vector3::new(-1.5,1.5,-5.0-index*3.0));
+        
+        //let mut projection = Matrix4::new_perspective(extent.width as f32/extent.height as f32, 70.0/180.0*std::f32::consts::PI, 10000.0, 0.1);
+        
+        let mut projection = glm::perspective_zo(extent.width as f32/extent.height as f32, field_of_view[2]/180.0*std::f32::consts::PI, field_of_view[0], field_of_view[1]);
+        
+        /*
+        let mut projection = Matrix4::new_perspective(extent.width as f32/extent.height as f32, field_of_view[2]/180.0*std::f32::consts::PI, field_of_view[0], field_of_view[1]);
+        
+        let mut projection2 = nalgebra_glm::perspective_zo(extent.width as f32/extent.height as f32, field_of_view[2]/180.0*std::f32::consts::PI, field_of_view[0], field_of_view[1]);
+        
+        todo!("\n{:?}\n{:?}\n", projection, projection2);
+        */
+        
+        //let mut projection = Matrix4::new_perspective(extent.width as f32/extent.height as f32, 70.0/180.0*std::f32::consts::PI, 830.3, 1.2);
+        
+        //let mut projection = Matrix4::new_perspective(extent.width as f32/extent.height as f32, 70.0/180.0*std::f32::consts::PI, 100.0, 1.0);
+        /*
+         *
+        println!("{:?}", projection);
+        projection[(2,2)] /= 2.0;
+        projection[(2,2)] /= 2.0;
+        */
+        
+        projection[(1,1)] *= -1.0;
+        let holder = projection*view;
+        
+        
+        /*
+        let test_vec = na::Vector4::new(1.0, 1.0, 1.0, 1.0);
+        println!("moved \t{:?}", view*test_vec);
+        let test_vec_m = view*test_vec;
+        
+        panic!("{:?}", projection);
+        
+        println!(" = FrontUpRigh\t{:?}", projection*test_vec_m);
+        
+        
+        
+        
+        */
+        
+        holder
+        /*
+        let mut projection = Matrix4::new_perspective(extent.width as f32/extent.height as f32, 70.0/180.0*std::f32::consts::PI, 0.1, 10.0);
+        projection
+        */
+        /*
+        panic!("{:?}", field_of_view);
+        //field_of_view[(1,1)] *= -1.0;
+        //field_of_view.transpose()
+        (holder*field_of_view).transpose()
+        */
+        //nalgebra::Matrix4::new(-0.8526403, -0.5224984, 0.0, 0.0, 0.5224984, -0.8526403, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0).transpose()
+        //nalgebra::Matrix4::new(2.3306494, 0.0, 0.0, 0.0, 0.0, 1.8304877, 0.0, 0.0, 0.0, 0.0, -1.020202, -1.0, 0.0, 0.0, -0.20202021, 0.0)
+        //let holder = (field_of_view /* holder*/).transpose();
+    }
+    
     
 //----
     pub fn subresource_range(aspect:vk::ImageAspectFlags) -> vk::ImageSubresourceRange {
@@ -334,21 +421,21 @@ impl VInit {
         
         let lookat = na::Matrix4::look_at_rh(&eye, &center, &up);
         
-        let mut perspective = na::Matrix4::new_perspective(na::RealField::frac_pi_2(), self.swapchain.extent.width as f32/self.swapchain.extent.height as f32, 0.1, 10.0);
+        let mut field_of_view = na::Matrix4::new_perspective(na::RealField::frac_pi_2(), self.swapchain.extent.width as f32/self.swapchain.extent.height as f32, 0.1, 10.0);
         
-        //println!("{:?}", perspective);
+        //println!("{:?}", field_of_view);
         
         //println!("{}", self.swapchain.extent.width as f32/self.swapchain.extent.height as f32);
-        //println!("{:?}", perspective);
-        //let mut perspective = na::Matrix4::new_perspective(1f32, 1.0f32, 0.1, 10.0);
+        //println!("{:?}", field_of_view);
+        //let mut field_of_view = na::Matrix4::new_perspective(1f32, 1.0f32, 0.1, 10.0);
         
-        perspective[5] *= -1f32;
+        field_of_view[5] *= -1f32;
         
         let current_ubo = [
             UniformBufferObject{
                 model: rotation_mat,
                 view: lookat,
-                proj: perspective,
+                proj: field_of_view,
             },
         ];
         
@@ -416,18 +503,10 @@ impl Vertex {
 
 impl Default for GPUDrawPushConstants {
     fn default() -> Self {
-        /*
         Self{
             world_matrix:Matrix4::<f32>::identity(),
             vertex_buffer:vk::DeviceAddress::default(),
         }
-        */
-        let mut holder = Self{
-            world_matrix:Matrix4::<f32>::identity()/3.0,
-            vertex_buffer:vk::DeviceAddress::default(),
-        };
-        holder.world_matrix[(3,3)] = 1.0;
-        holder
     }
 }
 

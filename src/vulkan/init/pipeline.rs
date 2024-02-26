@@ -47,6 +47,19 @@ pub fn rendering_attachment_info(
     holder
 }
 
+pub fn depth_attachment_info(
+    view: vk::ImageView,
+    layout: vk::ImageLayout,
+) -> vk::RenderingAttachmentInfo {
+    let mut holder = ash::vk::RenderingAttachmentInfo::default();
+    holder.image_view = view;
+    holder.image_layout = layout;
+    holder.store_op = vk::AttachmentStoreOp::STORE;
+    holder.load_op = vk::AttachmentLoadOp::CLEAR;
+    holder.clear_value.depth_stencil.depth = 0.0;
+    holder
+}
+
 pub fn rendering_info(
     extent: vk::Extent2D,
     color_attachment: &vk::RenderingAttachmentInfo,

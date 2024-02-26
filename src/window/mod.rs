@@ -5,10 +5,12 @@ use crate::errors::messages::SIMPLE_SDL_FN;
 use crate::imgui::Imgui;
 use crate::player::Movement;
 
+use std::mem::ManuallyDrop;
+
 
 #[allow(dead_code)]
 pub struct Window {
-    sdl: sdl2::Sdl,
+    sdl: ManuallyDrop<sdl2::Sdl>,
     video_subsys: sdl2::VideoSubsystem,
     window: sdl2::video::Window,
     event_pump: sdl2::EventPump,
@@ -35,7 +37,7 @@ impl Window {
         let event_pump = sdl.event_pump().expect(SIMPLE_SDL_FN);
         
         Self{
-            sdl,
+            sdl: ManuallyDrop::new(sdl),
             video_subsys,
             window,
             event_pump,
@@ -108,11 +110,11 @@ impl Deref for Window {
 */
 
 /*
+*/
 impl Drop for Window {
     fn drop(&mut self) {
-        if let Verbosity::Expresive | Verbosity::Normal = self.state.verbosity {
-            print!("[0]:deleting Window\n")
-        }
+        logger::destruct!("Window");
+        unsafe{ManuallyDrop::drop(&mut self.sdl)};
+        
     }
 }
-*/
