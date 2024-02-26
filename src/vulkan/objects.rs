@@ -48,6 +48,17 @@ impl<T:VkDestructor> VkWraper<T> {
     pub fn take(&mut self) -> T {
         self.0.take().expect(DROPED_ERR_TEXT)
     }
+    
+    pub fn fill(&mut self, new_value:T) {
+        match &mut self.0 {
+            Some(_) => {
+                panic!();
+            }
+            reference @ None => {
+                *reference = Some(new_value);
+            }
+        }
+    }
 }
 
 

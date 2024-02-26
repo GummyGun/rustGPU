@@ -7,6 +7,7 @@ use graphics::*;
 mod objects;
 mod helpers;
 
+use crate::AAError;
 use crate::logger;
 use crate::imgui::InputData;
 use crate::errors::messages::SIMPLE_VK_FN;
@@ -29,6 +30,9 @@ pub struct VInit {
     
     frame_control: FrameControl,
     
+    resize_required: bool,
+
+    
     pub instance: VkWraper<Instance>,
     messenger: Option<VkWraper<DMessenger>>,
     surface: VkWraper<Surface>,
@@ -50,7 +54,6 @@ pub struct VInit {
     ds_set: vk::DescriptorSet,
     
     compute_effects: VkWraper<ComputeEffects>,
-    graphics_pipeline: VkWraper<GPipeline>,
     compute_effect_index: usize,
     
     mesh_pipeline: VkWraper<GPipeline>,
@@ -93,7 +96,7 @@ impl VInit {
         let p_device = vk_create_interpreter(PDevice::chose(&instance, &surface), "p_device selected"); 
         let mut device = vk_create_interpreter(Device::create(&mut instance, &p_device), "device"); 
         let mut allocator = vk_create_interpreter(Allocator::create(&mut instance, &p_device, &mut device), "allocator");
-        let swapchain = vk_create_interpreter(Swapchain::create(&window, &mut instance, &surface, &p_device, &mut device), "swapchain");
+        let swapchain = vk_create_interpreter(Swapchain::create(&window, &mut instance, &surface, &p_device, &mut device, None), "swapchain");
         let sync_objects = vk_create_interpreter(SyncObjects::create(&mut device), "sync_objects");
         let mut command_control = vk_create_interpreter(CommandControl::create(&p_device, &mut device), "command_control");
         
@@ -108,7 +111,6 @@ impl VInit {
         
         let render = Graphics::new(&mut device, &mut allocator).unwrap();
         
-        let graphics_pipeline = g_pipeline::init_pipeline(&mut device, &render_image, &depth_image);
         
         /*
         let mut buffer = Buffer::create(&mut device, &mut allocator, Some("name"), 255, vk::BufferUsageFlags::INDEX_BUFFER, gpu_allocator::MemoryLocation::CpuToGpu).unwrap();
@@ -122,6 +124,7 @@ impl VInit {
         
         VInit{
             frame_control: FrameControl(0),
+            resize_required: false,
             
             instance: VkWraper::new(instance),
             
@@ -149,7 +152,6 @@ impl VInit {
             compute_effects: VkWraper::new(compute_effects),
             compute_effect_index:0,
             
-            graphics_pipeline: VkWraper::new(graphics_pipeline),
             
             mesh_pipeline: VkWraper::new(mesh_pipeline),
             mesh_assets: VkWraper::new(mesh_assets),
@@ -175,6 +177,30 @@ impl VInit {
         unsafe{self.device.device_wait_idle()}.expect(SIMPLE_VK_FN);
     }
     
+    pub fn handle_events(&mut self, window:&Window) {
+        if self.resize_required {
+            self.wait_idle();
+            self.handle_resize(window).unwrap();
+            self.resize_required = false;
+            //println!();
+        }
+    }
+    
+    pub fn handle_resize(&mut self, window:&Window) -> Result<(), AAError> {
+        let VInit{
+            swapchain,
+            instance,
+            surface,
+            p_device,
+            device,
+            ..
+        }= self;
+        let old_swapchain_holder = self.swapchain.take();
+        let new_swapchain_holder = old_swapchain_holder.rebuild(window, instance, surface, p_device, device)?;
+        self.swapchain.fill(new_swapchain_holder);
+        Ok(())
+    }
+    
     #[inline(always)]
     fn frame_update(&mut self) {
         self.frame_control.frame_update()
@@ -187,8 +213,6 @@ impl VInit {
     pub fn get_compute_effects_metadata(&mut self) ->  (&mut [ComputeEffectMetadata], &mut [MeshAssetMetadata], &mut usize, &mut na::Vector3<f32>,) {
         (&mut self.compute_effects.metadatas, &mut self.mesh_assets.metadatas, &mut self.mesh_index, &mut self.field_of_view)
     }
-    
-    
     
 }
 
@@ -222,7 +246,6 @@ impl Drop for VInit {
             ds_pool, 
             ds_layout, 
             compute_effects, 
-            graphics_pipeline, 
             mesh_pipeline, 
             mesh_assets,
         ) = self.destructure();
@@ -233,7 +256,6 @@ impl Drop for VInit {
         
         mesh_assets.destruct(VkDestructorArguments::DevAll(dev, all));
         mesh_pipeline.destruct(VkDestructorArguments::Dev(dev));
-        graphics_pipeline.destruct(VkDestructorArguments::Dev(dev));
         compute_effects.destruct(VkDestructorArguments::Dev(dev));
         
         ds_pool.destruct(VkDestructorArguments::Dev(dev));

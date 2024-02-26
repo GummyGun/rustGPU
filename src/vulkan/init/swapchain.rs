@@ -44,13 +44,27 @@ macros::impl_deref!(Swapchain, ash::extensions::khr::Swapchain, swapchain_loader
 
 impl Swapchain {
     
-    pub fn create(window:&Window, instance:&mut Instance, surface:&Surface, p_device:&PDevice, device:&mut Device) -> Result<Self, AAError> {
+    pub fn create(window:&Window, instance:&mut Instance, surface:&Surface, p_device:&PDevice, device:&mut Device, test:Option<(u32, u32)>) -> Result<Self, AAError> {
         logger::create!("swapchain");
         
         let surface_format = p_device.swapchain_details.choose_surface_format();
         let present_mode = p_device.swapchain_details.choose_present_mode();
-        let swap_extent = p_device.swapchain_details.choose_swap_extent(window);
+        
+        let swap_extent = match test {
+            Some(dims) => {
+                vk::Extent2D{width: dims.0, height: dims.1}
+            }
+            None => {p_device.swapchain_details.choose_swap_extent(window)}
+        };
+        log::error!("{:?}", swap_extent);
+        
         let queue_indices = p_device.queues.queue_indices();
+        
+        /*
+        
+        //let swap_extent = vk::Extent2D{width:initial_pixel_dims.0, height:initial_pixel_dims.1};
+        
+        */
         
         let min_img_cnt = p_device.swapchain_details.surface_capabilities.min_image_count;
         let max_img_cnt = p_device.swapchain_details.surface_capabilities.max_image_count;
@@ -123,7 +137,6 @@ impl Swapchain {
     
     fn create_image_views(device:&Device, images:&[vk::Image], format:vk::Format) -> Result<ArrayVec<vk::ImageView, {sc_max_images::USIZE}>, AAError> {
         let mut image_views_holder:ArrayVec<vk::ImageView, {sc_max_images::USIZE}> = ArrayVec::new();//[vk::ImageView::null(); sc_max_images::USIZE];
-        
         for (index, image) in images.iter().enumerate() {
             logger::various_log!("swapchain",
                 (logger::Trace, "Creating swapchain image {index}"),
@@ -141,18 +154,30 @@ impl Swapchain {
     }
     
     
-    pub fn get_next_image(&mut self, semaphore:vk::Semaphore) -> (vk::Image, vk::ImageView, u32) {
+    pub fn get_next_image(&mut self, semaphore:vk::Semaphore) -> Result<(vk::Image, vk::ImageView, u32), ()> {
         
-        let (image_index, _invalid_surface) = unsafe{
+        let holder = unsafe{
             self.acquire_next_image(
                 self.swapchain, 
                 u64::MAX, 
                 semaphore, 
                 vk::Fence::null()
             )
-        }.expect("next image should not fail");
+        };
         
-        (self.images[image_index as usize], self.image_views[image_index as usize], image_index)
+        
+        
+        let image_index = holder.map(|(image_index, _)|image_index).map_err(|err|{if let err = vk::Result::ERROR_OUT_OF_DATE_KHR {()}else{panic!();}})?;
+        
+        Ok((self.images[image_index as usize], self.image_views[image_index as usize], image_index))
+    }
+    
+
+    pub fn rebuild(self, window:&Window, instance:&mut Instance, surface:&Surface, p_device:&PDevice, device:&mut Device) -> Result<Self, AAError> {
+        self.destruct(VkDestructorArguments::Dev(device));
+        let size= Some(window.get_pixel_dimensions());
+        //panic!("{:?}", size);
+        Swapchain::create(window, instance, surface, p_device, device, size)
     }
     
     /*
@@ -214,6 +239,7 @@ impl SwapchainSupportDetails {
     pub fn query_swapchain_support(surface:&Surface, p_device:vk::PhysicalDevice) -> SwapchainSupportDetails {
         
         let surface_capabilities = unsafe{surface.get_physical_device_surface_capabilities(p_device, surface.surface).expect(SIMPLE_VK_FN)};
+        log::error!("{:#?}", surface_capabilities);
         let surface_formats = unsafe{surface.get_physical_device_surface_formats(p_device, surface.surface).expect(SIMPLE_VK_FN)};
         let present_modes = unsafe{surface.get_physical_device_surface_present_modes(p_device, surface.surface).expect(SIMPLE_VK_FN)};
         SwapchainSupportDetails{
@@ -281,6 +307,7 @@ impl SwapchainSupportDetails {
                 (logger::Debug, "Normal display width:{} height:{}", self.surface_capabilities.current_extent.width, self.surface_capabilities.current_extent.height)
             );
             
+            log::error!("============================== {:?} {:?}", self.surface_capabilities.current_extent.width, self.surface_capabilities.current_extent.height);
             self.surface_capabilities.current_extent
         } else {
             let (_width, _height) = window.get_pixel_dimensions();

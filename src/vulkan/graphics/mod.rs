@@ -75,6 +75,7 @@ impl VInit {
         //let frame_count = self.get_frame_count();
         
         let VInit{
+            resize_required,
             compute_effects, 
             compute_effect_index, 
             ds_set, 
@@ -84,7 +85,6 @@ impl VInit {
             sync_objects, 
             swapchain, 
             device, 
-            graphics_pipeline,
             
             mesh_pipeline,
             mesh_assets,
@@ -98,7 +98,14 @@ impl VInit {
         let cmd = command_control.buffers[cf];
         
         let (image_avaliable_semaphore, render_finished_semaphore, inflight_fence) = sync_objects.get_frame(cf);
-        let (p_image_handle, p_image_view, image_index) = swapchain.get_next_image(image_avaliable_semaphore);
+        let (p_image_handle, p_image_view, image_index) = match swapchain.get_next_image(image_avaliable_semaphore){
+            Ok(holder) => {holder}
+            Err(()) => {
+                log::error!("aa");
+                *resize_required = true;
+                return;
+            }
+        };
         
         unsafe{device.wait_for_fences(from_ref(&inflight_fence), true, u64::MAX)}.expect(SIMPLE_VK_FN);
         unsafe{device.reset_fences(from_ref(&inflight_fence))}.expect(SIMPLE_VK_FN);
@@ -121,7 +128,7 @@ impl VInit {
         Image::transition_image(device, cmd, d_image_handle, vk::ImageLayout::UNDEFINED, vk::ImageLayout::DEPTH_ATTACHMENT_OPTIMAL);
         Image::transition_image(device, cmd, r_image_handle, vk::ImageLayout::GENERAL, vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL);
         
-        Self::draw_geometry(device, cmd, swapchain.extent, render_image, depth_image, graphics_pipeline, mesh_pipeline, mesh_assets, *mesh_index, field_of_view);
+        Self::draw_geometry(device, cmd, swapchain.extent, render_image, depth_image, mesh_pipeline, mesh_assets, *mesh_index, field_of_view);
         
         Image::transition_image(device, cmd, r_image_handle, vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL, vk::ImageLayout::TRANSFER_SRC_OPTIMAL);
         Image::transition_image(device, cmd, p_image_handle, vk::ImageLayout::UNDEFINED, vk::ImageLayout::TRANSFER_DST_OPTIMAL);
@@ -160,7 +167,13 @@ impl VInit {
             .image_indices(from_ref(&image_index))
             .wait_semaphores(from_ref(&render_finished_semaphore));
         
-        unsafe{swapchain.queue_present(device.queue_handles.presentation, &present_info)}.expect(SIMPLE_VK_FN);
+        let invalid_surface = match unsafe{swapchain.queue_present(device.queue_handles.presentation, &present_info)}{
+            Ok(_) => {}
+            Err(bb) => {
+                log::error!("bb {:?}", bb);
+                *resize_required = true;
+            }
+        };
         
     }
     
@@ -185,7 +198,6 @@ impl VInit {
         extent: vk::Extent2D, 
         image: &Image, 
         depth: &Image, 
-        graphics_pipeline: &GPipeline, 
         mesh_pipeline: &GPipeline, 
         meshes: &MeshAssets, 
         mesh_selector: usize, 
@@ -206,21 +218,19 @@ impl VInit {
         
         let scissor = vk::Rect2D::from(extent_holder);
         
+        unsafe{device.cmd_bind_pipeline(cmd, vk::PipelineBindPoint::GRAPHICS, mesh_pipeline.underlying())};
         unsafe{device.cmd_set_viewport(cmd, 0, from_ref(&viewport))};
         unsafe{device.cmd_set_scissor(cmd, 0, from_ref(&scissor))};
         
-        unsafe{device.cmd_bind_pipeline(cmd, vk::PipelineBindPoint::GRAPHICS, graphics_pipeline.underlying())};
-        //unsafe{device.cmd_draw(cmd, 3, 1, 0, 0)};
         
         
         let mut push_constant_tmp = GPUDrawPushConstants::default();
         push_constant_tmp.vertex_buffer = meshes.meshes[mesh_selector].vertex_buffer_address;
-        push_constant_tmp.world_matrix = Self::tmp_perspective_matrix(extent, field_of_view, 0.0);
+        push_constant_tmp.world_matrix = Self::tmp_perspective_matrix(extent, field_of_view);
         let push_constants_slice = unsafe{crate::any_as_u8_slice(&push_constant_tmp)};
         
         
         unsafe{device.cmd_push_constants(cmd, mesh_pipeline.layout, vk::ShaderStageFlags::VERTEX, 0, push_constants_slice)};
-        unsafe{device.cmd_bind_pipeline(cmd, vk::PipelineBindPoint::GRAPHICS, mesh_pipeline.underlying())};
         unsafe{device.cmd_bind_index_buffer(cmd, meshes.meshes[mesh_selector].index_buffer.underlying(), 0, vk::IndexType::UINT32)};
         unsafe{device.cmd_draw_indexed(cmd, meshes.metadatas[mesh_selector].surfaces[0].count, 1, meshes.metadatas[mesh_selector].surfaces[0].start_index, 0, 0)};
         
@@ -235,9 +245,9 @@ impl VInit {
     }
     
 //----
-    pub fn tmp_perspective_matrix(extent:vk::Extent2D, field_of_view:&na::Vector3<f32>, index:f32) -> na::Matrix4<f32> {
+    pub fn tmp_perspective_matrix(extent:vk::Extent2D, field_of_view:&na::Vector3<f32>) -> na::Matrix4<f32> {
         let mut view = Matrix4::<f32>::identity();
-        view.prepend_translation_mut(&na::Vector3::new(-1.5,1.5,-5.0-index*3.0));
+        view.prepend_translation_mut(&na::Vector3::new(-1.5,1.5,-5.0));
         
         //let mut projection = Matrix4::new_perspective(extent.width as f32/extent.height as f32, 70.0/180.0*std::f32::consts::PI, 10000.0, 0.1);
         

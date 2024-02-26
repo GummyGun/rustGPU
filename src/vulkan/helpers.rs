@@ -32,7 +32,6 @@ type Objects = (
     DescriptorPoolAllocator,
     ComputeEffects,
     GPipeline,
-    GPipeline,
     MeshAssets,
 );
 
@@ -57,7 +56,7 @@ impl VInit {
         let ds_pool = self.ds_pool.take();
         
         let compute_effects = self.compute_effects.take();
-        let graphics_pipeline = self.graphics_pipeline.take();
+        //let graphics_pipeline = self.graphics_pipeline.take();
         let mesh_pipeline = self.mesh_pipeline.take();
         let mesh_assets = self.mesh_assets.take();
         
@@ -76,7 +75,7 @@ impl VInit {
             ds_layout,
             ds_pool,
             compute_effects,
-            graphics_pipeline,
+            //graphics_pipeline,
             mesh_pipeline,
             mesh_assets,
         )

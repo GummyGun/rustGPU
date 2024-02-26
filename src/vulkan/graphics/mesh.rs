@@ -58,23 +58,41 @@ pub fn load_gltf<P: AsRef<Path>>(
     let mut vertices_vec:Vec<Vertex> = Vec::new();
     
     let meshes = gltf.meshes();
-    println!("{}", meshes.len());
+    
+    logger::various_log!("mesh",
+        (logger::Trace, "amount of meshes {}", meshes.len())
+    );
+    
+    //println!("{}", meshes.len());
     for mesh in meshes {
         let mut metadata_holder = MeshAssetMetadata::default();
         indices_vec.clear();
         vertices_vec.clear();
-        println!("{:?}", mesh.name());
+        
+        
+        //println!("{:?}", mesh.name());
         match mesh.name() {
             Some(name) => {
+                logger::various_log!("mesh",
+                    (logger::Trace, "mesh name {}", name)
+                );
                 metadata_holder.name.push_str(name);
             }
             None => {
+                logger::various_log!("mesh",
+                    (logger::Trace, "no mesh name")
+                );
                 metadata_holder.name.push_str("empty");
             }
         }
         
+        
         let primitives = mesh.primitives();
-        println!("{}", &primitives.len());
+        
+        logger::various_log!("mesh",
+            (logger::Trace, "primitives_count {}", &primitives.len())
+        );
+        //println!("{}", &primitives.len());
         for primitive in primitives {
             
             let mut surface = GeoSurface::default();
@@ -82,20 +100,29 @@ pub fn load_gltf<P: AsRef<Path>>(
             let reader = primitive.reader(|_primitive|{Some(&gltf.blob.as_ref().unwrap()[..])});
             
             let indices = reader.read_indices().unwrap();
-            println!("indices count");
+            //println!("indices count");
             use gltf::mesh::util::ReadIndices;
             match indices {
                 ReadIndices::U8(indices) => {
+                    logger::various_log!("mesh",
+                        (logger::Trace, "indices count u8 {}", indices.len())
+                    );
                     for index in indices {
                         indices_vec.push(u32::from(index));
                     }
                 }
                 ReadIndices::U16(indices) => {
+                    logger::various_log!("mesh",
+                        (logger::Trace, "indices count u16 {}", indices.len())
+                    );
                     for index in indices {
                         indices_vec.push(u32::from(index));
                     }
                 }
                 ReadIndices::U32(indices) => {
+                    logger::various_log!("mesh",
+                        (logger::Trace, "indices count u32 {}", indices.len())
+                    );
                     for index in indices {
                         indices_vec.push(u32::from(index));
                     }
@@ -104,7 +131,9 @@ pub fn load_gltf<P: AsRef<Path>>(
             
             
             let positions = reader.read_positions().unwrap();
-            println!("vertex count{}", positions.len());
+            logger::various_log!("mesh",
+                (logger::Trace, "vertex count {}", positions.len())
+            );
             for pos in positions {
                 let mut vertex_holder = Vertex::default();
                 vertex_holder.position = Vector3::from(pos);
@@ -112,7 +141,9 @@ pub fn load_gltf<P: AsRef<Path>>(
             }
             
             let normals = reader.read_normals().unwrap();
-            println!("normal_count ammount{}", normals.len());
+            logger::various_log!("mesh",
+                (logger::Trace, "normals count {}", normals.len())
+            );
             for (index, norm) in normals.enumerate() {
                 vertices_vec[index].normal = Vector3::from(norm);
                 vertices_vec[index].color = Vector4::new(norm[0], norm[1], norm[2], 1.0);
@@ -137,10 +168,12 @@ pub fn load_gltf<P: AsRef<Path>>(
         
     }
     
+    /*
     println!("surface");
     for metadata in &holder.metadatas {
         println!("{:?}", metadata);
     }
+    */
     
 
     Ok(holder)

@@ -36,6 +36,8 @@ impl Window {
         let window = Self::create_vulkan_builder(&mut video_subsys).unwrap();
         let event_pump = sdl.event_pump().expect(SIMPLE_SDL_FN);
         
+        log::error!("{:?}", window.size());
+        
         Self{
             sdl: ManuallyDrop::new(sdl),
             video_subsys,
@@ -63,6 +65,12 @@ impl Window {
                 Event::KeyDown{keycode: Some(Keycode::Q),.. } => {
                     println!("Q");
                     self.should_quit = true;
+                }
+                Event::KeyDown{keycode: Some(Keycode::W),.. } => {
+                    println!("{:?}", self.window.size());
+                }
+                a @ Event::Window{..} => {
+                    println!("{:?}", a);
                 }
                 _ => {}
             }
@@ -95,8 +103,8 @@ impl Window {
         self.window.vulkan_instance_extensions().unwrap()
     }
     
-    pub fn get_pixel_dimensions(&self) -> (i32,i32) {
-        panic!("{:?}", self.window.size());
+    pub fn get_pixel_dimensions(&self) -> (u32,u32) {
+        self.window.size()
     }
 }
 

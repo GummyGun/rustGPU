@@ -21,7 +21,6 @@ pub struct Device {
     device: ash::Device,
     pub queue_handles: QueueHandles,
 }
-
 macros::impl_deref!(Device, ash::Device, device);
 macros::impl_underlying!(Device, ash::Device, device);
 

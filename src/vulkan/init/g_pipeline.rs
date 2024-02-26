@@ -39,6 +39,7 @@ pub struct GPipelineBuilder {
 }
 
 
+/*
 pub fn init_pipeline(device:&mut Device, render_image:&Image, depth_image:&Image) -> GPipeline {
     
     logger::various_log!("graphics_pipeline",
@@ -72,6 +73,7 @@ pub fn init_pipeline(device:&mut Device, render_image:&Image, depth_image:&Image
     
     triangle_pipeline.unwrap()
 }
+*/
 
 pub fn init_mesh_pipeline(device:&mut Device, render_image:&Image, depth_image:&Image) -> GPipeline {
     
@@ -103,8 +105,8 @@ pub fn init_mesh_pipeline(device:&mut Device, render_image:&Image, depth_image:&
         .set_blending_disabled()
         .set_color_attachment_format(render_image.format)
         .set_depth_format(depth_image.format)
-        .set_depthtest_enable();
-        //.set_depthtest_none();
+        .set_depthtest_enable()
+        .set_blending_additive();
         //.set_vertex_input_state(vk_graphics::Vertex::binding_description(), vk_graphics::Vertex::attribute_description());
     
     let mesh_pipeline = builder.build(device);
@@ -287,6 +289,35 @@ impl GPipelineBuilder {
         self.layout = Some(layout);
         self
     }
+
+//----
+    pub fn set_blending_additive(&mut self) -> &mut Self {
+        let Self{ color_blend_attachment, .. } = self;
+        color_blend_attachment.color_write_mask = vk::ColorComponentFlags::RGBA;
+        color_blend_attachment.blend_enable = vk::TRUE;
+        color_blend_attachment.src_color_blend_factor = vk::BlendFactor::ONE;
+        color_blend_attachment.dst_color_blend_factor = vk::BlendFactor::DST_ALPHA;
+        color_blend_attachment.color_blend_op = vk::BlendOp::ADD;
+        color_blend_attachment.src_alpha_blend_factor = vk::BlendFactor::ONE;
+        color_blend_attachment.dst_alpha_blend_factor = vk::BlendFactor::ZERO;
+        color_blend_attachment.alpha_blend_op = vk::BlendOp::ADD;
+        self
+    }
+    
+//----
+    pub fn set_blending_alphablend(&mut self) -> &mut Self {
+        let Self{ color_blend_attachment, .. } = self;
+        color_blend_attachment.color_write_mask = vk::ColorComponentFlags::RGBA;
+        color_blend_attachment.blend_enable = vk::TRUE;
+        color_blend_attachment.src_color_blend_factor = vk::BlendFactor::ONE_MINUS_DST_ALPHA;
+        color_blend_attachment.dst_color_blend_factor = vk::BlendFactor::DST_ALPHA;
+        color_blend_attachment.color_blend_op = vk::BlendOp::ADD;
+        color_blend_attachment.src_alpha_blend_factor = vk::BlendFactor::ONE;
+        color_blend_attachment.dst_alpha_blend_factor = vk::BlendFactor::ZERO;
+        color_blend_attachment.alpha_blend_op = vk::BlendOp::ADD;
+        self
+    }
+    
 }
 
 
