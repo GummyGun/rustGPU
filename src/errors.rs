@@ -75,6 +75,8 @@ pub mod messages {
     pub const GRANTED:&'static str = "things the programer knows but the compiled does not";
     pub const RESOURCE_FILE:&'static str = "the resource file should be found in a particular path";
     
+    pub const VK_UNRECOVERABLE:&'static str = "things the programer knows but the compiled does not";
+    
     pub const COMPILETIME_ASSERT:&'static str = "things the programer knows but the compiled does not";
     pub const MODEL_DENSITY:&'static str = "model vertex indices should fit in a u32";
     

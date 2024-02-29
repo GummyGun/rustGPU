@@ -22,7 +22,6 @@ use arrayvec::ArrayVec;
 
 #[derive(Debug, Default)]
 pub struct SwapchainSupportDetails {
-    pub surface_capabilities: vk::SurfaceCapabilitiesKHR,
     pub surface_formats: Vec<vk::SurfaceFormatKHR>,
     pub present_modes: Vec<vk::PresentModeKHR>,
 }
@@ -44,30 +43,21 @@ macros::impl_deref!(Swapchain, ash::extensions::khr::Swapchain, swapchain_loader
 
 impl Swapchain {
     
-    pub fn create(window:&Window, instance:&mut Instance, surface:&Surface, p_device:&PDevice, device:&mut Device, test:Option<(u32, u32)>) -> Result<Self, AAError> {
+    pub fn create(instance:&mut Instance, surface:&Surface, p_device:&PDevice, device:&mut Device) -> Result<Self, AAError> {
         logger::create!("swapchain");
         
         let surface_format = p_device.swapchain_details.choose_surface_format();
         let present_mode = p_device.swapchain_details.choose_present_mode();
         
-        let swap_extent = match test {
-            Some(dims) => {
-                vk::Extent2D{width: dims.0, height: dims.1}
-            }
-            None => {p_device.swapchain_details.choose_swap_extent(window)}
-        };
-        log::error!("{:?}", swap_extent);
+        let surface_capabilities = unsafe{surface.get_physical_device_surface_capabilities(p_device.underlying(), surface.surface).expect(SIMPLE_VK_FN)};
+        
+        let swap_extent = SwapchainSupportDetails::choose_swap_extent(&surface_capabilities);
         
         let queue_indices = p_device.queues.queue_indices();
         
-        /*
         
-        //let swap_extent = vk::Extent2D{width:initial_pixel_dims.0, height:initial_pixel_dims.1};
-        
-        */
-        
-        let min_img_cnt = p_device.swapchain_details.surface_capabilities.min_image_count;
-        let max_img_cnt = p_device.swapchain_details.surface_capabilities.max_image_count;
+        let min_img_cnt = surface_capabilities.min_image_count;
+        let max_img_cnt = surface_capabilities.max_image_count;
         
         let max_limit = min(max_img_cnt, sc_max_images::U32);
         
@@ -95,7 +85,7 @@ impl Swapchain {
             .image_extent(swap_extent)
             .image_array_layers(1)
             .image_usage(vk::ImageUsageFlags::COLOR_ATTACHMENT | vk::ImageUsageFlags::TRANSFER_DST)
-            .pre_transform(p_device.swapchain_details.surface_capabilities.current_transform)
+            .pre_transform(surface_capabilities.current_transform)
             .composite_alpha(vk::CompositeAlphaFlagsKHR::OPAQUE)
             .present_mode(present_mode)
             .clipped(true)
@@ -173,13 +163,6 @@ impl Swapchain {
     }
     
 
-    pub fn rebuild(self, window:&Window, instance:&mut Instance, surface:&Surface, p_device:&PDevice, device:&mut Device) -> Result<Self, AAError> {
-        self.destruct(VkDestructorArguments::Dev(device));
-        let size= Some(window.get_pixel_dimensions());
-        //panic!("{:?}", size);
-        Swapchain::create(window, instance, surface, p_device, device, size)
-    }
-    
     /*
     #[allow(dead_code)]
     pub fn direct_create( //TODO: this function shouldn't be linted as unused
@@ -238,12 +221,9 @@ impl SwapchainSupportDetails {
     
     pub fn query_swapchain_support(surface:&Surface, p_device:vk::PhysicalDevice) -> SwapchainSupportDetails {
         
-        let surface_capabilities = unsafe{surface.get_physical_device_surface_capabilities(p_device, surface.surface).expect(SIMPLE_VK_FN)};
-        log::error!("{:#?}", surface_capabilities);
         let surface_formats = unsafe{surface.get_physical_device_surface_formats(p_device, surface.surface).expect(SIMPLE_VK_FN)};
         let present_modes = unsafe{surface.get_physical_device_surface_present_modes(p_device, surface.surface).expect(SIMPLE_VK_FN)};
         SwapchainSupportDetails{
-            surface_capabilities,
             surface_formats,
             present_modes
         }
@@ -301,18 +281,17 @@ impl SwapchainSupportDetails {
         vk::PresentModeKHR::FIFO
     }
     
-    fn choose_swap_extent(&self, window:&Window) -> vk::Extent2D {
-        if self.surface_capabilities.current_extent.width != u32::MAX {
+    fn choose_swap_extent(surface_capabilities:&vk::SurfaceCapabilitiesKHR) -> vk::Extent2D {
+        if surface_capabilities.current_extent.width != u32::MAX {
             logger::various_log!("swapchain",
-                (logger::Debug, "Normal display width:{} height:{}", self.surface_capabilities.current_extent.width, self.surface_capabilities.current_extent.height)
+                (logger::Trace, "New dimentions width:{} height:{}", surface_capabilities.current_extent.width, surface_capabilities.current_extent.height)
             );
-            
-            log::error!("============================== {:?} {:?}", self.surface_capabilities.current_extent.width, self.surface_capabilities.current_extent.height);
-            self.surface_capabilities.current_extent
+            surface_capabilities.current_extent
         } else {
-            let (_width, _height) = window.get_pixel_dimensions();
+            //let (_width, _height) = window.get_pixel_dimensions();
             todo!("high DPI displays not supported yet!");
         }
     }
+    
 }
 

@@ -34,14 +34,8 @@ impl Window {
     }
     
     pub fn create_vulkan_builder(video:&mut VideoSubsystem) -> Result<sdl2::video::Window, AAError> {
-        //TODEL::
-        let index = video.num_display_modes(1).unwrap();
-        for mode in 0..index {
-            println!("{:?}", video.display_mode(1, mode));
-        }
-        //TODEL::
         video.window("rust-sdl2 demo", constants::WIDTH, constants::HEIGTH)
-            //.resizable()
+            .resizable()
             .position_centered()
             .vulkan()
             .build().map_err(|err|err.into())

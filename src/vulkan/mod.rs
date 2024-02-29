@@ -11,6 +11,7 @@ use crate::AAError;
 use crate::logger;
 use crate::imgui::InputData;
 use crate::errors::messages::SIMPLE_VK_FN;
+use crate::errors::messages::VK_UNRECOVERABLE;
 
 use super::window::Window;
 use super::constants;
@@ -96,7 +97,7 @@ impl VInit {
         let p_device = vk_create_interpreter(PDevice::chose(&instance, &surface), "p_device selected"); 
         let mut device = vk_create_interpreter(Device::create(&mut instance, &p_device), "device"); 
         let mut allocator = vk_create_interpreter(Allocator::create(&mut instance, &p_device, &mut device), "allocator");
-        let swapchain = vk_create_interpreter(Swapchain::create(&window, &mut instance, &surface, &p_device, &mut device, None), "swapchain");
+        let swapchain = vk_create_interpreter(Swapchain::create(&mut instance, &surface, &p_device, &mut device), "swapchain");
         let sync_objects = vk_create_interpreter(SyncObjects::create(&mut device), "sync_objects");
         let mut command_control = vk_create_interpreter(CommandControl::create(&p_device, &mut device), "command_control");
         
@@ -180,13 +181,12 @@ impl VInit {
     pub fn handle_events(&mut self, window:&Window) {
         if self.resize_required {
             self.wait_idle();
-            self.handle_resize(window).unwrap();
+            self.handle_resize(window);
             self.resize_required = false;
-            //println!();
         }
     }
     
-    pub fn handle_resize(&mut self, window:&Window) -> Result<(), AAError> {
+    pub fn handle_resize(&mut self, window:&Window) {
         let VInit{
             swapchain,
             instance,
@@ -194,12 +194,24 @@ impl VInit {
             p_device,
             device,
             ..
-        }= self;
-        let old_swapchain_holder = self.swapchain.take();
-        let new_swapchain_holder = old_swapchain_holder.rebuild(window, instance, surface, p_device, device)?;
-        self.swapchain.fill(new_swapchain_holder);
-        Ok(())
+        } = self;
+        logger::various_log!("vulkan",
+            (logger::Debug, "swapchain and surface rebuild")
+        );
+        
+        let old_surface_holder = surface.take();
+        let old_swapchain_holder = swapchain.take();
+        
+        old_swapchain_holder.destruct(VkDestructorArguments::Dev(device));
+        old_surface_holder.destruct(VkDestructorArguments::None);
+        
+        let new_surface_holder = Surface::create(&window, instance).expect(VK_UNRECOVERABLE);
+        let new_swapchaint_holder = Swapchain::create(instance, &new_surface_holder, p_device, device).expect(VK_UNRECOVERABLE);
+        
+        surface.fill(new_surface_holder);
+        swapchain.fill(new_swapchaint_holder);
     }
+    
     
     #[inline(always)]
     fn frame_update(&mut self) {

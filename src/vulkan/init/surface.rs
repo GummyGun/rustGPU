@@ -30,7 +30,6 @@ impl Surface {
             surface_loader:surface_loader,
         })
     }
-    
 }
 
 impl VkDestructor for Surface {

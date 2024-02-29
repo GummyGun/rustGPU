@@ -1,10 +1,10 @@
-use crate::macros;
 use crate::AAError;
+use crate::macros;
+use crate::logger;
 use crate::errors::messages::STANDARD_CONV;
 use crate::errors::messages::GRANTED;
 use crate::errors::messages::SIMPLE_VK_FN;
 
-//use super::logger::descriptors as logger;
 use super::VkDestructor;
 use super::VkDestructorArguments;
 use super::Device;
@@ -17,6 +17,7 @@ use std::ops::Mul;
 use std::ops::MulAssign;
 
 use ash::vk;
+use arrayvec::ArrayVec;
 
 const DESCRIPTOR_TYPE_COUNT:usize = 17;
 
@@ -43,11 +44,13 @@ pub struct DescriptorPoolAllocator {
     pool: vk::DescriptorPool,
 }
 
-
 pub fn init_descriptors(device:&mut Device, ds_layout_builder:&mut DescriptorLayoutBuilder, render_image:&Image) -> (DescriptorLayout, DescriptorPoolAllocator, vk::DescriptorSet) {
     //logger::init();
     ds_layout_builder.add_binding(0, vk::DescriptorType::STORAGE_IMAGE);
     let (ds_layout, mut types_in_layout) = ds_layout_builder.build(device, vk::ShaderStageFlags::COMPUTE).unwrap();
+    
+    let gds_pool: GDescriptorAllocator = GDescriptorAllocator::create(device, types_in_layout.clone()).unwrap();
+    gds_pool.destruct(VkDestructorArguments::Dev(device));
     
     types_in_layout *= 10;//allocate 10 DS
     let mut ds_pool = DescriptorPoolAllocator::create(device, types_in_layout).unwrap();
@@ -133,7 +136,6 @@ impl VkDestructor for DescriptorLayout {
 impl DescriptorPoolCount {
     #[allow(dead_code)]
     pub fn set_type_count(&mut self, d_type:vk::DescriptorType, amount:u32) {
-        
         let index = Self::descriptor_type_to_index(d_type);
         self.count[index] = amount;
     }
@@ -208,6 +210,27 @@ impl DescriptorPoolCount {
             }
         }
         count
+    }
+    
+    fn fill_pool_sizes_array_vec(&self, target:&mut ArrayVec<vk::DescriptorPoolSize, DESCRIPTOR_TYPE_COUNT>, coheficient:u32) -> Result<u32, ()> {
+        if !target.is_empty() {
+            return Err(());
+        }
+        
+        let mut count = 0u32;
+        let mut target_iter = target.iter_mut();
+        
+        for (index, value) in self.count.into_iter().enumerate(){
+            if value > 0 {
+                
+                let mut holder = vk::DescriptorPoolSize::default();
+                holder.ty = DescriptorPoolCount::index_to_descriptor_type(index);
+                holder.descriptor_count = coheficient*value;//descriptor_type_count*descriptor_type_count;
+                count += holder.descriptor_count;
+                target.push(holder);
+            }
+        }
+        Ok(count)
     }
     
 }
@@ -296,4 +319,125 @@ impl VkDestructor for DescriptorPoolAllocator {
         unsafe{device.destroy_descriptor_pool(self.pool, None)};
     }
 }
+
+
+
+pub struct GDescriptorAllocator<const UPPER_LIMIT_PER_POOL:u32 = 4092, const INITIAL_GROUPS:u32 = 256> {
+    ratios: DescriptorPoolCount,
+    full_pools: Vec<vk::DescriptorPool>,
+    ready_pools: Vec<vk::DescriptorPool>,
+    max_descriptors_groups: u32,
+}
+
+
+
+impl<const UPPER_LIMIT_PER_POOL:u32, const INITIAL_GROUPS:u32> GDescriptorAllocator<UPPER_LIMIT_PER_POOL, INITIAL_GROUPS> {
+    
+    pub fn create(device:&mut Device, ratios:DescriptorPoolCount, ) -> Result<Self, AAError> {
+        
+        logger::create!("descriptor allocator");
+        
+        let full_pools = Vec::new();
+        let ready_pools = Vec::new();
+        
+        
+        let mut holder = Self{
+            ratios,
+            full_pools,
+            ready_pools,
+            max_descriptors_groups: INITIAL_GROUPS,
+        };
+        let initial_pool = holder.create_pool(device);
+        holder.ready_pools.push(initial_pool?);
+        Ok(holder)
+    }
+    
+    fn get_pool(&mut self, device:&mut Device) -> Result<vk::DescriptorPool, AAError> {
+        if self.ready_pools.is_empty() {
+            self.max_descriptors_groups *=2;
+            let holder = self.create_pool(device);
+            holder
+        } else {
+            Ok(self.ready_pools.pop().unwrap())
+        }
+    }
+    
+    fn create_pool(&mut self, device:&mut Device) -> Result<vk::DescriptorPool, AAError> {
+        let mut ratios = ArrayVec::new();
+        let count = self.ratios.fill_pool_sizes_array_vec(&mut ratios, 1).expect(GRANTED);
+        
+        let descriptor_pool_ci = vk::DescriptorPoolCreateInfo::builder()
+            .max_sets(count)
+            .pool_sizes(&ratios[..]);
+            
+        
+        unsafe{device.create_descriptor_pool(&descriptor_pool_ci, None)}.map_err(|error|error.into())
+    } 
+    
+    pub fn clear_pools(&mut self, device:&Device) {
+        for pool in &self.ready_pools {
+            unsafe{device.reset_descriptor_pool(*pool, vk::DescriptorPoolResetFlags::empty())}.expect(SIMPLE_VK_FN);
+        }
+        for pool in self.full_pools.iter() {
+            unsafe{device.reset_descriptor_pool(*pool, vk::DescriptorPoolResetFlags::empty())}.expect(SIMPLE_VK_FN);
+            self.ready_pools.push(*pool);
+        }
+        self.full_pools.clear();
+    }
+    
+    pub fn allocate(&mut self, device:&mut Device, layout:&vk::DescriptorSetLayout) -> Result<vk::DescriptorSet, AAError> {
+        let mut pool_to_use = self.get_pool(device)?;
+        
+        let descriptor_set_allocate_info = vk::DescriptorSetAllocateInfo::builder()
+            .descriptor_pool(pool_to_use)
+            .set_layouts(from_ref(layout));
+        
+        let holder = unsafe{device.allocate_descriptor_sets(&descriptor_set_allocate_info)};
+        
+        let set = match holder {
+            Ok(mut descriptor_set) => {
+                let holder = descriptor_set.pop().expect(GRANTED);
+                holder
+            }
+            Err(retryable_error) if (retryable_error == vk::Result::ERROR_OUT_OF_POOL_MEMORY) || (retryable_error == vk::Result::ERROR_FRAGMENTED_POOL) => {
+                self.full_pools.push(pool_to_use);
+                
+                pool_to_use = self.get_pool(device)?;
+                let descriptor_set_allocate_info = vk::DescriptorSetAllocateInfo::builder()
+                    .descriptor_pool(pool_to_use)
+                    .set_layouts(from_ref(layout));
+                
+                match unsafe{device.allocate_descriptor_sets(&descriptor_set_allocate_info)} {
+                    Ok(mut descriptor_set) => {
+                        let holder = descriptor_set.pop().expect(GRANTED);
+                        holder
+                    }
+                    Err(err) => {
+                        panic!("descriptors can't be created {:?}", err);
+                    }
+                }
+            }
+            Err(error) => {return Err(error.into());}
+        };
+        self.ready_pools.push(pool_to_use);
+        return Ok(set);
+    }
+    
+}
+
+impl VkDestructor for GDescriptorAllocator {
+    fn destruct(self, mut args:VkDestructorArguments) {
+        //logger::dpa::destruct();
+        let device = args.unwrap_dev();
+        for pool in &self.ready_pools {
+            unsafe{device.destroy_descriptor_pool(*pool, None)};
+        }
+        for pool in self.full_pools.iter() {
+            unsafe{device.destroy_descriptor_pool(*pool, None)};
+        }
+    }
+}
+
+
+
 

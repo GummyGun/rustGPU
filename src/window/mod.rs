@@ -36,8 +36,6 @@ impl Window {
         let window = Self::create_vulkan_builder(&mut video_subsys).unwrap();
         let event_pump = sdl.event_pump().expect(SIMPLE_SDL_FN);
         
-        log::error!("{:?}", window.size());
-        
         Self{
             sdl: ManuallyDrop::new(sdl),
             video_subsys,
@@ -70,7 +68,7 @@ impl Window {
                     println!("{:?}", self.window.size());
                 }
                 a @ Event::Window{..} => {
-                    println!("{:?}", a);
+                    //println!("{:?}", a);
                 }
                 _ => {}
             }

@@ -101,7 +101,6 @@ impl VInit {
         let (p_image_handle, p_image_view, image_index) = match swapchain.get_next_image(image_avaliable_semaphore){
             Ok(holder) => {holder}
             Err(()) => {
-                log::error!("aa");
                 *resize_required = true;
                 return;
             }
@@ -137,7 +136,7 @@ impl VInit {
         
         Image::transition_image(device, cmd, p_image_handle, vk::ImageLayout::TRANSFER_DST_OPTIMAL, vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL);
         
-        imgui.render(device, cmd, self.render_extent, p_image_view);
+        imgui.render(device, cmd, swapchain.extent, p_image_view);
         
         Image::transition_image(device, cmd, p_image_handle, vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL, vk::ImageLayout::PRESENT_SRC_KHR);
         
@@ -170,7 +169,6 @@ impl VInit {
         let invalid_surface = match unsafe{swapchain.queue_present(device.queue_handles.presentation, &present_info)}{
             Ok(_) => {}
             Err(bb) => {
-                log::error!("bb {:?}", bb);
                 *resize_required = true;
             }
         };
