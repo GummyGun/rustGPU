@@ -9,6 +9,7 @@ use crate::graphics::ComputeEffectMetadata;
 use crate::graphics::MeshAssetMetadata;
 
 use nalgebra as na;
+use na::Vector3;
 
 
 #[derive(Default, Debug)]
@@ -49,10 +50,10 @@ impl Imgui{
     pub fn draw_ui(
         &mut self,
         window: &mut Window,
-        args: (&mut [ComputeEffectMetadata], &mut [MeshAssetMetadata], &mut usize, &mut na::Vector3<f32>,),
+        args: (&mut [ComputeEffectMetadata], &mut [MeshAssetMetadata], &mut usize, &mut Vector3<f32>, &mut f32),
     ) {
         
-        let (compute_effect_metadata, mesh_assets_metadata, mesh_index, near_far) = args;
+        let (compute_effect_metadata, mesh_assets_metadata, mesh_index, near_far, downscale_coheficient) = args;
         
         let (context, platform, ui_data) = self.get_common_mut();
         let ui = context.new_frame();
@@ -72,6 +73,14 @@ impl Imgui{
                 
             }
             ui.text("Dangerous button");
+            
+        });
+        
+        let _global = ui.window("Global").build(||{
+            let _disabled_token = ui.begin_disabled(false);
+            
+            ui.text("Render scale");
+            ui.slider("Scale", 0.1, 1.0, downscale_coheficient);
             
         });
         

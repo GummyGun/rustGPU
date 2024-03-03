@@ -23,6 +23,7 @@ use objects::VkDestructorArguments;
 
 use ash::vk;
 use nalgebra as na;
+use na::Vector3;
 
 
 #[allow(dead_code)]
@@ -65,7 +66,7 @@ pub struct VInit {
     
     field_of_view:na::Vector3<f32>,
     
-    
+    downscale_coheficient:f32,
 
     
     pub render:graphics::Graphics,
@@ -159,6 +160,7 @@ impl VInit {
             mesh_index: 0,
             
             field_of_view:na::Vector3::new(10000.0,0.01,70.0),
+            downscale_coheficient: 1.0,
             
             render: render,
         }
@@ -222,8 +224,16 @@ impl VInit {
         self.frame_control.get_frame()
     }
     
-    pub fn get_compute_effects_metadata(&mut self) ->  (&mut [ComputeEffectMetadata], &mut [MeshAssetMetadata], &mut usize, &mut na::Vector3<f32>,) {
-        (&mut self.compute_effects.metadatas, &mut self.mesh_assets.metadatas, &mut self.mesh_index, &mut self.field_of_view)
+    pub fn get_compute_effects_metadata(
+        &mut self
+    ) ->  (
+        &mut [ComputeEffectMetadata], 
+        &mut [MeshAssetMetadata], 
+        &mut usize, 
+        &mut Vector3<f32>,
+        &mut f32,
+    ) {
+        (&mut self.compute_effects.metadatas, &mut self.mesh_assets.metadatas, &mut self.mesh_index, &mut self.field_of_view, &mut self.downscale_coheficient)
     }
     
 }

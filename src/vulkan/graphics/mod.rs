@@ -30,6 +30,7 @@ use super::pipeline;
 
 use std::slice::from_ref;
 use std::mem::size_of;
+use std::cmp::min;
 
 use memoffset::offset_of;
 use ash::vk;
@@ -91,6 +92,8 @@ impl VInit {
             mesh_index,
             
             field_of_view,
+            
+            downscale_coheficient,
             ..
         } = self;
         
@@ -120,6 +123,11 @@ impl VInit {
         let r_image_handle = render_image.underlying();
         let d_image_handle = depth_image.underlying();
         
+        
+        
+        
+        let extent = Self::calculate_extent(render_image.extent_2d, swapchain.extent, *downscale_coheficient);
+        
         Image::transition_image(device, cmd, r_image_handle, vk::ImageLayout::UNDEFINED, vk::ImageLayout::GENERAL);
         
         Self::draw_background(device, cmd, render_image, *ds_set, &compute_effects.pipelines[compute_effect_index], &compute_effects.metadatas[compute_effect_index].data);
@@ -127,12 +135,12 @@ impl VInit {
         Image::transition_image(device, cmd, d_image_handle, vk::ImageLayout::UNDEFINED, vk::ImageLayout::DEPTH_ATTACHMENT_OPTIMAL);
         Image::transition_image(device, cmd, r_image_handle, vk::ImageLayout::GENERAL, vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL);
         
-        Self::draw_geometry(device, cmd, swapchain.extent, render_image, depth_image, mesh_pipeline, mesh_assets, *mesh_index, field_of_view);
+        Self::draw_geometry(device, cmd, extent, render_image, depth_image, mesh_pipeline, mesh_assets, *mesh_index, field_of_view);
         
         Image::transition_image(device, cmd, r_image_handle, vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL, vk::ImageLayout::TRANSFER_SRC_OPTIMAL);
         Image::transition_image(device, cmd, p_image_handle, vk::ImageLayout::UNDEFINED, vk::ImageLayout::TRANSFER_DST_OPTIMAL);
         
-        Image::raw_copy_image_to_image(device, cmd, r_image_handle, render_image.extent, p_image_handle, vk::Extent3D::from(swapchain.extent));
+        Image::raw_copy_image_to_image(device, cmd, r_image_handle, vk::Extent3D::from(extent), p_image_handle, vk::Extent3D::from(swapchain.extent));
         
         Image::transition_image(device, cmd, p_image_handle, vk::ImageLayout::TRANSFER_DST_OPTIMAL, vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL);
         
@@ -140,6 +148,7 @@ impl VInit {
         
         Image::transition_image(device, cmd, p_image_handle, vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL, vk::ImageLayout::PRESENT_SRC_KHR);
         
+        //panic!("{:?} {:?}", extent, swapchain.extent);
         unsafe{device.end_command_buffer(cmd)}.expect(SIMPLE_VK_FN);
         
         let wait_semaphore_submit_info = vk::SemaphoreSubmitInfo::builder()
@@ -184,7 +193,7 @@ impl VInit {
         let push_constants_slice = unsafe{crate::any_as_u8_slice(push_constants)};
         unsafe{device.cmd_push_constants(cmd, cp_pipeline.layout, vk::ShaderStageFlags::COMPUTE, 0, push_constants_slice)};
         
-        unsafe{device.cmd_dispatch(cmd, image.extent.width/16, image.extent.height/16, 1)};
+        unsafe{device.cmd_dispatch(cmd, image.extent.width/16+1, image.extent.height/16+1, 1)};
         
     }
 
@@ -203,18 +212,17 @@ impl VInit {
     ) {
         let color_attachment_info = pipeline::rendering_attachment_info(image.view, None, vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL);
         let depth_attachment_info = pipeline::depth_attachment_info(depth.view, vk::ImageLayout::DEPTH_ATTACHMENT_OPTIMAL);
-        let extent_holder = image.get_extent2d();
-        let rendering_info = pipeline::rendering_info(extent_holder, &color_attachment_info, Some(&depth_attachment_info));
+        let rendering_info = pipeline::rendering_info(extent, &color_attachment_info, Some(&depth_attachment_info));
         
         
         unsafe{device.cmd_begin_rendering(cmd, &rendering_info)};
         let viewport = vk::Viewport::builder()
-            .width(extent_holder.width as f32)
-            .height(extent_holder.height as f32)
+            .width(extent.width as f32)
+            .height(extent.height as f32)
             .min_depth(0f32)
             .max_depth(1f32);
         
-        let scissor = vk::Rect2D::from(extent_holder);
+        let scissor = vk::Rect2D::from(extent);
         
         unsafe{device.cmd_bind_pipeline(cmd, vk::PipelineBindPoint::GRAPHICS, mesh_pipeline.underlying())};
         unsafe{device.cmd_set_viewport(cmd, 0, from_ref(&viewport))};
@@ -314,6 +322,15 @@ impl VInit {
     }
     
 
+//----
+    pub fn calculate_extent(render_extent:vk::Extent2D, swapchain_extent:vk::Extent2D, downscale_coheficient:f32) -> vk::Extent2D {
+        
+        let vk::Extent2D{width:render_width, height:render_height} = render_extent;
+        let vk::Extent2D{width:swapchain_width, height:swapchain_height} = swapchain_extent;
+        let final_height = (min(render_height, swapchain_height) as f32) * downscale_coheficient;
+        let final_width = (min(render_width, swapchain_width) as f32) * downscale_coheficient;
+        vk::Extent2D{width: final_width as u32, height: final_height as u32}
+    }
 
     /*
     pub fn draw_frame(&mut self) {

@@ -19,6 +19,7 @@ pub struct Image {
     pub view: vk::ImageView,
     pub allocation: gpu_vk::Allocation,
     pub extent: vk::Extent3D,
+    pub extent_2d: vk::Extent2D,
     pub format: vk::Format,
 }
 
@@ -87,6 +88,7 @@ impl Image {
         
         let format = metadata.format;
         let extent = extent;
+        let extent_2d = Self::extent_3d_to_extent_2d(extent);
         let create_info = Self::create_info(format, metadata.usage, extent);
         
         let image = unsafe{device.create_image(&create_info, None)}?;
@@ -99,7 +101,7 @@ impl Image {
         
         let view = Self::create_view(device, image, format, metadata.aspect_flags)?;
         
-        Ok(Self{image, view, allocation, extent, format})
+        Ok(Self{image, view, allocation, extent, extent_2d, format})
     }
     
 //----
@@ -244,6 +246,11 @@ impl Image {
         
         let _ = unsafe{device.cmd_pipeline_barrier2(command_buffer, &dependency)};
         
+    }
+    
+//----
+    fn extent_3d_to_extent_2d(base:vk::Extent3D) -> vk::Extent2D {
+        vk::Extent2D{width: base.width, height: base.height}
     }
     
 }

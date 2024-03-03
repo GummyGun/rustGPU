@@ -52,10 +52,18 @@ pub fn init_descriptors(device:&mut Device, ds_layout_builder:&mut DescriptorLay
     let gds_pool: GDescriptorAllocator = GDescriptorAllocator::create(device, types_in_layout.clone()).unwrap();
     gds_pool.destruct(VkDestructorArguments::Dev(device));
     
+    let descriptor_writer = DescriptorWriter::default();
+    println!("{:?}", descriptor_writer);
+    
     types_in_layout *= 10;//allocate 10 DS
     let mut ds_pool = DescriptorPoolAllocator::create(device, types_in_layout).unwrap();
     let ds_set = ds_pool.allocate(device, ds_layout).unwrap();
     
+    let mut writer = DescriptorWriter::default();
+    writer.write_image(0, render_image.view, vk::Sampler::null(), vk::ImageLayout::GENERAL, vk::DescriptorType::STORAGE_IMAGE);
+    writer.update_set(device, ds_set);
+    
+    /*
     let mut descriptor_image_info = vk::DescriptorImageInfo::default();
     descriptor_image_info.image_layout = vk::ImageLayout::GENERAL;
     descriptor_image_info.image_view = render_image.view;
@@ -65,8 +73,9 @@ pub fn init_descriptors(device:&mut Device, ds_layout_builder:&mut DescriptorLay
         .dst_set(ds_set)
         .descriptor_type(vk::DescriptorType::STORAGE_IMAGE)
         .image_info(from_ref(&descriptor_image_info));
-    
     unsafe{device.update_descriptor_sets(from_ref(&write_descriptor_set), &[])};
+    */
+    
     (ds_layout, ds_pool, ds_set)
 }
 
@@ -335,7 +344,7 @@ impl<const UPPER_LIMIT_PER_POOL:u32, const INITIAL_GROUPS:u32> GDescriptorAlloca
     
     pub fn create(device:&mut Device, ratios:DescriptorPoolCount, ) -> Result<Self, AAError> {
         
-        logger::create!("descriptor allocator");
+        logger::create!("Descriptor Allocator");
         
         let full_pools = Vec::new();
         let ready_pools = Vec::new();
@@ -427,7 +436,7 @@ impl<const UPPER_LIMIT_PER_POOL:u32, const INITIAL_GROUPS:u32> GDescriptorAlloca
 
 impl VkDestructor for GDescriptorAllocator {
     fn destruct(self, mut args:VkDestructorArguments) {
-        //logger::dpa::destruct();
+        logger::destruct!("Descriptor Allocator");
         let device = args.unwrap_dev();
         for pool in &self.ready_pools {
             unsafe{device.destroy_descriptor_pool(*pool, None)};
@@ -438,6 +447,72 @@ impl VkDestructor for GDescriptorAllocator {
     }
 }
 
+
+#[derive(Debug, Default)]
+pub struct DescriptorWriter {
+    image_infos: Vec<vk::DescriptorImageInfo>,
+    buffer_infos: Vec<vk::DescriptorBufferInfo>,
+    writes: Vec<vk::WriteDescriptorSet>,
+}
+
+impl DescriptorWriter {
+    pub fn create() -> Result<(), AAError> {
+        Ok(())
+    }
+    
+    
+    pub fn write_buffer(&mut self, binding:u32, buffer:vk::Buffer, size:u64, offset:u64, descriptor_type:vk::DescriptorType) {
+        
+        let descriptor_buffer_info = vk::DescriptorBufferInfo::builder()
+            .buffer(buffer)
+            .offset(offset)
+            .range(size);
+        
+        self.buffer_infos.push(descriptor_buffer_info.build());
+        
+        let write_ds = vk::WriteDescriptorSet::builder()
+            .dst_binding(binding)
+            .dst_set(vk::DescriptorSet::null())
+            .descriptor_type(descriptor_type)
+            .buffer_info(from_ref(&self.buffer_infos.last().expect(GRANTED))); //was inserted above so should be valid
+        
+        self.writes.push(*write_ds);
+        
+    }
+    
+    
+    pub fn write_image(&mut self, binding:u32, image:vk::ImageView, sampler:vk::Sampler, layout:vk::ImageLayout, descriptor_type:vk::DescriptorType) {
+        
+        let descriptor_image_info = vk::DescriptorImageInfo::builder()
+            .sampler(sampler)
+            .image_view(image)
+            .image_layout(layout);
+        
+        self.image_infos.push(descriptor_image_info.build());
+        
+        let write_ds = vk::WriteDescriptorSet::builder()
+            .dst_binding(binding)
+            .dst_set(vk::DescriptorSet::null())
+            .descriptor_type(descriptor_type)
+            .image_info(from_ref(&self.image_infos.last().expect(GRANTED))); //was inserted above so should be valid
+        
+        self.writes.push(*write_ds);
+        
+    }
+    
+    pub fn clear(&mut self) {
+        self.image_infos.clear();
+        self.buffer_infos.clear();
+        self.writes.clear();
+    }
+    
+    pub fn update_set(&mut self, device:&Device, set:vk::DescriptorSet) {
+        for write in self.writes.iter_mut() {
+            write.dst_set = set;
+        }
+        unsafe{device.update_descriptor_sets(&self.writes, &[])};
+    }
+}
 
 
 
