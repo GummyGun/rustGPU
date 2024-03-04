@@ -166,7 +166,7 @@ impl CPipeline {
 impl VkDestructor for CPipeline {
     fn destruct(self, mut args:VkDestructorArguments) {
         let device = args.unwrap_dev();
-        logger::destruct!("command_pipeline");
+        logger::destruct!("compute_pipeline");
         unsafe{device.destroy_pipeline_layout(self.layout, None)}
         unsafe{device.destroy_pipeline(self.pipeline, None)};
     }

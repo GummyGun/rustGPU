@@ -80,6 +80,16 @@ impl FrameData {
             descriptor_allocator,
         })
     }
+    
+
+    pub(in self) fn get_sync(&mut self) -> (vk::Semaphore, vk::Semaphore, vk::Fence) {
+        (self.image_available_semaphore, self.render_finished_semaphore, self.inflight_fence)
+    }
+    
+    pub(in self) fn get_command_buffer(&mut self) -> vk::CommandBuffer {
+        self.cmd_buffer
+    }
+    
 }
 
 impl FrameDatas {
@@ -92,6 +102,15 @@ impl FrameDatas {
         let holder = holder.into_inner().expect(GRANTED);
         Ok(Self(holder))
     }
+    
+    pub fn get_frame_sync(&mut self, frame:usize) -> (vk::Semaphore, vk::Semaphore, vk::Fence) {
+        self.0[frame].get_sync()
+    }
+    
+    pub fn get_frame_command_buffer(&mut self, frame:usize) -> vk::CommandBuffer {
+        self.0[frame].get_command_buffer()
+    }
+    
 }
 
 

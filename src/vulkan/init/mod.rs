@@ -27,9 +27,6 @@ pub use swapchain::*;
 mod command;
 pub use command::*;
 
-mod sync_objects;
-pub use sync_objects::*;
-
 pub mod image;
 pub use image::*;
 

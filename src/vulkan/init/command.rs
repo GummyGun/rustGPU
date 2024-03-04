@@ -16,7 +16,6 @@ use ash::vk;
 
 pub struct CommandControl{
     pub pool: vk::CommandPool,
-    pub buffers: [vk::CommandBuffer; constants::fif::USIZE],
     s_u_buffer: vk::CommandBuffer,
 }
 
@@ -33,19 +32,6 @@ impl CommandControl {
         
         let command_pool = unsafe{device.create_command_pool(&create_info, None)}?;
         
-        /*
-        logger::various_log!("command_control",
-            (logger::Trace, "creating sync objects for frame {}", index),
-        );
-        */
-        
-        let create_info = vk::CommandBufferAllocateInfo::builder()
-            .command_pool(command_pool)
-            .level(vk::CommandBufferLevel::PRIMARY)
-            .command_buffer_count(fif::U32);
-        
-        let buffer_vec = unsafe{device.allocate_command_buffers(&create_info)}?;
-        
         let sb_create_info = vk::CommandBufferAllocateInfo::builder()
             .command_pool(command_pool)
             .level(vk::CommandBufferLevel::PRIMARY)
@@ -53,14 +39,8 @@ impl CommandControl {
         
         let s_u_buffer = unsafe{device.allocate_command_buffers(&sb_create_info)}?;
         
-        let mut buffer_arr = [vk::CommandBuffer::null(); fif::USIZE];
-        for (index, buffer) in buffer_vec.into_iter().enumerate() {
-            buffer_arr[index] = buffer;
-        }
-        
         Ok(Self{
             pool: command_pool,
-            buffers: buffer_arr,
             s_u_buffer: s_u_buffer[0],
         })
     }
@@ -100,4 +80,5 @@ impl VkDestructor for CommandControl {
         unsafe{device.destroy_command_pool(self.pool, None)};
     }
 }
+
 

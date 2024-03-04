@@ -87,7 +87,6 @@ impl VInit {
             render_image, 
             depth_image,
             command_control, 
-            sync_objects, 
             swapchain, 
             device, 
             
@@ -97,14 +96,16 @@ impl VInit {
             
             field_of_view,
             
+            frame_datas,
             downscale_coheficient,
             ..
         } = self;
         
         let compute_effect_index = compute_effect_index.clone();
-        let cmd = command_control.buffers[cf];
+        let cmd = frame_datas.get_frame_command_buffer(cf);
         
-        let (image_avaliable_semaphore, render_finished_semaphore, inflight_fence) = sync_objects.get_frame(cf);
+        let (image_avaliable_semaphore, render_finished_semaphore, inflight_fence) = frame_datas.get_frame_sync(cf);
+        
         let (p_image_handle, p_image_view, image_index) = match swapchain.get_next_image(image_avaliable_semaphore){
             Ok(holder) => {holder}
             Err(()) => {

@@ -43,8 +43,6 @@ pub struct VInit {
     allocator: VkWraper<Allocator>,
     pub swapchain: VkWraper<Swapchain>,
     
-    
-    sync_objects: VkWraper<SyncObjects>,
     pub command_control: VkWraper<CommandControl>,
     
     
@@ -68,6 +66,8 @@ pub struct VInit {
     downscale_coheficient:f32,
     
     pub render:graphics::Graphics,
+    
+    frame_datas: VkWraper<graphics::FrameDatas>,
     
     //pub frame_data: VkWrapper[FrameData; constants::fif::USIZE],
 }
@@ -98,7 +98,6 @@ impl VInit {
         let mut device = vk_create_interpreter(Device::create(&mut instance, &p_device), "device"); 
         let mut allocator = vk_create_interpreter(Allocator::create(&mut instance, &p_device, &mut device), "allocator");
         let swapchain = vk_create_interpreter(Swapchain::create(&mut instance, &surface, &p_device, &mut device), "swapchain");
-        let sync_objects = vk_create_interpreter(SyncObjects::create(&mut device), "sync_objects");
         let mut command_control = vk_create_interpreter(CommandControl::create(&p_device, &mut device), "command_control");
         
         let render_image = vk_create_interpreter(Image::create(&mut device, &mut allocator, swapchain.extent.into(), image::RENDER), "render_image");
@@ -122,8 +121,12 @@ impl VInit {
         let mesh_assets = load_gltf(&mut device, &mut allocator, &mut command_control,"res/gltf/basicmesh.glb").expect("runtime error");
         
         
-        let frame = FrameDatas::create(&p_device, &mut device).unwrap();
+        let mut frame = FrameDatas::create(&p_device, &mut device).unwrap();
+        /*
+        let sync = frame.get_frame_sync(0);
+        let buffer = frame.get_frame_command_buffer(0);
         frame.destruct(VkDestructorArguments::Dev(&mut device));
+        */
         
         VInit{
             frame_control: FrameControl(0),
@@ -141,7 +144,6 @@ impl VInit {
             device: VkWraper::new(device),
             allocator: VkWraper::new(allocator), 
             swapchain: VkWraper::new(swapchain),
-            sync_objects: VkWraper::new(sync_objects),
             command_control: VkWraper::new(command_control),
             
             render_image: VkWraper::new(render_image),
@@ -154,16 +156,16 @@ impl VInit {
             compute_effects: VkWraper::new(compute_effects),
             compute_effect_index:0,
             
-            
             mesh_pipeline: VkWraper::new(mesh_pipeline),
             mesh_assets: VkWraper::new(mesh_assets),
+            
             mesh_index: 0,
             
             field_of_view:na::Vector3::new(10000.0,0.01,70.0),
             downscale_coheficient: 1.0,
             
             render: render,
-            //[FrameData; constants::fif::USIZE],
+            frame_datas: VkWraper::new(frame),
         }
         
     }
@@ -261,7 +263,6 @@ impl Drop for VInit {
             mut _device, 
             mut _allocator, 
             swapchain, 
-            sync_objects, 
             command_control, 
             render_image, 
             depth_image, 
@@ -270,11 +271,13 @@ impl Drop for VInit {
             compute_effects, 
             mesh_pipeline, 
             mesh_assets,
+            frame_datas,
         ) = self.destructure();
         
         let dev = &mut _device;
         let all = &mut _allocator;
         
+        frame_datas.destruct(VkDestructorArguments::Dev(dev));
         
         mesh_assets.destruct(VkDestructorArguments::DevAll(dev, all));
         mesh_pipeline.destruct(VkDestructorArguments::Dev(dev));
@@ -287,7 +290,6 @@ impl Drop for VInit {
         depth_image.destruct(VkDestructorArguments::DevAll(dev, all));
         command_control.destruct(VkDestructorArguments::Dev(dev));
         
-        sync_objects.destruct(VkDestructorArguments::Dev(dev));
         swapchain.destruct(VkDestructorArguments::Dev(dev));
         _allocator.destruct(VkDestructorArguments::Dev(dev));
         _device.destruct(VkDestructorArguments::None);

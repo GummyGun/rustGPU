@@ -5,7 +5,6 @@ use super::Surface;
 use super::Device;
 use super::Allocator;
 use super::Swapchain;
-use super::SyncObjects;
 use super::CommandControl;
 use super::Image;
 use super::DescriptorLayoutBuilder;
@@ -14,6 +13,7 @@ use super::GDescriptorAllocator;
 use super::ComputeEffects;
 use super::GPipeline;
 use super::MeshAssets;
+use super::graphics::FrameDatas;
 
 
 type Objects = (
@@ -23,7 +23,6 @@ type Objects = (
     Device,
     Allocator,
     Swapchain,
-    SyncObjects,
     CommandControl,
     Image,
     Image,
@@ -32,6 +31,7 @@ type Objects = (
     ComputeEffects,
     GPipeline,
     MeshAssets,
+    FrameDatas,
 );
 
 impl VInit {
@@ -43,7 +43,6 @@ impl VInit {
         let device = self.device.take();
         let allocator = self.allocator.take();
         let swapchain = self.swapchain.take();
-        let sync_objects = self.sync_objects.take();
         let command_control = self.command_control.take();
         
         let render_image = self.render_image.take();
@@ -57,6 +56,7 @@ impl VInit {
         let mesh_pipeline = self.mesh_pipeline.take();
         let mesh_assets = self.mesh_assets.take();
         
+        let frame_datas = self.frame_datas.take();
         (
             instance,
             messenger,
@@ -64,7 +64,6 @@ impl VInit {
             device,
             allocator,
             swapchain,
-            sync_objects,
             command_control,
             render_image,
             depth_image,
@@ -73,6 +72,7 @@ impl VInit {
             compute_effects,
             mesh_pipeline,
             mesh_assets,
+            frame_datas,
         )
     }
     
