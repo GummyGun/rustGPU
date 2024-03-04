@@ -27,6 +27,7 @@ use na::Vector3;
 use na::Vector4;
 use derivative::Derivative;
 
+
 #[derive(Derivative, Default)]
 #[derivative(Debug)]
 pub struct MeshAssets {

@@ -44,39 +44,26 @@ pub struct DescriptorPoolAllocator {
     pool: vk::DescriptorPool,
 }
 
-pub fn init_descriptors(device:&mut Device, ds_layout_builder:&mut DescriptorLayoutBuilder, render_image:&Image) -> (DescriptorLayout, DescriptorPoolAllocator, vk::DescriptorSet) {
+pub fn init_descriptors(device:&mut Device, render_image:&Image) -> (DescriptorLayout, GDescriptorAllocator, vk::DescriptorSet) {
     //logger::init();
-    ds_layout_builder.add_binding(0, vk::DescriptorType::STORAGE_IMAGE);
+    
+    let mut ds_layout_builder = DescriptorLayoutBuilder::create().unwrap();
+    ds_layout_builder.add_binding(0, vk::DescriptorType::STORAGE_IMAGE, 1);
     let (ds_layout, mut types_in_layout) = ds_layout_builder.build(device, vk::ShaderStageFlags::COMPUTE).unwrap();
     
-    let gds_pool: GDescriptorAllocator = GDescriptorAllocator::create(device, types_in_layout.clone()).unwrap();
-    gds_pool.destruct(VkDestructorArguments::Dev(device));
+    let mut gds_pool: GDescriptorAllocator = GDescriptorAllocator::create(device, types_in_layout.clone()).unwrap();
     
-    let descriptor_writer = DescriptorWriter::default();
-    println!("{:?}", descriptor_writer);
+    //types_in_layout *= 10;//allocate 10 DS
+    //let mut ds_pool = DescriptorPoolAllocator::create(device, types_in_layout).unwrap();
+    //let ds_set = ds_pool.allocate(device, ds_layout).unwrap();
     
-    types_in_layout *= 10;//allocate 10 DS
-    let mut ds_pool = DescriptorPoolAllocator::create(device, types_in_layout).unwrap();
-    let ds_set = ds_pool.allocate(device, ds_layout).unwrap();
+    let ds_set = gds_pool.allocate(device, &ds_layout).unwrap();
     
     let mut writer = DescriptorWriter::default();
     writer.write_image(0, render_image.view, vk::Sampler::null(), vk::ImageLayout::GENERAL, vk::DescriptorType::STORAGE_IMAGE);
     writer.update_set(device, ds_set);
     
-    /*
-    let mut descriptor_image_info = vk::DescriptorImageInfo::default();
-    descriptor_image_info.image_layout = vk::ImageLayout::GENERAL;
-    descriptor_image_info.image_view = render_image.view;
-    
-    let write_descriptor_set = vk::WriteDescriptorSet::builder()
-        .dst_binding(0)
-        .dst_set(ds_set)
-        .descriptor_type(vk::DescriptorType::STORAGE_IMAGE)
-        .image_info(from_ref(&descriptor_image_info));
-    unsafe{device.update_descriptor_sets(from_ref(&write_descriptor_set), &[])};
-    */
-    
-    (ds_layout, ds_pool, ds_set)
+    (ds_layout, gds_pool, ds_set)
 }
 
 impl DescriptorLayoutBuilder {
@@ -89,13 +76,13 @@ impl DescriptorLayoutBuilder {
         })
     }
     
-    pub fn add_binding(&mut self, binding:u32, d_type:vk::DescriptorType) {
+    pub fn add_binding(&mut self, binding:u32, d_type:vk::DescriptorType, count:u32) {
         let mut holder = vk::DescriptorSetLayoutBinding::default();
         holder.binding = binding;
-        holder.descriptor_count = 1;
+        holder.descriptor_count = count;
         holder.descriptor_type = d_type;
         self.bindings.push(holder);
-        self.type_count.add_type_count(d_type, 1);
+        self.type_count.add_type_count(d_type, count);
     }
     
     pub fn reset(&mut self) {
@@ -121,6 +108,10 @@ impl DescriptorLayoutBuilder {
         self.type_count = DescriptorPoolCount::default();
         
         Ok((holder_layout, holder_count))
+    }
+    
+    pub fn assemble(&mut self) -> DescriptorPoolCount {
+        self.type_count.clone()
     }
     
 }
@@ -342,7 +333,7 @@ pub struct GDescriptorAllocator<const UPPER_LIMIT_PER_POOL:u32 = 4092, const INI
 
 impl<const UPPER_LIMIT_PER_POOL:u32, const INITIAL_GROUPS:u32> GDescriptorAllocator<UPPER_LIMIT_PER_POOL, INITIAL_GROUPS> {
     
-    pub fn create(device:&mut Device, ratios:DescriptorPoolCount, ) -> Result<Self, AAError> {
+    pub fn create(device:&mut Device, ratios:DescriptorPoolCount) -> Result<Self, AAError> {
         
         logger::create!("Descriptor Allocator");
         
@@ -456,8 +447,8 @@ pub struct DescriptorWriter {
 }
 
 impl DescriptorWriter {
-    pub fn create() -> Result<(), AAError> {
-        Ok(())
+    pub fn create() -> Result<Self, AAError> {
+        Ok(Self::default())
     }
     
     

@@ -10,7 +10,7 @@ use super::CommandControl;
 use super::Image;
 use super::DescriptorLayoutBuilder;
 use super::DescriptorLayout;
-use super::DescriptorPoolAllocator;
+use super::GDescriptorAllocator;
 use super::ComputeEffects;
 use super::GPipeline;
 use super::MeshAssets;
@@ -27,9 +27,8 @@ type Objects = (
     CommandControl,
     Image,
     Image,
-    DescriptorLayoutBuilder,
     DescriptorLayout,
-    DescriptorPoolAllocator,
+    GDescriptorAllocator,
     ComputeEffects,
     GPipeline,
     MeshAssets,
@@ -51,7 +50,6 @@ impl VInit {
         let depth_image = self.depth_image.take();
         
         
-        let ds_layout_builder = self.ds_layout_builder.take();
         let ds_layout = self.ds_layout.take();
         let ds_pool = self.ds_pool.take();
         
@@ -70,7 +68,6 @@ impl VInit {
             command_control,
             render_image,
             depth_image,
-            ds_layout_builder,
             ds_layout,
             ds_pool,
             compute_effects,

@@ -42,35 +42,34 @@ pub struct VInit {
     pub device: VkWraper<Device>,
     allocator: VkWraper<Allocator>,
     pub swapchain: VkWraper<Swapchain>,
+    
+    
     sync_objects: VkWraper<SyncObjects>,
     pub command_control: VkWraper<CommandControl>,
+    
     
     render_image: VkWraper<Image>,
     render_extent: vk::Extent2D,
     depth_image: VkWraper<Image>,
     
     
-    ds_layout_builder: VkWraper<DescriptorLayoutBuilder>,
     ds_layout: VkWraper<DescriptorLayout>,
-    ds_pool: VkWraper<DescriptorPoolAllocator>,
+    ds_pool: VkWraper<GDescriptorAllocator>,
     ds_set: vk::DescriptorSet,
     
     compute_effects: VkWraper<ComputeEffects>,
-    compute_effect_index: usize,
     
     mesh_pipeline: VkWraper<GPipeline>,
-    //mesh: VkWraper<GPUMeshBuffers>,
     mesh_assets: VkWraper<MeshAssets>,
+    
+    compute_effect_index: usize,
     mesh_index: usize,
-    
-    
     field_of_view:na::Vector3<f32>,
-    
     downscale_coheficient:f32,
-
     
     pub render:graphics::Graphics,
     
+    //pub frame_data: VkWrapper[FrameData; constants::fif::USIZE],
 }
 
 
@@ -105,9 +104,8 @@ impl VInit {
         let render_image = vk_create_interpreter(Image::create(&mut device, &mut allocator, swapchain.extent.into(), image::RENDER), "render_image");
         let render_extent = render_image.get_extent2d();
         let depth_image = vk_create_interpreter(Image::create(&mut device, &mut allocator, swapchain.extent.into(), image::DEPTH), "depth_image");
-        let mut ds_layout_builder = vk_create_interpreter(DescriptorLayoutBuilder::create(), "descriptor_layout_builder");
         
-        let (ds_layout, ds_pool, ds_set) = init_descriptors(&mut device, &mut ds_layout_builder, &render_image);
+        let (ds_layout, ds_pool, ds_set) = init_descriptors(&mut device, &render_image);
         
         let compute_effects = c_pipeline::init_pipelines(&mut device, &ds_layout);
         
@@ -123,6 +121,9 @@ impl VInit {
         let mesh_pipeline = g_pipeline::init_mesh_pipeline(&mut device, &render_image, &depth_image);
         let mesh_assets = load_gltf(&mut device, &mut allocator, &mut command_control,"res/gltf/basicmesh.glb").expect("runtime error");
         
+        
+        let frame = FrameDatas::create(&p_device, &mut device).unwrap();
+        frame.destruct(VkDestructorArguments::Dev(&mut device));
         
         VInit{
             frame_control: FrameControl(0),
@@ -146,7 +147,6 @@ impl VInit {
             render_image: VkWraper::new(render_image),
             render_extent,
             depth_image: VkWraper::new(depth_image),
-            ds_layout_builder: VkWraper::new(ds_layout_builder),
             ds_layout: VkWraper::new(ds_layout),
             ds_pool: VkWraper::new(ds_pool),
             ds_set: ds_set,
@@ -163,6 +163,7 @@ impl VInit {
             downscale_coheficient: 1.0,
             
             render: render,
+            //[FrameData; constants::fif::USIZE],
         }
         
     }
@@ -264,7 +265,6 @@ impl Drop for VInit {
             command_control, 
             render_image, 
             depth_image, 
-            ds_layout_builder, 
             ds_pool, 
             ds_layout, 
             compute_effects, 
@@ -282,7 +282,6 @@ impl Drop for VInit {
         
         ds_pool.destruct(VkDestructorArguments::Dev(dev));
         ds_layout.destruct(VkDestructorArguments::Dev(dev));
-        ds_layout_builder.destruct(VkDestructorArguments::None);
         
         render_image.destruct(VkDestructorArguments::DevAll(dev, all));
         depth_image.destruct(VkDestructorArguments::DevAll(dev, all));

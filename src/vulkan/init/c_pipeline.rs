@@ -36,6 +36,7 @@ pub struct ComputeEffects {
 }
 
 
+
 pub fn init_pipelines(device:&mut Device, ds_layout:&DescriptorLayout) -> ComputeEffects {
     
     logger::various_log!("compute_pipeline",
