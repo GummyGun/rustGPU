@@ -33,7 +33,7 @@ pub struct FrameData {
 }
 
 
-pub struct FrameDatas (
+pub struct FramesData (
     [FrameData; constants::fif::USIZE],
 );
 
@@ -92,10 +92,11 @@ impl FrameData {
     
 }
 
-impl FrameDatas {
+impl FramesData {
     pub fn create(p_device:&PDevice, device:&mut Device) -> Result<Self, AAError> {
         let mut holder:ArrayVec<FrameData, {constants::fif::USIZE}> = ArrayVec::new();
-        for index in 0..constants::fif::USIZE {
+        for _index in 0..constants::fif::USIZE {
+            logger::create!("frame_data");
             let frame_data = FrameData::create(p_device, device)?;
             holder.push(frame_data);
         }
@@ -129,9 +130,9 @@ impl VkDestructor for FrameData {
     }
 }
 
-impl VkDestructor for FrameDatas {
+impl VkDestructor for FramesData {
     fn destruct(self, mut args:VkDestructorArguments) {
-        logger::destruct!("frame_datas");
+        logger::destruct!("frames_data");
         let device = args.unwrap_dev();
         for frame_data in self.0 {
             frame_data.destruct(VkDestructorArguments::Dev(device));

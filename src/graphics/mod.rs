@@ -6,6 +6,7 @@ use std::mem::size_of;
 
 use arrayvec::ArrayString;
 use nalgebra as na;
+use na::Matrix4;
 use na::Vector4;
 use na::Vector3;
 
@@ -69,6 +70,18 @@ pub struct MeshAssetMetadata {
     pub name: ArrayString<64>,
     pub surfaces: Vec<GeoSurface>,
 }
+
+#[derive(Debug, Default)]
+#[repr(C)]
+pub struct GPUSceneData {
+    view: Matrix4<f32>,
+    projection: Matrix4<f32>,
+    view_projection: Matrix4<f32>,
+    ambient_color: Vector4<f32>,
+    sunlight_direction: Vector4<f32>,
+    sunlight_color: Vector4<f32>,
+}
+
 
 /*
 #[derive(Debug, Default)]

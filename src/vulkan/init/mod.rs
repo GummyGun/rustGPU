@@ -1,5 +1,7 @@
 use super::VkDestructor;
-//use super::VkDestructorType;
+use super::VkDestructorType;
+use super::VkDeferedDestructor;
+use super::VkDynamicDestructor;
 use super::VkDestructorArguments;
     
 

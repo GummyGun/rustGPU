@@ -2,6 +2,7 @@ use crate::AAError;
 use crate::macros;
 use crate::logger;
 use crate::errors::messages::GPU_ALLOCATION;
+use crate::errors::messages::SU_COMMAND_FAIL;
 
 use super::VkDestructor;
 use super::VkDestructorArguments;
@@ -88,9 +89,10 @@ impl VkDestructor for Allocator {
 }
 
 
+
 pub fn copy_buffer_2_buffer(
-    device: &Device, 
-    cmd: &CommandControl,
+    device: &mut Device, 
+    cmd_ctrl: &mut CommandControl,
     src_buf: &Buffer, 
     src_offset: u64,
     dst_buf: &mut Buffer, 
@@ -101,15 +103,19 @@ pub fn copy_buffer_2_buffer(
     logger::various_log!("memory",
         (logger::Trace, "copying from 1 buffer to another")
     );
-    let buffer = cmd.setup_su_buffer(device);
     
-    let buffer_copy = vk::BufferCopy::builder()
-        .size(size)
-        .src_offset(src_offset)
-        .dst_offset(dst_offset);
     
-    unsafe{device.cmd_copy_buffer(buffer, src_buf.buffer, dst_buf.buffer, from_ref(&buffer_copy))};
-    cmd.submit_su_buffer(device);
+    let holder = cmd_ctrl.run_su_buffer(device, &mut |device, cmd|{
+        
+        let buffer_copy = vk::BufferCopy::builder()
+            .size(size)
+            .src_offset(src_offset)
+            .dst_offset(dst_offset);
+        unsafe{device.cmd_copy_buffer(cmd, src_buf.buffer, dst_buf.buffer, from_ref(&buffer_copy))};
+        //Err(AAError::TODOError)
+        Ok(())
+    }).expect(SU_COMMAND_FAIL);
+    
 }
 
 /*
@@ -148,7 +154,6 @@ pub fn find_memory_type_index(
 */
 
 /*
-
 pub fn copy_buffer_2_image(
     device: &Device, 
     command: &CommandControl,
@@ -187,5 +192,4 @@ pub fn copy_buffer_2_image(
     
     command.submit_su_buffer(device);
 }
-
 */

@@ -31,8 +31,8 @@ pub struct DescriptorLayoutBuilder {
 pub struct DescriptorLayout {
     set_layout: vk::DescriptorSetLayout,
 }
-
 macros::impl_deref!(DescriptorLayout, vk::DescriptorSetLayout, set_layout);
+macros::impl_underlying!(DescriptorLayout, vk::DescriptorSetLayout, set_layout);
 
 
 #[derive(Default, Debug, Clone)]
@@ -49,9 +49,9 @@ pub fn init_descriptors(device:&mut Device, render_image:&Image) -> (DescriptorL
     
     let mut ds_layout_builder = DescriptorLayoutBuilder::create().unwrap();
     ds_layout_builder.add_binding(0, vk::DescriptorType::STORAGE_IMAGE, 1);
-    let (ds_layout, mut types_in_layout) = ds_layout_builder.build(device, vk::ShaderStageFlags::COMPUTE).unwrap();
+    let (ds_layout, types_in_layout) = ds_layout_builder.build(device, vk::ShaderStageFlags::COMPUTE).unwrap();
     
-    let mut gds_pool: GDescriptorAllocator = GDescriptorAllocator::create(device, types_in_layout.clone()).unwrap();
+    let mut gds_pool: GDescriptorAllocator = GDescriptorAllocator::create(device, types_in_layout).unwrap();
     
     //types_in_layout *= 10;//allocate 10 DS
     //let mut ds_pool = DescriptorPoolAllocator::create(device, types_in_layout).unwrap();
@@ -218,7 +218,6 @@ impl DescriptorPoolCount {
         }
         
         let mut count = 0u32;
-        let mut target_iter = target.iter_mut();
         
         for (index, value) in self.count.into_iter().enumerate(){
             if value > 0 {

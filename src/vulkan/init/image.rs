@@ -2,12 +2,18 @@ use crate::AAError;
 use crate::macros;
 use crate::logger;
 use crate::errors::messages::GPU_FREE;
+use crate::errors::messages::CPU_ACCESIBLE;
 
 use super::VkDestructor;
+use super::VkDestructorType;
+use super::VkDeferedDestructor;
+use super::VkDynamicDestructor;
 use super::VkDestructorArguments;
 use super::Device;
 use super::Allocator;
+use super::CommandControl;
 use super::memory;
+use super::Buffer;
 
 use std::slice::from_ref;
 
@@ -25,7 +31,7 @@ pub struct Image {
 
 macros::impl_underlying!(Image, vk::Image, image);
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ImageMetadata {
     d_name: Option<&'static str>,
     pub format: vk::Format,
@@ -58,14 +64,31 @@ pub const DEPTH:ImageMetadata = {
     }
 };
 
+pub const TEXTURE:ImageMetadata = {
+    use vk::ImageUsageFlags as IUF;
+    use vk::ImageAspectFlags as IAF;
+    ImageMetadata{
+        d_name: Some("TEXTURE IMAGE"),
+        format: vk::Format::R8G8B8A8_UNORM,
+        usage: IUF::from_raw(0x06),
+        //IUF::TRANSFER_DST | IUF::SAMPLED
+        aspect_flags: IAF::COLOR,
+    }
+};
+
+impl ImageMetadata {
+    pub fn texture(name:&'static str) -> Self {
+        let mut holder = TEXTURE.clone();
+        holder.d_name = Some(name);
+        holder
+    }
+}
+
 impl Image {
     
 //----
     pub fn get_extent2d(&self) -> vk::Extent2D {
-        vk::Extent2D{
-            width: self.extent.width,
-            height: self.extent.height,
-        }
+        self.extent_2d
     }
     
 //----
@@ -74,17 +97,19 @@ impl Image {
         allocator: &mut Allocator,
         extent: vk::Extent3D,
         metadata: ImageMetadata,
+        overwrite_name: Option<&str>,
     ) -> Result<Self, AAError> {
         logger::create!("image");
         
-        match metadata.d_name {
-            Some(d_name) => {
-                logger::various_log!("image",
-                    (logger::Trace, "Image name {:?}", d_name)
-                );
-            }
-            None => {}
-        }
+        let name = match (overwrite_name, metadata.d_name) {
+            (Some(overwrite_name), _) => {overwrite_name}
+            (None, Some(default_name)) => {default_name}
+            (None, None) => {""}
+        };
+        
+        logger::various_log!("image",
+            (logger::Trace, "Image name {:?}", name)
+        );
         
         let format = metadata.format;
         let extent = extent;
@@ -95,13 +120,69 @@ impl Image {
         let memory_requirements = unsafe{device.get_image_memory_requirements(image)};
         
         
-        let allocation = allocator.allocate(metadata.d_name.unwrap_or_default(), memory_requirements, memory::GpuOnly);
+        let allocation = allocator.allocate(name, memory_requirements, memory::GpuOnly);
         
         unsafe{device.bind_image_memory(image, allocation.memory(), allocation.offset())}?;
         
         let view = Self::create_view(device, image, format, metadata.aspect_flags)?;
         
         Ok(Self{image, view, allocation, extent, extent_2d, format})
+    }
+    
+//----
+    pub fn create_texture(
+        device: &mut Device,
+        allocator: &mut Allocator,
+        cmd_ctrl: &mut CommandControl,
+        extent: vk::Extent3D,
+        overwrite_name: Option<&str>,
+        data: &[u8],
+    ) -> Result<Self, AAError> {
+        let upload_buffer_size = u64::from(extent.depth * extent.width * extent.height * 4);
+        
+        //use vk::ImageUsageFlags as IUF;
+        //panic!("{:?}", (IUF::TRANSFER_DST | IUF::SAMPLED).as_raw());
+        
+        let mut upload_buffer = Buffer::create(device, allocator, Some("upload buffer"), upload_buffer_size, vk::BufferUsageFlags::TRANSFER_SRC, memory::CpuToGpu)?;
+        {
+            let mut align = upload_buffer.get_align(0, upload_buffer_size).expect(CPU_ACCESIBLE);
+            align.copy_from_slice(data);
+        }
+        
+        let holder = Self::create(device, allocator, extent, TEXTURE, overwrite_name)?;
+        
+        let copy_state = cmd_ctrl.run_su_buffer(device, &mut |device, cmd|{
+            let image_handle = holder.underlying();
+            Self::transition_image(device, cmd, image_handle, vk::ImageLayout::UNDEFINED, vk::ImageLayout::TRANSFER_DST_OPTIMAL);
+            
+            let subresource = vk::ImageSubresourceLayers::builder()
+                .aspect_mask(vk::ImageAspectFlags::COLOR)
+                .mip_level(0)
+                .base_array_layer(0)
+                .layer_count(1);
+            
+            let image_copy = vk::BufferImageCopy::builder()
+                .buffer_offset(0)
+                .buffer_row_length(0)
+                .buffer_image_height(0)
+                .image_subresource(*subresource)
+                .image_offset(vk::Offset3D::default())
+                .image_extent(extent);
+            
+            unsafe{device.cmd_copy_buffer_to_image(
+                cmd,
+                upload_buffer.underlying(),
+                image_handle,
+                vk::ImageLayout::TRANSFER_DST_OPTIMAL,
+                from_ref(&image_copy)
+                
+            )};
+            Self::transition_image(device, cmd, image_handle, vk::ImageLayout::TRANSFER_DST_OPTIMAL, vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL);
+            Ok(())
+        })?;
+        
+        upload_buffer.destruct(VkDestructorArguments::DevAll(device, allocator));
+        Ok(holder)
     }
     
 //----
@@ -253,18 +334,39 @@ impl Image {
         vk::Extent2D{width: base.width, height: base.height}
     }
     
+//----
+    unsafe fn unsafe_clone(&self) -> Self {
+        std::ptr::read(self)
+    }
+    
+//----
+    fn internal_destroy(self, device:&mut Device, allocator:&mut Allocator) {
+        logger::destruct!("image");
+        unsafe{device.destroy_image_view(self.view, None)};
+        unsafe{device.destroy_image(self.image, None)};
+        allocator.free(self.allocation).expect(GPU_FREE);
+    }
+
 }
 
 
 
 impl VkDestructor for Image {
     fn destruct(self, mut args:VkDestructorArguments) {
-        logger::destruct!("image");
         let (device, allocator) = args.unwrap_dev_all();
-        unsafe{device.destroy_image_view(self.view, None)};
-        unsafe{device.destroy_image(self.image, None)};
-        allocator.free(self.allocation).expect(GPU_FREE);
+        self.internal_destroy(device, allocator);
     }
 }
 
 
+impl VkDeferedDestructor for Image {
+    fn defered_destruct(&mut self) -> VkDynamicDestructor {
+        let target = unsafe{self.unsafe_clone()};
+        let callback = Box::new(move |mut args:VkDestructorArguments|{
+            let target = target;
+            let (device, allocator) = args.unwrap_dev_all();
+            target.internal_destroy(device, allocator);
+        });
+        (callback, VkDestructorType::DevAll)
+    }
+}

@@ -17,11 +17,14 @@ use ash::extensions::ext::DebugUtils;
 use ash::vk;
 
 const FIF:usize = 2;
+#[allow(dead_code)]
 pub mod fif {
     pub const USIZE:usize = super::FIF as usize;
     pub const U32:u32 = super::FIF as u32;
 }
+
 const SC_MAX_IMAGES:usize = 8;
+#[allow(dead_code)]
 pub mod sc_max_images {
     pub const USIZE:usize = super::SC_MAX_IMAGES as usize;
     pub const U32:u32 = super::SC_MAX_IMAGES as u32;

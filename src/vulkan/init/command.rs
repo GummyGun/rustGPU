@@ -1,5 +1,4 @@
 use crate::AAError;
-use crate::constants;
 use crate::errors::messages::SIMPLE_VK_FN;
 
 
@@ -22,7 +21,6 @@ pub struct CommandControl{
 
 impl CommandControl {
     pub fn create(p_device:&PDevice, device:&mut Device) -> Result<Self, AAError> {
-        use constants::fif;
         
         logger::create!("command_control");
         
@@ -45,6 +43,7 @@ impl CommandControl {
         })
     }
     
+    /*
     pub fn setup_su_buffer(&self, device:&Device) -> vk::CommandBuffer {
         
         unsafe{device.reset_command_buffer(self.s_u_buffer, vk::CommandBufferResetFlags::empty())}.expect(SIMPLE_VK_FN);
@@ -69,6 +68,33 @@ impl CommandControl {
         
         unsafe{device.queue_submit(device.queue_handles.graphics, &submit_info[..], vk::Fence::null())}.expect(SIMPLE_VK_FN);
         unsafe{device.device_wait_idle()}.expect(SIMPLE_VK_FN);
+    }
+    */
+    
+    
+    pub fn run_su_buffer(&mut self, device:&mut Device, instant_command:&mut dyn FnMut(&mut Device, vk::CommandBuffer)->Result<(),AAError>) ->Result<(), AAError> {
+        
+        unsafe{device.reset_command_buffer(self.s_u_buffer, vk::CommandBufferResetFlags::empty())}.expect(SIMPLE_VK_FN);
+        
+        let begin_info = ash::vk::CommandBufferBeginInfo::builder()
+            .flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
+        
+        unsafe{device.begin_command_buffer(self.s_u_buffer, &begin_info)}.expect(SIMPLE_VK_FN);
+        
+        let holder = instant_command(device, self.s_u_buffer)?;
+        
+        unsafe{device.end_command_buffer(self.s_u_buffer)}.expect(SIMPLE_VK_FN);
+        
+        let submit_info = [
+            vk::SubmitInfo::builder()
+                .command_buffers(from_ref(&self.s_u_buffer))
+                .build(),
+        ];
+        
+        unsafe{device.queue_submit(device.queue_handles.graphics, &submit_info[..], vk::Fence::null())}.expect(SIMPLE_VK_FN);
+        unsafe{device.device_wait_idle()}.expect(SIMPLE_VK_FN);
+        
+        Ok(holder)
     }
     
 }

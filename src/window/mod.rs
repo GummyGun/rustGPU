@@ -67,8 +67,8 @@ impl Window {
                 Event::KeyDown{keycode: Some(Keycode::W),.. } => {
                     println!("{:?}", self.window.size());
                 }
-                a @ Event::Window{..} => {
-                    //println!("{:?}", a);
+                _event @ Event::Window{..} => {
+                    //println!("{:?}", event);
                 }
                 _ => {}
             }

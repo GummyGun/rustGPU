@@ -37,6 +37,7 @@ pub struct MeshAssets {
 }
 
 
+#[derive(Debug)]
 pub struct GPUMeshBuffers {
     pub index_buffer: Buffer,
     pub vertex_buffer: Buffer,
@@ -176,7 +177,11 @@ pub fn load_gltf<P: AsRef<Path>>(
     }
     */
     
-
+    /*
+    println!("{:#?}", holder.meshes[0].index_buffer);
+    unsafe {panic!("{:#?}", holder.meshes[0].index_buffer.unsafe_clone())};
+    */
+    
     Ok(holder)
     
 }

@@ -1,3 +1,4 @@
+/*
 use super::VInit;
 use super::Instance;
 use super::DMessenger;
@@ -7,13 +8,16 @@ use super::Allocator;
 use super::Swapchain;
 use super::CommandControl;
 use super::Image;
-use super::DescriptorLayoutBuilder;
 use super::DescriptorLayout;
 use super::GDescriptorAllocator;
 use super::ComputeEffects;
 use super::GPipeline;
 use super::MeshAssets;
-use super::graphics::FrameDatas;
+use super::graphics::FramesData;
+
+use super::VkDestructor;
+use super::VkDestructorArguments;
+use super::VkDestructorType;
 
 
 type Objects = (
@@ -31,7 +35,7 @@ type Objects = (
     ComputeEffects,
     GPipeline,
     MeshAssets,
-    FrameDatas,
+    FramesData,
 );
 
 impl VInit {
@@ -56,7 +60,7 @@ impl VInit {
         let mesh_pipeline = self.mesh_pipeline.take();
         let mesh_assets = self.mesh_assets.take();
         
-        let frame_datas = self.frame_datas.take();
+        let frames_data = self.frames_data.take();
         (
             instance,
             messenger,
@@ -72,10 +76,8 @@ impl VInit {
             compute_effects,
             mesh_pipeline,
             mesh_assets,
-            frame_datas,
+            frames_data,
         )
     }
-    
 }
-
-
+*/

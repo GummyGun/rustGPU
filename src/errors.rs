@@ -8,10 +8,8 @@ use gpu_allocator as gpu;
 
 #[derive(Error, Debug)]
 pub enum Error {
-    /*
     #[error("debug error")]
     TODOError,
-    */
     #[error("No suitable GPU")]
     NoGPU,
     #[error("Missing Extensions: {0:?}")]
@@ -39,6 +37,7 @@ pub enum Error {
     
     #[error("cant create mesh from empty arrays")]
     EmptyMesh,
+    
     
     #[error("invalid load transform")]
     InvalidLoadTransform,
@@ -80,6 +79,16 @@ pub mod messages {
     pub const COMPILETIME_ASSERT:&'static str = "things the programer knows but the compiled does not";
     pub const MODEL_DENSITY:&'static str = "model vertex indices should fit in a u32";
     
+    pub const ALREADY_DESTROYED:&'static str = "can't run methods on destroyed objects";
+    pub const NON_DESTROYED:&'static str = "dropping non_destroyed object use destruct";
+    
+    pub const NON_EMPTY_WRAPPER:&'static str = "trying to fill a wrapper that is not empty";
+    pub const REDUNDANT_DEREFED_DESTRUCTOR:&'static str = "the defered destructor was already built";
+    pub const REDUNDANT_DESTRUCTOR:&'static str = "object was allready set to be defered destructed";
+    pub const LEAKING_OBJECTS:&'static str = "destruction stack is being dropped before dispatching";
+    
+    pub const SU_COMMAND_FAIL:&'static str = "single use instant command should not fail";
+    pub const CPU_ACCESIBLE:&'static str = "memory should be granted to be cpu accesible";
     
 }
 

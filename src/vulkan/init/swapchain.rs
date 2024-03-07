@@ -2,7 +2,6 @@ use crate::AAError;
 use crate::macros;
 use crate::logger;
 
-use crate::window::Window;
 use crate::errors::messages::U32_TO_USIZE;
 use crate::errors::messages::SIMPLE_VK_FN;
 use crate::constants::sc_max_images;
@@ -27,7 +26,6 @@ pub struct SwapchainSupportDetails {
 }
 
 
-#[derive(Clone)]
 pub struct Swapchain {
     pub image_count: usize,
     pub image_views: ArrayVec<vk::ImageView, {sc_max_images::USIZE}>,
@@ -157,7 +155,7 @@ impl Swapchain {
         
         
         
-        let image_index = holder.map(|(image_index, _)|image_index).map_err(|err|{if let err = vk::Result::ERROR_OUT_OF_DATE_KHR {()}else{panic!();}})?;
+        let image_index = holder.map(|(image_index, _)|image_index).map_err(|_err|())?;
         
         Ok((self.images[image_index as usize], self.image_views[image_index as usize], image_index))
     }
@@ -180,20 +178,20 @@ impl Swapchain {
     }
     */
     
-    fn internal_destroy(inself:&mut Self, device:&Device) {//inself
+    fn internal_destroy(self, device:&Device) {//inself
         logger::destruct!("swapchain");
-        for view in inself.image_views.iter() {
+        for view in self.image_views.iter() {
             unsafe{device.destroy_image_view(*view, None)};
         }
-        unsafe{inself.destroy_swapchain(inself.swapchain, None)};
+        unsafe{self.destroy_swapchain(self.swapchain, None)};
     }
     
 }
 
 impl VkDestructor for Swapchain {
-    fn destruct(mut self, mut args:VkDestructorArguments) {
+    fn destruct(self, mut args:VkDestructorArguments) {
         let device = args.unwrap_dev();
-        Self::internal_destroy(&mut self, device);
+        self.internal_destroy(device);
     }
 }
 

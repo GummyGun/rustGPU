@@ -3,8 +3,7 @@ pub use mesh::load_gltf;
 pub use mesh::MeshAssets;
 
 mod frame;
-pub use frame::FrameData;
-pub use frame::FrameDatas;
+pub use frame::FramesData;
 /*
 mod types;
 mod model;
@@ -21,6 +20,7 @@ pub use crate::graphics::GeoSurface;
 pub use crate::graphics::ComputePushConstants;
 pub use crate::graphics::ComputeEffectMetadata;
 pub use crate::graphics::Vertex;
+pub use crate::graphics::GPUSceneData;
 
 use super::VkDestructor;
 use super::VkDestructorArguments;
@@ -86,7 +86,6 @@ impl VInit {
             ds_set, 
             render_image, 
             depth_image,
-            command_control, 
             swapchain, 
             device, 
             
@@ -96,15 +95,15 @@ impl VInit {
             
             field_of_view,
             
-            frame_datas,
+            frames_data,
             downscale_coheficient,
             ..
         } = self;
         
         let compute_effect_index = compute_effect_index.clone();
-        let cmd = frame_datas.get_frame_command_buffer(cf);
+        let cmd = frames_data.get_frame_command_buffer(cf);
         
-        let (image_avaliable_semaphore, render_finished_semaphore, inflight_fence) = frame_datas.get_frame_sync(cf);
+        let (image_avaliable_semaphore, render_finished_semaphore, inflight_fence) = frames_data.get_frame_sync(cf);
         
         let (p_image_handle, p_image_view, image_index) = match swapchain.get_next_image(image_avaliable_semaphore){
             Ok(holder) => {holder}
@@ -180,12 +179,12 @@ impl VInit {
             .image_indices(from_ref(&image_index))
             .wait_semaphores(from_ref(&render_finished_semaphore));
         
-        let invalid_surface = match unsafe{swapchain.queue_present(device.queue_handles.presentation, &present_info)}{
+        match unsafe{swapchain.queue_present(device.queue_handles.presentation, &present_info)}{
             Ok(_) => {}
-            Err(bb) => {
+            Err(_error) => {
                 *resize_required = true;
             }
-        };
+        }
         
     }
     

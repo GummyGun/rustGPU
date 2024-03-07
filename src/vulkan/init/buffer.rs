@@ -4,6 +4,9 @@ use crate::logger;
 use crate::errors::messages::GPU_FREE;
 
 use super::VkDestructor;
+use super::VkDestructorType;
+use super::VkDeferedDestructor;
+use super::VkDynamicDestructor;
 use super::VkDestructorArguments;
 use super::Device;
 use super::Allocator;
@@ -14,6 +17,7 @@ use ash::vk;
 use gpu_allocator::vulkan as gpu_vk;
 use gpu_allocator as gpu_all;
 
+#[derive(Debug)]
 pub struct Buffer{
     pub buffer: vk::Buffer,
     pub allocation: gpu_vk::Allocation,
@@ -63,7 +67,6 @@ impl Buffer{
     pub fn get_align<T>(&mut self, offset:usize, size:u64) -> Option<ash::util::Align<T>> {
         let ptr = self.allocation.mapped_ptr()?;
         let real_ptr = unsafe{ptr.as_ptr().byte_add(offset)};
-        
         Some(unsafe{ash::util::Align::new(real_ptr, align_of::<T>() as u64, size)})
         //let mut index_align:ash::util::Align<T> = unsafe{ash::util::Align::new(real_ptr, align_of::<T>() as u64, size)};
         //Some(index_align)
@@ -74,15 +77,39 @@ impl Buffer{
             .buffer(self.buffer);
         unsafe{device.get_buffer_device_address(&device_address_info)}
     }
-}
-
-
-impl VkDestructor for Buffer {
-    fn destruct(self, mut args:VkDestructorArguments) {
+    
+    
+    pub unsafe fn unsafe_clone(&self) -> Self {
+        std::ptr::read(self)
+    }
+    
+    
+    fn internal_destroy(self, device:&mut Device, allocator:&mut Allocator) {
         logger::destruct!("buffer");
-        let (device, allocator) = args.unwrap_dev_all();
         unsafe{device.destroy_buffer(self.buffer, None)};
         allocator.free(self.allocation).expect(GPU_FREE);
     }
 }
 
+
+impl VkDestructor for Buffer {
+    fn destruct(self, mut args:VkDestructorArguments) {
+        let (device, allocator) = args.unwrap_dev_all();
+        self.internal_destroy(device, allocator);
+    }
+    
+}
+
+impl VkDeferedDestructor for Buffer {
+    fn defered_destruct(&mut self) -> VkDynamicDestructor {
+        let target = unsafe{self.unsafe_clone()};
+        let callback = Box::new(move |mut args:VkDestructorArguments|{
+            /*
+            let target = target;
+            let (device, allocator) = args.unwrap_dev_all();
+            target.internal_destroy(device, allocator);
+            */
+        });
+        (callback, VkDestructorType::DevAll)
+    }
+}
