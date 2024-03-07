@@ -128,25 +128,25 @@ impl VInit {
         let (gpu_scene_layout, _types_in_layout) = ds_layout_builder.build(&mut device, vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT).unwrap();
         
         
-        //let mut d_queue = objects::DestructionStack::new();
+        let mut d_queue = objects::DestructionStack::new();
         
-        /*
         let white_pixel:[u8; 4] = std::array::from_fn(|_|0xffu8);
         let texture_extent = vk::Extent3D{width:1, height:1, depth:1};
         let mut white_texture = objects::VkDeferedWrapper::new(Image::create_texture(&mut device, &mut allocator, &mut command_control, texture_extent, None, &white_pixel).unwrap());
-        let (dynamic_destructor, _) = white_texture.defered_destruct();
+        //let (dynamic_destructor, _) = white_texture.defered_destruct();
         let dynamic_destructor = white_texture.defered_destruct();
         //white_texture.destruct(VkDestructorArguments::DevAll(&mut device, &mut allocator));
         d_queue.push(dynamic_destructor);
+        /*
         */
         
         let mut buffer = objects::VkDeferedWrapper::new(Buffer::create(&mut device, &mut allocator, Some("debug TEST buffer"), 256, vk::BufferUsageFlags::TRANSFER_SRC, gpu_allocator::MemoryLocation::CpuToGpu).unwrap());
-        //let dynamic_destructor = buffer.defered_destruct();
-        let (dynamic_destructor, _) = buffer.defered_destruct();
-        dynamic_destructor(VkDestructorArguments::DevAll(&mut device, &mut allocator));
-        //d_queue.push(dynamic_destructor);
+        let dynamic_destructor = buffer.defered_destruct();
+        //let (dynamic_destructor, _) = buffer.defered_destruct();
+        //dynamic_destructor(VkDestructorArguments::DevAll(&mut device, &mut allocator));
+        d_queue.push(dynamic_destructor);
         //std::mem::forget(d_queue);
-        //d_queue.dispatch(&mut device, &mut allocator);
+        d_queue.dispatch(&mut device, &mut allocator);
         //buffer.destruct(VkDestructorArguments::DevAll(&mut device, &mut allocator));
         //println!("{:?}", buffer);
         

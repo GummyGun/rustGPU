@@ -16,6 +16,7 @@ use super::memory;
 use super::Buffer;
 
 use std::slice::from_ref;
+use std::mem::ManuallyDrop;
 
 use ash::vk;
 use gpu_allocator::vulkan as gpu_vk;
@@ -23,7 +24,7 @@ use gpu_allocator::vulkan as gpu_vk;
 pub struct Image {
     pub image: vk::Image,
     pub view: vk::ImageView,
-    pub allocation: gpu_vk::Allocation,
+    pub allocation: ManuallyDrop<gpu_vk::Allocation>,
     pub extent: vk::Extent3D,
     pub extent_2d: vk::Extent2D,
     pub format: vk::Format,
@@ -126,7 +127,14 @@ impl Image {
         
         let view = Self::create_view(device, image, format, metadata.aspect_flags)?;
         
-        Ok(Self{image, view, allocation, extent, extent_2d, format})
+        Ok(Self{
+            image, 
+            view, 
+            allocation: ManuallyDrop::new(allocation), 
+            extent, 
+            extent_2d, 
+            format
+        })
     }
     
 //----
@@ -344,7 +352,7 @@ impl Image {
         logger::destruct!("image");
         unsafe{device.destroy_image_view(self.view, None)};
         unsafe{device.destroy_image(self.image, None)};
-        allocator.free(self.allocation).expect(GPU_FREE);
+        allocator.free(ManuallyDrop::into_inner(self.allocation)).expect(GPU_FREE);
     }
 
 }

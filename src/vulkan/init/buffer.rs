@@ -12,6 +12,7 @@ use super::Device;
 use super::Allocator;
 
 use std::mem::align_of;
+use std::mem::ManuallyDrop;
 
 use ash::vk;
 use gpu_allocator::vulkan as gpu_vk;
@@ -20,7 +21,8 @@ use gpu_allocator as gpu_all;
 #[derive(Debug)]
 pub struct Buffer{
     pub buffer: vk::Buffer,
-    pub allocation: gpu_vk::Allocation,
+    pub allocation: ManuallyDrop<gpu_vk::Allocation>,
+    test: i32,
 }
 macros::impl_underlying!(Buffer, vk::Buffer, buffer);
 
@@ -54,7 +56,8 @@ impl Buffer{
         
         Ok(Self{
             buffer,
-            allocation,
+            allocation:ManuallyDrop::new(allocation),
+            test:1
         })
     }
     
@@ -79,15 +82,20 @@ impl Buffer{
     }
     
     
-    pub unsafe fn unsafe_clone(&self) -> Self {
-        std::ptr::read(self)
+    pub unsafe fn unsafe_clone(&mut self) -> Self {
+        let mut holder = std::ptr::read(self);
+        self.test=3;
+        holder.test=4;
+        println!("{:#?}", holder);
+        println!("{:#?}", self);
+        holder
     }
     
     
-    fn internal_destroy(self, device:&mut Device, allocator:&mut Allocator) {
+    fn internal_destroy(mut self, device:&mut Device, allocator:&mut Allocator) {
         logger::destruct!("buffer");
         unsafe{device.destroy_buffer(self.buffer, None)};
-        allocator.free(self.allocation).expect(GPU_FREE);
+        unsafe{allocator.free(ManuallyDrop::into_inner(self.allocation)).expect(GPU_FREE)};
     }
 }
 
@@ -97,19 +105,18 @@ impl VkDestructor for Buffer {
         let (device, allocator) = args.unwrap_dev_all();
         self.internal_destroy(device, allocator);
     }
-    
 }
+
 
 impl VkDeferedDestructor for Buffer {
     fn defered_destruct(&mut self) -> VkDynamicDestructor {
         let target = unsafe{self.unsafe_clone()};
         let callback = Box::new(move |mut args:VkDestructorArguments|{
-            /*
-            let target = target;
+            let target:Self = target;
             let (device, allocator) = args.unwrap_dev_all();
             target.internal_destroy(device, allocator);
-            */
         });
         (callback, VkDestructorType::DevAll)
     }
 }
+
