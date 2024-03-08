@@ -72,6 +72,8 @@ pub struct VInit {
     
     frames_data: VkWrapper<graphics::FramesData>,
     
+    fuzzy_sampler: VkWrapper<Sampler>,
+    pixelated_sampler: VkWrapper<Sampler>,
     
     scene_data: graphics::GPUSceneData,
     
@@ -149,6 +151,9 @@ impl VInit {
         d_queue.dispatch(&mut device, &mut allocator);
         //buffer.destruct(VkDestructorArguments::DevAll(&mut device, &mut allocator));
         //println!("{:?}", buffer);
+        //
+        let pixelated_sampler = Sampler::create(&mut device, vk::Filter::NEAREST).unwrap();
+        let fuzzy_sampler = Sampler::create(&mut device, vk::Filter::LINEAR).unwrap();
         
         VInit{
             frame_control: FrameControl(0),
@@ -192,6 +197,9 @@ impl VInit {
             scene_data: GPUSceneData::default(),
             gpu_scene_layout: VkWrapper::new(gpu_scene_layout),
             
+            
+            pixelated_sampler: VkWrapper::new(pixelated_sampler),
+            fuzzy_sampler: VkWrapper::new(fuzzy_sampler)
         }
         
     }
@@ -300,11 +308,16 @@ impl Drop for VInit {
             mesh_assets,
             frames_data,
             gpu_scene_layout,
+            fuzzy_sampler,
+            pixelated_sampler,
             ..
         } = self;
         
         let dev = device;
         let all = allocator;
+        
+        fuzzy_sampler.destruct(VkDestructorArguments::Dev(dev));
+        pixelated_sampler.destruct(VkDestructorArguments::Dev(dev));
         
         gpu_scene_layout.destruct(VkDestructorArguments::Dev(dev));
         frames_data.destruct(VkDestructorArguments::Dev(dev));

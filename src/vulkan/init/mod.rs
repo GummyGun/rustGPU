@@ -4,7 +4,6 @@ use super::VkDeferedDestructor;
 use super::VkDynamicDestructor;
 use super::VkDestructorArguments;
     
-
 pub mod memory;
 pub use memory::Allocator;
 
@@ -35,6 +34,9 @@ pub use image::*;
 pub mod descriptors;
 pub use descriptors::*;
 
+mod sampler;
+pub use sampler::*;
+
 pub mod c_pipeline;
 pub use c_pipeline::CPipeline;
 pub use c_pipeline::ComputeEffects;
@@ -46,3 +48,4 @@ pub mod pipeline;
 
 mod buffer;
 pub use buffer::Buffer;
+
