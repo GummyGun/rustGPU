@@ -15,11 +15,11 @@ use crate::errors::messages::VK_UNRECOVERABLE;
 use super::window::Window;
 use super::constants;
 
-use objects::DestructionStack;
+//use objects::DestructionStack;
 use objects::VkWrapper;
 use objects::VkDestructor;
 use objects::VkDestructorType;
-use objects::VkDeferedWrapper;
+//use objects::VkDeferedWrapper;
 use objects::VkDeferedDestructor;
 use objects::VkDynamicDestructor;
 use objects::VkDestructorArguments;
@@ -27,6 +27,7 @@ use objects::VkDestructorArguments;
 use ash::vk;
 use nalgebra as na;
 use na::Vector3;
+use arrayvec::ArrayString;
 
 
 #[allow(dead_code)]
@@ -49,12 +50,17 @@ pub struct VInit {
     pub command_control: VkWrapper<CommandControl>,
     
     
+    /*
     render_image: VkWrapper<Image>,
     render_extent: vk::Extent2D,
     depth_image: VkWrapper<Image>,
+    */
+    
+    canvas: VkWrapper<graphics::Canvas>,
     
     
-    ds_layout: VkWrapper<DescriptorLayout>,
+    storage_descriptor_layout: VkWrapper<DescriptorLayout>,
+    texture_descriptor_layout: VkWrapper<DescriptorLayout>,
     ds_pool: VkWrapper<GDescriptorAllocator>,
     ds_set: vk::DescriptorSet,
     
@@ -68,7 +74,6 @@ pub struct VInit {
     field_of_view:na::Vector3<f32>,
     downscale_coheficient:f32,
     
-    pub render:graphics::Graphics,
     
     frames_data: VkWrapper<graphics::FramesData>,
     
@@ -77,8 +82,14 @@ pub struct VInit {
     
     scene_data: graphics::GPUSceneData,
     
+    white_texture: VkWrapper<Image>,
+    grey_texture: VkWrapper<Image>,
+    black_texture: VkWrapper<Image>,
+    error_texture: VkWrapper<Image>,
+    
     gpu_scene_layout: VkWrapper<DescriptorLayout>,
 }
+
 
 
 impl VInit {
@@ -109,49 +120,27 @@ impl VInit {
         let swapchain = vk_create_interpreter(Swapchain::create(&mut instance, &surface, &p_device, &mut device), "swapchain");
         let mut command_control = vk_create_interpreter(CommandControl::create(&p_device, &mut device), "command_control");
         
-        let render_image = vk_create_interpreter(Image::create(&mut device, &mut allocator, swapchain.extent.into(), image::RENDER, None), "render_image");
-        let render_extent = render_image.get_extent2d();
-        let depth_image = vk_create_interpreter(Image::create(&mut device, &mut allocator, swapchain.extent.into(), image::DEPTH, None), "depth_image");
         
-        let (ds_layout, ds_pool, ds_set) = init_descriptors(&mut device, &render_image);
+        let mut canvas = Canvas::new(&mut device, &mut allocator, swapchain.extent.into()).unwrap();
+        let (render_image, depth_image) = canvas.get_images();
         
-        let compute_effects = c_pipeline::init_pipelines(&mut device, &ds_layout);
         
-        let render = Graphics::new(&mut device, &mut allocator).unwrap();
+        let (ds_pool, storage_descriptor_layout, ds_set, texture_descriptor_layout) = init_descriptors(&mut device, &render_image);
         
-        let mesh_pipeline = g_pipeline::init_mesh_pipeline(&mut device, &render_image, &depth_image);
+        let compute_effects = c_pipeline::init_pipelines(&mut device, &storage_descriptor_layout);
+        
+        
+        let mesh_pipeline = g_pipeline::init_mesh_pipeline(&mut device, &render_image, &depth_image, &texture_descriptor_layout);
         let mesh_assets = load_gltf(&mut device, &mut allocator, &mut command_control,"res/gltf/basicmesh.glb").expect("runtime error");
-        
         
         let frames_data = FramesData::create(&p_device, &mut device).unwrap();
         
-        let mut ds_layout_builder = DescriptorLayoutBuilder::create().unwrap();
+        let mut ds_layout_builder = DescriptorLayoutBuilder::create();
         ds_layout_builder.add_binding(0, vk::DescriptorType::UNIFORM_BUFFER, 1);
         let (gpu_scene_layout, _types_in_layout) = ds_layout_builder.build(&mut device, vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT).unwrap();
         
+        let (white_texture, grey_texture, black_texture, error_texture) = init_textures(&mut device, &mut allocator, &mut command_control);
         
-        let mut d_queue = objects::DestructionStack::new();
-        
-        let white_pixel:[u8; 4] = std::array::from_fn(|_|0xffu8);
-        let texture_extent = vk::Extent3D{width:1, height:1, depth:1};
-        let mut white_texture = objects::VkDeferedWrapper::new(Image::create_texture(&mut device, &mut allocator, &mut command_control, texture_extent, None, &white_pixel).unwrap());
-        //let (dynamic_destructor, _) = white_texture.defered_destruct();
-        let dynamic_destructor = white_texture.defered_destruct();
-        //white_texture.destruct(VkDestructorArguments::DevAll(&mut device, &mut allocator));
-        d_queue.push(dynamic_destructor);
-        /*
-        */
-        
-        let mut buffer = objects::VkDeferedWrapper::new(Buffer::create(&mut device, &mut allocator, Some("debug TEST buffer"), 256, vk::BufferUsageFlags::TRANSFER_SRC, gpu_allocator::MemoryLocation::CpuToGpu).unwrap());
-        let dynamic_destructor = buffer.defered_destruct();
-        //let (dynamic_destructor, _) = buffer.defered_destruct();
-        //dynamic_destructor(VkDestructorArguments::DevAll(&mut device, &mut allocator));
-        d_queue.push(dynamic_destructor);
-        //std::mem::forget(d_queue);
-        d_queue.dispatch(&mut device, &mut allocator);
-        //buffer.destruct(VkDestructorArguments::DevAll(&mut device, &mut allocator));
-        //println!("{:?}", buffer);
-        //
         let pixelated_sampler = Sampler::create(&mut device, vk::Filter::NEAREST).unwrap();
         let fuzzy_sampler = Sampler::create(&mut device, vk::Filter::LINEAR).unwrap();
         
@@ -173,10 +162,15 @@ impl VInit {
             swapchain: VkWrapper::new(swapchain),
             command_control: VkWrapper::new(command_control),
             
+            /*
             render_image: VkWrapper::new(render_image),
             render_extent,
             depth_image: VkWrapper::new(depth_image),
-            ds_layout: VkWrapper::new(ds_layout),
+            */
+            canvas: VkWrapper::new(canvas),
+            
+            texture_descriptor_layout: VkWrapper::new(texture_descriptor_layout),
+            storage_descriptor_layout: VkWrapper::new(storage_descriptor_layout),
             ds_pool: VkWrapper::new(ds_pool),
             ds_set: ds_set,
             
@@ -191,12 +185,15 @@ impl VInit {
             field_of_view:na::Vector3::new(10000.0,0.01,70.0),
             downscale_coheficient: 1.0,
             
-            render: render,
             frames_data: VkWrapper::new(frames_data),
             
             scene_data: GPUSceneData::default(),
             gpu_scene_layout: VkWrapper::new(gpu_scene_layout),
             
+            white_texture: VkWrapper::new(white_texture),
+            grey_texture: VkWrapper::new(grey_texture),
+            black_texture: VkWrapper::new(black_texture),
+            error_texture: VkWrapper::new(error_texture),
             
             pixelated_sampler: VkWrapper::new(pixelated_sampler),
             fuzzy_sampler: VkWrapper::new(fuzzy_sampler)
@@ -205,10 +202,14 @@ impl VInit {
     }
     
     pub fn gui_tick(&mut self, data:&InputData) {
+        
+        //self.compute_effects.metadatas[data.background_index].data[index] = data.push_constants[index];
+        /*
         self.compute_effect_index = data.background_index;
         for index in 0..4 {
             self.compute_effects.metadatas[data.background_index].data[index] = data.push_constants[index];
         }
+        */
     }
     
     
@@ -261,16 +262,27 @@ impl VInit {
         self.frame_control.get_frame()
     }
     
-    pub fn get_compute_effects_metadata(
+    pub fn get_imgui_data(
         &mut self
     ) ->  (
-        &mut [ComputeEffectMetadata], 
-        &mut [MeshAssetMetadata], 
-        &mut usize, 
-        &mut Vector3<f32>,
-        &mut f32,
+        (
+            &[ArrayString<64>],
+            &[MeshAssetMetadata], 
+        ),(
+            &mut usize,
+            &mut ComputePushConstants,
+            &mut usize, 
+            &mut Vector3<f32>,
+            &mut f32,
+        )
     ) {
-        (&mut self.compute_effects.metadatas, &mut self.mesh_assets.metadatas, &mut self.mesh_index, &mut self.field_of_view, &mut self.downscale_coheficient)
+        let ComputeEffects{ref names, ref mut push_constants, ..} = *self.compute_effects;
+        
+        let index = self.compute_effect_index;
+        (
+            (names, &self.mesh_assets.metadatas), 
+            (&mut self.compute_effect_index, &mut push_constants[index], &mut self.mesh_index, &mut self.field_of_view, &mut self.downscale_coheficient, )
+        )
     }
     
     
@@ -299,10 +311,18 @@ impl Drop for VInit {
             allocator, 
             swapchain, 
             command_control, 
+            
+            canvas,
+            
+            
+            /*
             render_image, 
             depth_image, 
+            */
+            
             ds_pool, 
-            ds_layout, 
+            storage_descriptor_layout, 
+            texture_descriptor_layout, 
             compute_effects, 
             mesh_pipeline, 
             mesh_assets,
@@ -310,6 +330,11 @@ impl Drop for VInit {
             gpu_scene_layout,
             fuzzy_sampler,
             pixelated_sampler,
+            
+            white_texture,
+            grey_texture,
+            black_texture,
+            error_texture,
             ..
         } = self;
         
@@ -319,6 +344,11 @@ impl Drop for VInit {
         fuzzy_sampler.destruct(VkDestructorArguments::Dev(dev));
         pixelated_sampler.destruct(VkDestructorArguments::Dev(dev));
         
+        white_texture.destruct(VkDestructorArguments::DevAll(dev, all));
+        grey_texture.destruct(VkDestructorArguments::DevAll(dev, all));
+        black_texture.destruct(VkDestructorArguments::DevAll(dev, all));
+        error_texture.destruct(VkDestructorArguments::DevAll(dev, all));
+        
         gpu_scene_layout.destruct(VkDestructorArguments::Dev(dev));
         frames_data.destruct(VkDestructorArguments::Dev(dev));
         
@@ -327,11 +357,16 @@ impl Drop for VInit {
         compute_effects.destruct(VkDestructorArguments::Dev(dev));
         
         ds_pool.destruct(VkDestructorArguments::Dev(dev));
-        ds_layout.destruct(VkDestructorArguments::Dev(dev));
+        storage_descriptor_layout.destruct(VkDestructorArguments::Dev(dev));
+        texture_descriptor_layout.destruct(VkDestructorArguments::Dev(dev));
         
+        /*
         render_image.destruct(VkDestructorArguments::DevAll(dev, all));
         depth_image.destruct(VkDestructorArguments::DevAll(dev, all));
+        */
         command_control.destruct(VkDestructorArguments::Dev(dev));
+        
+        canvas.destruct(VkDestructorArguments::DevAll(dev, all));
         
         swapchain.destruct(VkDestructorArguments::Dev(dev));
         all.destruct(VkDestructorArguments::Dev(dev));
@@ -373,3 +408,26 @@ impl FrameControl {
 
 
 
+        /*
+        let mut d_queue = objects::DestructionStack::new();
+        let white_pixel:[u8; 4] = std::array::from_fn(|_|0xffu8);
+        let texture_extent = vk::Extent3D{width:1, height:1, depth:1};
+        let mut white_texture = objects::VkDeferedWrapper::new(Image::create_texture(&mut device, &mut allocator, &mut command_control, texture_extent, None, &white_pixel).unwrap());
+        //let (dynamic_destructor, _) = white_texture.defered_destruct();
+        let dynamic_destructor = white_texture.defered_destruct();
+        //white_texture.destruct(VkDestructorArguments::DevAll(&mut device, &mut allocator));
+        d_queue.push(dynamic_destructor);
+        /*
+        */
+        
+        let mut buffer = objects::VkDeferedWrapper::new(Buffer::create(&mut device, &mut allocator, Some("debug TEST buffer"), 256, vk::BufferUsageFlags::TRANSFER_SRC, gpu_allocator::MemoryLocation::CpuToGpu).unwrap());
+        let dynamic_destructor = buffer.defered_destruct();
+        //let (dynamic_destructor, _) = buffer.defered_destruct();
+        //dynamic_destructor(VkDestructorArguments::DevAll(&mut device, &mut allocator));
+        d_queue.push(dynamic_destructor);
+        //std::mem::forget(d_queue);
+        d_queue.dispatch(&mut device, &mut allocator);
+        //buffer.destruct(VkDestructorArguments::DevAll(&mut device, &mut allocator));
+        //println!("{:?}", buffer);
+        */
+            

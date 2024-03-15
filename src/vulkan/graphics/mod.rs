@@ -4,6 +4,8 @@ pub use mesh::MeshAssets;
 
 mod frame;
 pub use frame::FramesData;
+
+mod r_object;
 /*
 mod types;
 mod model;
@@ -18,7 +20,6 @@ use crate::errors::messages::COMPILETIME_ASSERT;
 pub use crate::graphics::MeshAssetMetadata;
 pub use crate::graphics::GeoSurface;
 pub use crate::graphics::ComputePushConstants;
-pub use crate::graphics::ComputeEffectMetadata;
 pub use crate::graphics::Vertex;
 pub use crate::graphics::GPUSceneData;
 
@@ -27,10 +28,17 @@ use super::VkDestructorArguments;
 use super::VInit;
 use super::Device;
 use super::Allocator;
+use super::Buffer;
 use super::Image;
 use super::CPipeline;
 use super::GPipeline;
 use super::pipeline;
+use super::image;
+
+use super::DescriptorWriter;
+use super::DescriptorLayout;
+use super::GDescriptorAllocator;
+use super::Sampler;
 
 use std::slice::from_ref;
 use std::mem::size_of;
@@ -51,16 +59,40 @@ pub struct GPUDrawPushConstants {
 }
 
 
-pub struct Graphics {
-    /*
+pub struct Canvas {
     render_image: Image,
-    render_extent: vk::Extent2D,
-    */
+    //render_extent: vk::Extent2D,
+    depth_image: Image,
 }
 
-impl Graphics {
-    pub fn new(_device:&mut Device, _allocator:&Allocator) -> Result<Self, AAError> {
-        Ok(Self{})
+impl Canvas {
+    pub fn new(device:&mut Device, allocator:&mut Allocator, extent:vk::Extent3D) -> Result<Self, AAError> {
+        
+        let render_image = Image::create(device, allocator, extent, image::RENDER, None)?;
+        
+        let depth_image = Image::create(device, allocator, extent, image::DEPTH, None)?;
+        
+        Ok(Self{
+            render_image,
+            depth_image,
+        })
+    }
+    
+    pub fn get_images(&mut self) -> (&mut Image, &mut Image) {
+        (&mut self.render_image, &mut self.depth_image)
+    }
+    
+    pub fn get_formats(&self) -> (vk::Format, vk::Format) {
+        (self.render_image.format, self.depth_image.format)
+    }
+    
+}
+
+impl VkDestructor for Canvas {
+    fn destruct(self, mut args:VkDestructorArguments) {
+        let (device, allocator) = args.unwrap_dev_all();
+        self.render_image.destruct(VkDestructorArguments::DevAll(device, allocator));
+        self.depth_image.destruct(VkDestructorArguments::DevAll(device, allocator));
     }
 }
 
@@ -77,15 +109,19 @@ impl VInit {
     ) {
         self.frame_update();
         let cf = self.get_frame();
-        //let frame_count = self.get_frame_count();
         
         let VInit{
             resize_required,
             compute_effects, 
             compute_effect_index, 
             ds_set, 
+            
+            canvas,
+            /*
             render_image, 
             depth_image,
+            */
+            
             swapchain, 
             device, 
             
@@ -97,6 +133,11 @@ impl VInit {
             
             frames_data,
             downscale_coheficient,
+            
+            error_texture: texture,
+            pixelated_sampler,
+            texture_descriptor_layout,
+            
             ..
         } = self;
         
@@ -104,6 +145,10 @@ impl VInit {
         let cmd = frames_data.get_frame_command_buffer(cf);
         
         let (image_avaliable_semaphore, render_finished_semaphore, inflight_fence) = frames_data.get_frame_sync(cf);
+        
+        let descriptor_allocator = frames_data.get_descriptor_allocator(cf);
+        
+        //descriptor_allocator.clear_pools(device);
         
         let (p_image_handle, p_image_view, image_index) = match swapchain.get_next_image(image_avaliable_semaphore){
             Ok(holder) => {holder}
@@ -124,6 +169,8 @@ impl VInit {
         unsafe{device.begin_command_buffer(cmd, &begin_info)}.expect(SIMPLE_VK_FN);
         
         
+        let (render_image, depth_image) = canvas.get_images();
+        
         let r_image_handle = render_image.underlying();
         let d_image_handle = depth_image.underlying();
         
@@ -134,12 +181,12 @@ impl VInit {
         
         Image::transition_image(device, cmd, r_image_handle, vk::ImageLayout::UNDEFINED, vk::ImageLayout::GENERAL);
         
-        Self::draw_background(device, cmd, render_image, *ds_set, &compute_effects.pipelines[compute_effect_index], &compute_effects.metadatas[compute_effect_index].data);
+        Self::draw_background(device, cmd, render_image, *ds_set, &compute_effects.pipelines[compute_effect_index], &compute_effects.push_constants[compute_effect_index]);
         
         Image::transition_image(device, cmd, d_image_handle, vk::ImageLayout::UNDEFINED, vk::ImageLayout::DEPTH_ATTACHMENT_OPTIMAL);
         Image::transition_image(device, cmd, r_image_handle, vk::ImageLayout::GENERAL, vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL);
         
-        Self::draw_geometry(device, cmd, extent, render_image, depth_image, mesh_pipeline, mesh_assets, *mesh_index, field_of_view);
+        Self::draw_geometry(device, cmd, extent, render_image, depth_image, mesh_pipeline, mesh_assets, *mesh_index, field_of_view, texture_descriptor_layout, descriptor_allocator, texture, pixelated_sampler);
         
         Image::transition_image(device, cmd, r_image_handle, vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL, vk::ImageLayout::TRANSFER_SRC_OPTIMAL);
         Image::transition_image(device, cmd, p_image_handle, vk::ImageLayout::UNDEFINED, vk::ImageLayout::TRANSFER_DST_OPTIMAL);
@@ -152,7 +199,6 @@ impl VInit {
         
         Image::transition_image(device, cmd, p_image_handle, vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL, vk::ImageLayout::PRESENT_SRC_KHR);
         
-        //panic!("{:?} {:?}", extent, swapchain.extent);
         unsafe{device.end_command_buffer(cmd)}.expect(SIMPLE_VK_FN);
         
         let wait_semaphore_submit_info = vk::SemaphoreSubmitInfo::builder()
@@ -185,7 +231,6 @@ impl VInit {
                 *resize_required = true;
             }
         }
-        
     }
     
 //----
@@ -212,14 +257,19 @@ impl VInit {
         mesh_pipeline: &GPipeline, 
         meshes: &MeshAssets, 
         mesh_selector: usize, 
-        field_of_view: &na::Vector3<f32>
+        field_of_view: &na::Vector3<f32>,
+        
+        texture_descriptor_layout: &DescriptorLayout,
+        descriptor_allocator: &mut GDescriptorAllocator,
+        texture: &Image,
+        sampler: &Sampler
     ) {
+        
         let color_attachment_info = pipeline::rendering_attachment_info(image.view, None, vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL);
         let depth_attachment_info = pipeline::depth_attachment_info(depth.view, vk::ImageLayout::DEPTH_ATTACHMENT_OPTIMAL);
         let rendering_info = pipeline::rendering_info(extent, &color_attachment_info, Some(&depth_attachment_info));
         
         
-        unsafe{device.cmd_begin_rendering(cmd, &rendering_info)};
         let viewport = vk::Viewport::builder()
             .width(extent.width as f32)
             .height(extent.height as f32)
@@ -228,11 +278,20 @@ impl VInit {
         
         let scissor = vk::Rect2D::from(extent);
         
+        unsafe{device.cmd_begin_rendering(cmd, &rendering_info)};
         unsafe{device.cmd_bind_pipeline(cmd, vk::PipelineBindPoint::GRAPHICS, mesh_pipeline.underlying())};
         unsafe{device.cmd_set_viewport(cmd, 0, from_ref(&viewport))};
         unsafe{device.cmd_set_scissor(cmd, 0, from_ref(&scissor))};
         
         
+        let texture_set = descriptor_allocator.allocate(device, texture_descriptor_layout).unwrap();//TODO move this unwrap
+        {
+            let mut writer = DescriptorWriter::default();
+            writer.write_image(0, texture.view, sampler.underlying(), vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL, vk::DescriptorType::COMBINED_IMAGE_SAMPLER);
+            writer.update_set(device, texture_set);
+        }
+        
+        unsafe{device.cmd_bind_descriptor_sets(cmd, vk::PipelineBindPoint::GRAPHICS, mesh_pipeline.layout, 0, from_ref(&texture_set), &[])};
         
         let mut push_constant_tmp = GPUDrawPushConstants::default();
         push_constant_tmp.vertex_buffer = meshes.meshes[mesh_selector].vertex_buffer_address;

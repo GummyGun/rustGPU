@@ -7,6 +7,7 @@ use super::VkDestructorArguments;
 use super::VkDestructor;
 use super::Device;
 use super::Image;
+use super::DescriptorLayout;
 use super::pipeline;
 
 use super::super::graphics as vk_graphics;
@@ -16,12 +17,18 @@ use std::slice::from_ref;
 use arrayvec::ArrayVec;
 use ash::vk;
 
+//#[derive(Clone, Copy)]
 pub struct GPipeline {
     pub layout: vk::PipelineLayout,
     pipeline: vk::Pipeline,
 }
-
 macros::impl_underlying!(GPipeline, vk::Pipeline, pipeline);
+
+pub struct DispatchableGPipeline {
+    pub layout: vk::PipelineLayout,
+    pub pipeline: vk::Pipeline,
+}
+macros::impl_underlying!(DispatchableGPipeline, vk::Pipeline, pipeline);
 
 #[derive(Default, Debug)]
 pub struct GPipelineBuilder {
@@ -46,8 +53,8 @@ pub fn init_pipeline(device:&mut Device, render_image:&Image, depth_image:&Image
         (logger::Warn, "Instancing simple triangle graphics pipeline")
     );
     
-    let vert_shader = pipeline::create_shader_module(device, constants::graph::TRIANGLE_VERT).unwrap();
-    let frag_shader = pipeline::create_shader_module(device, constants::graph::TRIANGLE_FRAG).unwrap();
+    let vert_module = pipeline::create_shader_module(device, constants::graph::TRIANGLE_VERT).unwrap();
+    let frag_module = pipeline::create_shader_module(device, constants::graph::TRIANGLE_FRAG).unwrap();
     
     let layout_ci = vk::PipelineLayoutCreateInfo::builder();
     
@@ -55,7 +62,7 @@ pub fn init_pipeline(device:&mut Device, render_image:&Image, depth_image:&Image
     
     let mut builder = GPipelineBuilder::new();
     builder.set_pipeline_layout(layout)
-        .set_shaders(vert_shader, frag_shader)
+        .set_shaders(vert_module, frag_module)
         .set_input_topology(vk::PrimitiveTopology::TRIANGLE_LIST)
         .set_polygon_mode(vk::PolygonMode::FILL)
         .set_cull_mode(vk::CullModeFlags::NONE, vk::FrontFace::CLOCKWISE)
@@ -68,21 +75,21 @@ pub fn init_pipeline(device:&mut Device, render_image:&Image, depth_image:&Image
     
     let triangle_pipeline = builder.build(device);
     
-    unsafe{device.destroy_shader_module(vert_shader, None)};
-    unsafe{device.destroy_shader_module(frag_shader, None)};
+    unsafe{device.destroy_shader_module(vert_module, None)};
+    unsafe{device.destroy_shader_module(frag_module, None)};
     
     triangle_pipeline.unwrap()
 }
 */
 
-pub fn init_mesh_pipeline(device:&mut Device, render_image:&Image, depth_image:&Image) -> GPipeline {
+pub fn init_mesh_pipeline(device:&mut Device, render_image:&Image, depth_image:&Image, texture_descriptor:&DescriptorLayout) -> GPipeline {
     
     logger::various_log!("graphics_pipeline",
         (logger::Warn, "Instancing mesh pipeline")
     );
     
-    let vert_shader = pipeline::create_shader_module(device, constants::graph::MESH_VERT).unwrap();
-    let frag_shader = pipeline::create_shader_module(device, constants::graph::TRIANGLE_FRAG).unwrap();
+    let vert_module = pipeline::create_shader_module(device, constants::graph::MESH_VERT).unwrap();
+    let frag_module = pipeline::create_shader_module(device, constants::graph::MESH_FRAG).unwrap();
     
     
     let push_constant_description = vk::PushConstantRange::builder()
@@ -91,30 +98,32 @@ pub fn init_mesh_pipeline(device:&mut Device, render_image:&Image, depth_image:&
     
     
     let layout_ci = vk::PipelineLayoutCreateInfo::builder()
-        .push_constant_ranges(from_ref(&push_constant_description));
+        .push_constant_ranges(from_ref(&push_constant_description))
+        .set_layouts(from_ref(texture_descriptor));
     
     let layout = unsafe{device.create_pipeline_layout(&layout_ci, None)}.unwrap();
     
     let mut builder = GPipelineBuilder::new();
     builder.set_pipeline_layout(layout)
-        .set_shaders(vert_shader, frag_shader)
+        .set_shaders(vert_module, frag_module)
         .set_input_topology(vk::PrimitiveTopology::TRIANGLE_LIST)
         .set_polygon_mode(vk::PolygonMode::FILL)
         .set_cull_mode(vk::CullModeFlags::NONE, vk::FrontFace::CLOCKWISE)
         .set_multisampling_none()
-        .set_blending_disabled()
         .set_color_attachment_format(render_image.format)
         .set_depth_format(depth_image.format)
         .set_depthtest_enable()
-        .set_blending_additive();
+        //.set_blending_alphablend();
+        .set_blending_disabled();
+        //.set_blending_additive();
         //.set_vertex_input_state(vk_graphics::Vertex::binding_description(), vk_graphics::Vertex::attribute_description());
     
     let mesh_pipeline = builder.build(device);
     
-    unsafe{device.destroy_shader_module(vert_shader, None)};
-    unsafe{device.destroy_shader_module(frag_shader, None)};
+    unsafe{device.destroy_shader_module(vert_module, None)};
+    unsafe{device.destroy_shader_module(frag_module, None)};
     
-    mesh_pipeline .unwrap()
+    mesh_pipeline.unwrap()
 }
 
 impl GPipelineBuilder {
@@ -128,12 +137,29 @@ impl GPipelineBuilder {
     
 //----
     pub fn build(mut self, device:&mut Device) -> Result<GPipeline, AAError> {
-        
         logger::create!("graphics_pipeline");
         logger::various_log!("graphics_pipeline",
             (logger::Trace, "{:#?}", &self)
         );
+        let (pipeline, layout) = self.build_internals(device)?;
         
+        Ok(GPipeline{
+            layout,
+            pipeline,
+        })
+    }
+    
+//----
+    pub fn build_raw(mut self, device:&mut Device)  -> Result<vk::Pipeline, AAError> {
+        logger::create!("graphics_pipeline");
+        logger::various_log!("graphics_pipeline",
+            (logger::Trace, "{:#?}", &self)
+        );
+        self.build_internals(device).map(|(pipeline, layout)|pipeline)
+    }
+    
+//----
+    fn build_internals(mut self, device:&mut Device) -> Result<(vk::Pipeline, vk::PipelineLayout), AAError> {
         let layout = match self.layout {
             Some(layout) => layout,
             None => {return Err(AAError::LayoutNotSet)}
@@ -167,11 +193,7 @@ impl GPipelineBuilder {
         
         let pipeline_holder = unsafe{device.create_graphics_pipelines(vk::PipelineCache::null(), from_ref(&create_info), None)}.unwrap();
         
-        Ok(GPipeline{
-            layout,
-            pipeline: pipeline_holder[0],
-        })
-        
+        Ok((pipeline_holder[0], layout))
     }
     
 //----
@@ -307,14 +329,20 @@ impl GPipelineBuilder {
 //----
     pub fn set_blending_alphablend(&mut self) -> &mut Self {
         let Self{ color_blend_attachment, .. } = self;
+        
         color_blend_attachment.color_write_mask = vk::ColorComponentFlags::RGBA;
         color_blend_attachment.blend_enable = vk::TRUE;
-        color_blend_attachment.src_color_blend_factor = vk::BlendFactor::ONE_MINUS_DST_ALPHA;
-        color_blend_attachment.dst_color_blend_factor = vk::BlendFactor::DST_ALPHA;
+        
+        color_blend_attachment.src_color_blend_factor = vk::BlendFactor::DST_ALPHA;
+        color_blend_attachment.dst_color_blend_factor = vk::BlendFactor::ONE_MINUS_DST_ALPHA;
+        
         color_blend_attachment.color_blend_op = vk::BlendOp::ADD;
-        color_blend_attachment.src_alpha_blend_factor = vk::BlendFactor::ONE;
-        color_blend_attachment.dst_alpha_blend_factor = vk::BlendFactor::ZERO;
+        
+        color_blend_attachment.src_alpha_blend_factor = vk::BlendFactor::ZERO;
+        color_blend_attachment.dst_alpha_blend_factor = vk::BlendFactor::ONE;
+        
         color_blend_attachment.alpha_blend_op = vk::BlendOp::ADD;
+        
         self
     }
     

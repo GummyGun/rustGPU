@@ -149,9 +149,12 @@ fn main() {
     while !window.should_close() {
         window.poll_events(imgui);
         imgui.handle_events(window);
+        
         v_init.handle_events(window);
         
-        imgui.draw_ui(window, v_init.get_compute_effects_metadata());
+        let (static_metadata, modifiable_metadata) = v_init.get_imgui_data();
+        imgui.draw_ui(window, static_metadata, modifiable_metadata);
+        
         v_init.gui_tick(imgui.get_ui_data());
         
         v_init.draw_frame(imgui);

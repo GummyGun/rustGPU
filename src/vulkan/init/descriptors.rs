@@ -44,36 +44,49 @@ pub struct DescriptorPoolAllocator {
     pool: vk::DescriptorPool,
 }
 
-pub fn init_descriptors(device:&mut Device, render_image:&Image) -> (DescriptorLayout, GDescriptorAllocator, vk::DescriptorSet) {
+pub fn init_descriptors(device:&mut Device, render_image:&Image) -> (GDescriptorAllocator, DescriptorLayout, vk::DescriptorSet, DescriptorLayout) {
     //logger::init();
     
-    let mut ds_layout_builder = DescriptorLayoutBuilder::create().unwrap();
+    let mut ds_layout_builder = DescriptorLayoutBuilder::create();
     ds_layout_builder.add_binding(0, vk::DescriptorType::STORAGE_IMAGE, 1);
-    let (ds_layout, types_in_layout) = ds_layout_builder.build(device, vk::ShaderStageFlags::COMPUTE).unwrap();
+    let (storage_descriptor_layout, types_in_layout) = ds_layout_builder.build(device, vk::ShaderStageFlags::COMPUTE).unwrap();
+    
+    let mut ds_layout_builder = DescriptorLayoutBuilder::create();
+    ds_layout_builder.add_binding(0, vk::DescriptorType::COMBINED_IMAGE_SAMPLER, 1);
+    let (texture_descriptor_layout, image_types_in_layout) = ds_layout_builder.build(device, vk::ShaderStageFlags::FRAGMENT).unwrap();
+    
+    //types_in_layout += image_types_in_layout;
     
     let mut gds_pool: GDescriptorAllocator = GDescriptorAllocator::create(device, types_in_layout).unwrap();
     
     //types_in_layout *= 10;//allocate 10 DS
     //let mut ds_pool = DescriptorPoolAllocator::create(device, types_in_layout).unwrap();
-    //let ds_set = ds_pool.allocate(device, ds_layout).unwrap();
+    //let ds_set = ds_pool.allocate(device, storage_descriptor_layout).unwrap();
     
-    let ds_set = gds_pool.allocate(device, &ds_layout).unwrap();
-    
+    let ds_set = gds_pool.allocate(device, &storage_descriptor_layout).unwrap();
     let mut writer = DescriptorWriter::default();
     writer.write_image(0, render_image.view, vk::Sampler::null(), vk::ImageLayout::GENERAL, vk::DescriptorType::STORAGE_IMAGE);
     writer.update_set(device, ds_set);
     
-    (ds_layout, gds_pool, ds_set)
+    /*
+    let ds_set = gds_pool.allocate(device, &texture_descriptor_layout).unwrap();
+    let mut writer = DescriptorWriter::default();
+    writer.write_image(0, render_image.view, vk::Sampler::null(), vk::ImageLayout::GENERAL, vk::DescriptorType::STORAGE_IMAGE);
+    writer.update_set(device, ds_set);
+    */
+    
+    (gds_pool, storage_descriptor_layout, ds_set, texture_descriptor_layout)
+    //(gds_pool, storage_descriptor_layout, ds_set, None)
 }
 
 impl DescriptorLayoutBuilder {
     
-    pub fn create() -> Result<Self, ()> {
+    pub fn create() -> Self {
         //logger::dlb::create();
-        Ok(Self{
+        Self{
             bindings: Vec::new(),
             type_count: DescriptorPoolCount::default(),
-        })
+        }
     }
     
     pub fn add_binding(&mut self, binding:u32, d_type:vk::DescriptorType, count:u32) {
@@ -91,7 +104,6 @@ impl DescriptorLayoutBuilder {
     
     pub fn build(&mut self, device:&mut Device, shader_stage:vk::ShaderStageFlags) -> Result<(DescriptorLayout, DescriptorPoolCount), AAError> {
         
-        //logger::dl::create();
         for binding in self.bindings.iter_mut(){
             binding.stage_flags |= shader_stage;
         }
@@ -352,8 +364,11 @@ impl<const UPPER_LIMIT_PER_POOL:u32, const INITIAL_GROUPS:u32> GDescriptorAlloca
     }
     
     fn get_pool(&mut self, device:&mut Device) -> Result<vk::DescriptorPool, AAError> {
-        if self.ready_pools.is_empty() {
-            self.max_descriptors_groups *=2;
+        if self.ready_pools.is_empty() {//TODO check this bug
+            if self.max_descriptors_groups < UPPER_LIMIT_PER_POOL {
+                self.max_descriptors_groups *=2;
+            } 
+            
             let holder = self.create_pool(device);
             holder
         } else {

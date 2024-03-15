@@ -5,7 +5,7 @@ use crate::errors::messages::GRANTED;
 
 use super::super::graphics as vk_graphics;
 use vk_graphics::ComputePushConstants;
-use vk_graphics::ComputeEffectMetadata;
+//use vk_graphics::ComputeEffectMetadata;
 
 use super::VkDestructorArguments;
 use super::VkDestructor;
@@ -30,7 +30,8 @@ pub struct CPipeline {
 #[derive(Derivative)]
 #[derivative(Debug)]
 pub struct ComputeEffects {
-    pub metadatas: Vec<ComputeEffectMetadata>,
+    pub names: Vec<ArrayString<64>>,
+    pub push_constants: Vec<ComputePushConstants>,
     #[derivative(Debug="ignore")]
     pub pipelines: Vec<CPipeline>,
 }
@@ -43,7 +44,8 @@ pub fn init_pipelines(device:&mut Device, ds_layout:&DescriptorLayout) -> Comput
         (logger::Warn, "Instancing simple compute effects pipeline")
     );
     
-    let mut metadatas = Vec::new();
+    let mut names = Vec::new();
+    let mut push_constants:Vec<ComputePushConstants> = Vec::new();
     let mut pipelines = Vec::new();
     let mut effect_name = ArrayString::new();
     
@@ -52,15 +54,14 @@ pub fn init_pipelines(device:&mut Device, ds_layout:&DescriptorLayout) -> Comput
     logger::various_log!("compute_pipeline",
         (logger::Warn, "Instancing {} compute pipeline", effect_name)
     );
-    metadatas.push(ComputeEffectMetadata{
-        name:effect_name,
-        data: ComputePushConstants([
-            Vector4::new(0.4,0.4,0.4,1.0),
-            Vector4::new(0.4,0.4,0.4,1.0),
-            Vector4::new(0.0,0.0,0.0,0.0),
-            Vector4::new(0.0,0.0,0.0,0.0),
-        ]),
-    });
+    let push_constant_holder = ComputePushConstants([
+        Vector4::new(0.4,0.4,0.4,1.0),
+        Vector4::new(0.4,0.4,0.4,1.0),
+        Vector4::new(0.0,0.0,0.0,0.0),
+        Vector4::new(0.0,0.0,0.0,0.0),
+    ]);
+    names.push(effect_name);
+    push_constants.push(push_constant_holder);
     pipelines.push(gradient);
     effect_name.clear();
     
@@ -70,15 +71,14 @@ pub fn init_pipelines(device:&mut Device, ds_layout:&DescriptorLayout) -> Comput
     logger::various_log!("compute_pipeline",
         (logger::Warn, "Instancing {} compute pipeline", effect_name)
     );
-    metadatas.push(ComputeEffectMetadata{
-        name:effect_name,
-        data: ComputePushConstants([
-            Vector4::new(0.0,0.0,0.0,0.0),
-            Vector4::new(0.0,0.0,0.0,0.0),
-            Vector4::new(0.0,0.0,0.0,0.0),
-            Vector4::new(0.0,0.0,0.0,0.0),
-        ]),
-    });
+    let push_constant_holder = ComputePushConstants([
+        Vector4::new(0.0,0.0,0.0,0.0),
+        Vector4::new(0.0,0.0,0.0,0.0),
+        Vector4::new(0.0,0.0,0.0,0.0),
+        Vector4::new(0.0,0.0,0.0,0.0),
+    ]);
+    names.push(effect_name);
+    push_constants.push(push_constant_holder);
     pipelines.push(gradient);
     effect_name.clear();
     
@@ -88,21 +88,20 @@ pub fn init_pipelines(device:&mut Device, ds_layout:&DescriptorLayout) -> Comput
         (logger::Warn, "Instancing {} compute pipeline", effect_name)
     );
     let sky = CPipeline::create(device, ds_layout, constants::comp::SKY_SHADER).unwrap();
-    metadatas.push(ComputeEffectMetadata{
-        name:effect_name,
-        data: ComputePushConstants([
-            //Vector4::new(0.1, 0.2, 0.4 ,0.97),
-            Vector4::new(0.0,0.0,0.0,0.0),
-            Vector4::new(0.0,0.0,0.0,0.0),
-            Vector4::new(0.0,0.0,0.0,0.0),
-            Vector4::new(0.0,0.0,0.0,0.0),
-        ]),
-    });
+    let push_constant_holder = ComputePushConstants([
+        Vector4::new(0.0,0.0,0.0,0.0),
+        Vector4::new(0.0,0.0,0.0,0.0),
+        Vector4::new(0.0,0.0,0.0,0.0),
+        Vector4::new(0.0,0.0,0.0,0.0),
+    ]);
+    names.push(effect_name);
+    push_constants.push(push_constant_holder);
     pipelines.push(sky);
     
     
     ComputeEffects{
-        metadatas,
+        names,
+        push_constants,
         pipelines,
     }
 }

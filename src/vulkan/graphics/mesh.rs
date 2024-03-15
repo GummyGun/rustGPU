@@ -131,16 +131,30 @@ pub fn load_gltf<P: AsRef<Path>>(
                 }
             }
             
-            
             let positions = reader.read_positions().unwrap();
             logger::various_log!("mesh",
                 (logger::Trace, "vertex count {}", positions.len())
             );
-            for pos in positions {
+            for (index, pos) in positions.enumerate() {
                 let mut vertex_holder = Vertex::default();
                 vertex_holder.position = Vector3::from(pos);
                 vertices_vec.push(vertex_holder);
+                
             }
+            
+            
+            let texture_coordenates = reader.read_tex_coords(0u32).unwrap();
+            match texture_coordenates {
+                gltf::mesh::util::ReadTexCoords::F32(hola) => {
+                    for (index, coords) in hola.enumerate() {
+                        vertices_vec[index].uv_x = coords[0];
+                        vertices_vec[index].uv_y = coords[1];
+                    }
+                }
+                _ => {}
+            }
+            
+            
             
             let normals = reader.read_normals().unwrap();
             logger::various_log!("mesh",
@@ -157,8 +171,11 @@ pub fn load_gltf<P: AsRef<Path>>(
             surface.count = u32::try_from(indices_vec.len()).expect(MODEL_DENSITY);
             metadata_holder.surfaces.push(surface);
         }
+        
         holder.metadatas.push(metadata_holder);
         holder.meshes.push(GPUMeshBuffers::upload_mesh(device, allocator, command_control, &indices_vec, &vertices_vec[..]).unwrap());
+        
+        
         /*
         println!("{:?}", holder.metadatas);
         println!("{:?}", indices_vec);

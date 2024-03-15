@@ -10,3 +10,4 @@ shader:
 	glslang -V src/ssrc/triangle.vert -o res/shaders/triangle.vert.spv
 	glslang -V src/ssrc/triangle.frag -o res/shaders/triangle.frag.spv
 	glslang -V src/ssrc/mesh.vert -o res/shaders/mesh.vert.spv
+	glslang -V src/ssrc/mesh.frag -o res/shaders/mesh.frag.spv

@@ -10,6 +10,7 @@ use na::Matrix4;
 use na::Vector4;
 use na::Vector3;
 
+
 #[derive(Debug)]
 pub struct ComputeEffectMetadata {
     pub name: ArrayString<64>,
@@ -17,7 +18,7 @@ pub struct ComputeEffectMetadata {
 }
 
 #[repr(C)]
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug, Clone, Copy)]
 pub struct ComputePushConstants(
     pub [Vector4<f32>;4]
 );
@@ -81,6 +82,7 @@ pub struct GPUSceneData {
     sunlight_direction: Vector4<f32>,
     sunlight_color: Vector4<f32>,
 }
+
 
 
 /*

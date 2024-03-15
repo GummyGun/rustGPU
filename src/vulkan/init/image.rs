@@ -144,16 +144,14 @@ impl Image {
         cmd_ctrl: &mut CommandControl,
         extent: vk::Extent3D,
         overwrite_name: Option<&str>,
-        data: &[u8],
+        data: &[u32],
     ) -> Result<Self, AAError> {
-        let upload_buffer_size = u64::from(extent.depth * extent.width * extent.height * 4);
         
-        //use vk::ImageUsageFlags as IUF;
-        //panic!("{:?}", (IUF::TRANSFER_DST | IUF::SAMPLED).as_raw());
+        let upload_buffer_size = u64::from(extent.depth * extent.width * extent.height * 4);
         
         let mut upload_buffer = Buffer::create(device, allocator, Some("upload buffer"), upload_buffer_size, vk::BufferUsageFlags::TRANSFER_SRC, memory::CpuToGpu)?;
         {
-            let mut align = upload_buffer.get_align(0, upload_buffer_size).expect(CPU_ACCESIBLE);
+            let mut align = upload_buffer.get_align::<u32>(0, upload_buffer_size).expect(CPU_ACCESIBLE);
             align.copy_from_slice(data);
         }
         
@@ -378,3 +376,37 @@ impl VkDeferedDestructor for Image {
         (callback, VkDestructorType::DevAll)
     }
 }
+
+pub fn init_textures(device:&mut Device, allocator:&mut Allocator, cmd_ctrl:&mut CommandControl) -> (Image, Image, Image, Image){
+    
+    let texture_extent = vk::Extent3D{width:1, height:1, depth:1};
+    
+    let white_pixel:u32 = 0x00_ffffff;
+    let white_texture = Image::create_texture(device, allocator, cmd_ctrl, texture_extent, Some("white texture"), from_ref(&white_pixel)).unwrap();
+    
+    let grey_pixel:u32 = 0x00_aaaaaa;
+    let grey_texture = Image::create_texture(device, allocator, cmd_ctrl, texture_extent, Some("grey texture"), from_ref(&grey_pixel)).unwrap();
+    
+    let black_pixel:u32 = 0x11_00_00_00;
+    let black_texture = Image::create_texture(device, allocator, cmd_ctrl, texture_extent, Some("black texture"), from_ref(&black_pixel)).unwrap();
+    
+    let magenta_pixel:u32 = 0x11_FF_00_FF;
+    
+    let texture_extent = vk::Extent3D{width:64, height:64, depth:1};
+    let error_data:[u32; 64*64] = std::array::from_fn(|index|{
+        let pixel_row = index/16;
+        let pixel_col = index%16;
+        let pattern_row = pixel_row/4;
+        let pattern_col = pixel_col/4;
+        if pattern_row&1 == pattern_col&1 {
+            black_pixel
+        } else {
+            magenta_pixel
+        }
+    });
+    
+    let error_texture = Image::create_texture(device, allocator, cmd_ctrl, texture_extent, Some("error texture"), &error_data).unwrap();
+    
+    (white_texture, grey_texture, black_texture, error_texture)
+}
+

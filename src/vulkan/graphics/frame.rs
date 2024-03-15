@@ -62,7 +62,7 @@ impl FrameData {
         let buffer_vec = unsafe{device.allocate_command_buffers(&create_info)}?;
         let cmd_buffer = buffer_vec[0];
         
-        let mut ds_layout_builder = DescriptorLayoutBuilder::create().unwrap();
+        let mut ds_layout_builder = DescriptorLayoutBuilder::create();
         ds_layout_builder.add_binding(0, vk::DescriptorType::STORAGE_IMAGE, 3);
         ds_layout_builder.add_binding(0, vk::DescriptorType::STORAGE_BUFFER, 3);
         ds_layout_builder.add_binding(0, vk::DescriptorType::UNIFORM_BUFFER, 3);
@@ -90,6 +90,10 @@ impl FrameData {
         self.cmd_buffer
     }
     
+    pub(in self) fn get_descriptor_allocator(&mut self) -> &mut GDescriptorAllocator {
+        &mut self.descriptor_allocator
+    }
+    
 }
 
 impl FramesData {
@@ -110,6 +114,10 @@ impl FramesData {
     
     pub fn get_frame_command_buffer(&mut self, frame:usize) -> vk::CommandBuffer {
         self.0[frame].get_command_buffer()
+    }
+    
+    pub fn get_descriptor_allocator(&mut self, frame:usize) -> &mut GDescriptorAllocator {
+        self.0[frame].get_descriptor_allocator()
     }
     
 }

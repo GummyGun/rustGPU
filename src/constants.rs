@@ -101,8 +101,10 @@ pub mod comp {
 
 pub mod graph {
     pub const MESH_VERT:&str = "res/shaders/mesh.vert.spv";
+    pub const MESH_FRAG:&str = "res/shaders/mesh.frag.spv";
+    
     //pub const TRIANGLE_VERT:&str = "res/shaders/triangle.vert.spv";
-    pub const TRIANGLE_FRAG:&str = "res/shaders/triangle.frag.spv";
+    //pub const TRIANGLE_FRAG:&str = "res/shaders/triangle.frag.spv";
 }
 
 
