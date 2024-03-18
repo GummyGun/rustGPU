@@ -93,7 +93,6 @@ impl VkDestructor for Instance {
         args.unwrap_none();
         unsafe{self.destroy_instance(None)};
     }
-    
 }
 
 

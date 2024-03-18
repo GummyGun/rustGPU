@@ -12,6 +12,7 @@ use na::Vector3;
 use arrayvec::ArrayString;
 
 
+
 #[derive(Default, Debug)]
 pub struct InputData {
     pub background_index: usize,
@@ -47,15 +48,15 @@ impl Imgui{
         platform_holder.prepare_frame(context_holder.io_mut(), window.underlying(), &window.event_pump().mouse_state());
     }
     
-    pub fn draw_ui(
+    pub fn draw_ui<C:AsRef<str>, D, DD:Fn(&D)->&str>(
         &mut self,
         window: &mut Window,
-        args: (&[ArrayString<64>], &[MeshAssetMetadata], ),
+        args: (&[C], &[D]),
         parameters: (&mut usize, &mut ComputePushConstants, &mut usize, &mut Vector3<f32>, &mut f32),
+        d_transform: DD,
     ) {
         
         let (compute_effects_name, mesh_assets_metadata) = args;
-        
         let (compute_effect_index, compute_push_constant, mesh_index, near_far, downscale_coheficient) = parameters;
         
         let (context, platform, ui_data) = self.get_common_mut();
@@ -91,7 +92,7 @@ impl Imgui{
             let _disabled_token = ui.begin_disabled(false);
             ui.text("Select Model");
             for (index, mesh) in mesh_assets_metadata.into_iter().enumerate() {
-                ui.radio_button(mesh.name, mesh_index, index);
+                ui.radio_button(d_transform(mesh), mesh_index, index);
             }
         });
         

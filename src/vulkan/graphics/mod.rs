@@ -1,21 +1,26 @@
 mod mesh;
 pub use mesh::load_gltf;
+pub use mesh::vk_load_gltf;
+pub use mesh::VkMeshBuffers;
+pub use mesh::VkMeshAsset;
+pub use mesh::VkMeshAssets;
 pub use mesh::MeshAssets;
 
 mod frame;
 pub use frame::FramesData;
 
 mod r_object;
-/*
+pub use r_object::RenderObject;
+pub use r_object::IRenderable;
+
 mod types;
-mod model;
-pub use model::Model;
-*/
+pub use types::*;
 
 use crate::AAError;
 use crate::imgui::Imgui;
 use crate::errors::messages::SIMPLE_VK_FN;
 use crate::errors::messages::COMPILETIME_ASSERT;
+use crate::errors::messages::CPU_ACCESIBLE;
 
 pub use crate::graphics::MeshAssetMetadata;
 pub use crate::graphics::GeoSurface;
@@ -23,7 +28,10 @@ pub use crate::graphics::ComputePushConstants;
 pub use crate::graphics::Vertex;
 pub use crate::graphics::GPUSceneData;
 
+
+
 use super::VkDestructor;
+use super::VkDeferedDestructor;
 use super::VkDestructorArguments;
 use super::VInit;
 use super::Device;
@@ -40,6 +48,8 @@ use super::DescriptorLayout;
 use super::GDescriptorAllocator;
 use super::Sampler;
 
+use super::materials::MaterialInstance;
+
 use std::slice::from_ref;
 use std::mem::size_of;
 use std::cmp::min;
@@ -49,6 +59,7 @@ use ash::vk;
 use nalgebra as na;
 use nalgebra_glm as glm;
 use na::Matrix4;
+use gpu_allocator as gpu_all;
 
 
 #[repr(C)]
@@ -61,7 +72,6 @@ pub struct GPUDrawPushConstants {
 
 pub struct Canvas {
     render_image: Image,
-    //render_extent: vk::Extent2D,
     depth_image: Image,
 }
 
@@ -80,6 +90,10 @@ impl Canvas {
     
     pub fn get_images(&mut self) -> (&mut Image, &mut Image) {
         (&mut self.render_image, &mut self.depth_image)
+    }
+    
+    pub fn get_color(&self) -> &Image {
+        &self.render_image
     }
     
     pub fn get_formats(&self) -> (vk::Format, vk::Format) {
@@ -117,16 +131,14 @@ impl VInit {
             ds_set, 
             
             canvas,
-            /*
-            render_image, 
-            depth_image,
-            */
+            main_draw_context,
+            materials,
             
             swapchain, 
             device, 
+            allocator,
             
-            mesh_pipeline,
-            mesh_assets,
+            vk_mesh_assets,
             mesh_index,
             
             field_of_view,
@@ -138,6 +150,8 @@ impl VInit {
             pixelated_sampler,
             texture_descriptor_layout,
             
+            gpu_scene_layout,
+            scene_data,
             ..
         } = self;
         
@@ -146,9 +160,28 @@ impl VInit {
         
         let (image_avaliable_semaphore, render_finished_semaphore, inflight_fence) = frames_data.get_frame_sync(cf);
         
-        let descriptor_allocator = frames_data.get_descriptor_allocator(cf);
+        let destruction_stack = frames_data.get_destruction_stack(cf);
         
-        //descriptor_allocator.clear_pools(device);
+        unsafe{device.wait_for_fences(from_ref(&inflight_fence), true, u64::MAX)}.expect(SIMPLE_VK_FN);
+        
+        destruction_stack.dispatch(device, allocator);
+        main_draw_context.context.clear();
+        
+        let mut gpu_scene_buffer = Buffer::create(device, allocator, Some("per_frame_buffer"), GPUSceneData::size_u64(), vk::BufferUsageFlags::UNIFORM_BUFFER, gpu_all::MemoryLocation::CpuToGpu).unwrap();//TODO:changet this unwrap
+        {
+            let mut align = gpu_scene_buffer.get_align::<GPUSceneData>(0, GPUSceneData::size_u64()).expect(CPU_ACCESIBLE);
+            align.copy_from_slice(from_ref(&scene_data));
+        }
+        destruction_stack.push(gpu_scene_buffer.defered_destruct());
+        
+        let descriptor_allocator = frames_data.get_descriptor_allocator(cf);
+        descriptor_allocator.clear_pools(device);
+        let scene_descriptor = descriptor_allocator.allocate(device, gpu_scene_layout).unwrap();
+        
+        let mut writer = DescriptorWriter::default();
+        writer.write_buffer(0, gpu_scene_buffer.underlying(), GPUSceneData::size_u64(), 0, vk::DescriptorType::UNIFORM_BUFFER);
+        writer.update_set(device, scene_descriptor);
+        
         
         let (p_image_handle, p_image_view, image_index) = match swapchain.get_next_image(image_avaliable_semaphore){
             Ok(holder) => {holder}
@@ -158,7 +191,6 @@ impl VInit {
             }
         };
         
-        unsafe{device.wait_for_fences(from_ref(&inflight_fence), true, u64::MAX)}.expect(SIMPLE_VK_FN);
         unsafe{device.reset_fences(from_ref(&inflight_fence))}.expect(SIMPLE_VK_FN);
         unsafe{device.reset_command_buffer(cmd, vk::CommandBufferResetFlags::empty())}.expect(SIMPLE_VK_FN);
         unsafe{device.reset_command_buffer(cmd, vk::CommandBufferResetFlags::empty())}.expect(SIMPLE_VK_FN);
@@ -175,8 +207,6 @@ impl VInit {
         let d_image_handle = depth_image.underlying();
         
         
-        
-        
         let extent = Self::calculate_extent(render_image.extent_2d, swapchain.extent, *downscale_coheficient);
         
         Image::transition_image(device, cmd, r_image_handle, vk::ImageLayout::UNDEFINED, vk::ImageLayout::GENERAL);
@@ -186,7 +216,9 @@ impl VInit {
         Image::transition_image(device, cmd, d_image_handle, vk::ImageLayout::UNDEFINED, vk::ImageLayout::DEPTH_ATTACHMENT_OPTIMAL);
         Image::transition_image(device, cmd, r_image_handle, vk::ImageLayout::GENERAL, vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL);
         
-        Self::draw_geometry(device, cmd, extent, render_image, depth_image, mesh_pipeline, mesh_assets, *mesh_index, field_of_view, texture_descriptor_layout, descriptor_allocator, texture, pixelated_sampler);
+        let default_material = materials.get_default();
+        vk_mesh_assets[*mesh_index].draw(&na::Matrix4::<f32>::identity(), main_draw_context);
+        Self::draw_geometry(device, cmd, extent, canvas, vk_mesh_assets, *mesh_index, field_of_view, main_draw_context, default_material, scene_descriptor);
         
         Image::transition_image(device, cmd, r_image_handle, vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL, vk::ImageLayout::TRANSFER_SRC_OPTIMAL);
         Image::transition_image(device, cmd, p_image_handle, vk::ImageLayout::UNDEFINED, vk::ImageLayout::TRANSFER_DST_OPTIMAL);
@@ -252,19 +284,31 @@ impl VInit {
         device: &mut Device, 
         cmd: vk::CommandBuffer, 
         extent: vk::Extent2D, 
+        canvas: &mut Canvas,
+        /*
         image: &Image, 
         depth: &Image, 
-        mesh_pipeline: &GPipeline, 
-        meshes: &MeshAssets, 
-        mesh_selector: usize, 
-        field_of_view: &na::Vector3<f32>,
+        */
         
+        //mesh_pipeline: &GPipeline, 
+        
+        meshes: &VkMeshAssets, 
+        mesh_selector: usize, 
+        
+        field_of_view: &na::Vector3<f32>,
+        draw_context: &mut DrawContext,
+        
+        default_material: &MaterialInstance,
+        scene_descriptor: vk::DescriptorSet,
+        /*
         texture_descriptor_layout: &DescriptorLayout,
         descriptor_allocator: &mut GDescriptorAllocator,
         texture: &Image,
         sampler: &Sampler
+        */
     ) {
         
+        let (image, depth) = canvas.get_images();
         let color_attachment_info = pipeline::rendering_attachment_info(image.view, None, vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL);
         let depth_attachment_info = pipeline::depth_attachment_info(depth.view, vk::ImageLayout::DEPTH_ATTACHMENT_OPTIMAL);
         let rendering_info = pipeline::rendering_info(extent, &color_attachment_info, Some(&depth_attachment_info));
@@ -279,11 +323,34 @@ impl VInit {
         let scissor = vk::Rect2D::from(extent);
         
         unsafe{device.cmd_begin_rendering(cmd, &rendering_info)};
-        unsafe{device.cmd_bind_pipeline(cmd, vk::PipelineBindPoint::GRAPHICS, mesh_pipeline.underlying())};
+        //unsafe{device.cmd_bind_pipeline(cmd, vk::PipelineBindPoint::GRAPHICS, mesh_pipeline.underlying())};
         unsafe{device.cmd_set_viewport(cmd, 0, from_ref(&viewport))};
         unsafe{device.cmd_set_scissor(cmd, 0, from_ref(&scissor))};
         
+        for render_object in draw_context.context.iter() {
+            
+            let material = match render_object.material.as_ref() {
+                Some(material) => {material}
+                None => {default_material}
+            };
+            
+            unsafe{device.cmd_bind_pipeline(cmd, vk::PipelineBindPoint::GRAPHICS, material.pipeline.underlying())};
+            //TODO add cmd_descriptor_1
+            unsafe{device.cmd_bind_descriptor_sets(cmd, vk::PipelineBindPoint::GRAPHICS, material.pipeline.layout, 0, from_ref(&scene_descriptor), &[])};
+            unsafe{device.cmd_bind_descriptor_sets(cmd, vk::PipelineBindPoint::GRAPHICS, material.pipeline.layout, 1, from_ref(&material.descriptor_set), &[])};
+            unsafe{device.cmd_bind_index_buffer(cmd, render_object.index_buffer, 0, vk::IndexType::UINT32)};
+            
+            let mut push_constant_tmp = GPUDrawPushConstants::default();
+            push_constant_tmp.vertex_buffer = render_object.vertex_buffer_address;
+            push_constant_tmp.world_matrix = Self::tmp_perspective_matrix(extent, field_of_view);
+            let push_constants_slice = unsafe{crate::any_as_u8_slice(&push_constant_tmp)};
+            
+            unsafe{device.cmd_push_constants(cmd, material.pipeline.layout, vk::ShaderStageFlags::VERTEX, 0, push_constants_slice)};
+            
+            unsafe{device.cmd_draw_indexed(cmd, render_object.index_count, 1, render_object.first_index, 0, 0)};
+        }
         
+        /*
         let texture_set = descriptor_allocator.allocate(device, texture_descriptor_layout).unwrap();//TODO move this unwrap
         {
             let mut writer = DescriptorWriter::default();
@@ -309,7 +376,7 @@ impl VInit {
         unsafe{device.cmd_push_constants(cmd, mesh_pipeline.layout, vk::ShaderStageFlags::VERTEX, 0, push_constants_slice)};
         unsafe{device.cmd_draw_indexed(cmd, meshes.metadatas[mesh_selector].surfaces[0].count, 1, meshes.metadatas[mesh_selector].surfaces[0].start_index, 0, 0)};
         */
-        
+        */
         unsafe{device.cmd_end_rendering(cmd)};
     }
     
@@ -352,10 +419,6 @@ impl VInit {
         panic!("{:?}", projection);
         
         println!(" = FrontUpRigh\t{:?}", projection*test_vec_m);
-        
-        
-        
-        
         */
         
         holder

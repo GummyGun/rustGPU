@@ -55,8 +55,8 @@ pub fn init_pipelines(device:&mut Device, ds_layout:&DescriptorLayout) -> Comput
         (logger::Warn, "Instancing {} compute pipeline", effect_name)
     );
     let push_constant_holder = ComputePushConstants([
-        Vector4::new(0.4,0.4,0.4,1.0),
-        Vector4::new(0.4,0.4,0.4,1.0),
+        Vector4::new(1.0,0.4,0.4,1.0),
+        Vector4::new(0.4,1.0,0.4,1.0),
         Vector4::new(0.0,0.0,0.0,0.0),
         Vector4::new(0.0,0.0,0.0,0.0),
     ]);

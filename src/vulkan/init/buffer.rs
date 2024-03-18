@@ -22,7 +22,6 @@ use gpu_allocator as gpu_all;
 pub struct Buffer{
     pub buffer: vk::Buffer,
     pub allocation: ManuallyDrop<gpu_vk::Allocation>,
-    test: i32,
 }
 macros::impl_underlying!(Buffer, vk::Buffer, buffer);
 
@@ -57,7 +56,6 @@ impl Buffer{
         Ok(Self{
             buffer,
             allocation:ManuallyDrop::new(allocation),
-            test:1
         })
     }
     
@@ -83,12 +81,7 @@ impl Buffer{
     
     
     pub unsafe fn unsafe_clone(&mut self) -> Self {
-        let mut holder = std::ptr::read(self);
-        self.test=3;
-        holder.test=4;
-        println!("{:#?}", holder);
-        println!("{:#?}", self);
-        holder
+        std::ptr::read(self)
     }
     
     

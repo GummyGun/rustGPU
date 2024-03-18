@@ -5,7 +5,11 @@ mod graphics;
 use graphics::*;
 
 mod objects;
+
 mod helpers;
+
+mod materials;
+use materials::*;
 
 use crate::logger;
 use crate::imgui::InputData;
@@ -15,14 +19,14 @@ use crate::errors::messages::VK_UNRECOVERABLE;
 use super::window::Window;
 use super::constants;
 
-//use objects::DestructionStack;
+use objects::DestructionStack;
 use objects::VkWrapper;
 use objects::VkDestructor;
 use objects::VkDestructorType;
-//use objects::VkDeferedWrapper;
 use objects::VkDeferedDestructor;
 use objects::VkDynamicDestructor;
 use objects::VkDestructorArguments;
+
 
 use ash::vk;
 use nalgebra as na;
@@ -32,7 +36,6 @@ use arrayvec::ArrayString;
 
 #[allow(dead_code)]
 pub struct VInit {
-    
     
     frame_control: FrameControl,
     
@@ -49,15 +52,7 @@ pub struct VInit {
     
     pub command_control: VkWrapper<CommandControl>,
     
-    
-    /*
-    render_image: VkWrapper<Image>,
-    render_extent: vk::Extent2D,
-    depth_image: VkWrapper<Image>,
-    */
-    
     canvas: VkWrapper<graphics::Canvas>,
-    
     
     storage_descriptor_layout: VkWrapper<DescriptorLayout>,
     texture_descriptor_layout: VkWrapper<DescriptorLayout>,
@@ -66,28 +61,33 @@ pub struct VInit {
     
     compute_effects: VkWrapper<ComputeEffects>,
     
-    mesh_pipeline: VkWrapper<GPipeline>,
-    mesh_assets: VkWrapper<MeshAssets>,
+    //mesh_pipeline: VkWrapper<GPipeline>,
+    //mesh_assets: VkWrapper<MeshAssets>,
+    
+    materials: VkWrapper<Materials>,
+    vk_mesh_assets: VkWrapper<VkMeshAssets>,
+    
+    main_draw_context: DrawContext,
     
     compute_effect_index: usize,
     mesh_index: usize,
-    field_of_view:na::Vector3<f32>,
-    downscale_coheficient:f32,
-    
+    field_of_view: na::Vector3<f32>,
+    downscale_coheficient: f32,
     
     frames_data: VkWrapper<graphics::FramesData>,
+    scene_data: graphics::GPUSceneData,
+    gpu_scene_layout: VkWrapper<DescriptorLayout>,
     
     fuzzy_sampler: VkWrapper<Sampler>,
     pixelated_sampler: VkWrapper<Sampler>,
-    
-    scene_data: graphics::GPUSceneData,
     
     white_texture: VkWrapper<Image>,
     grey_texture: VkWrapper<Image>,
     black_texture: VkWrapper<Image>,
     error_texture: VkWrapper<Image>,
     
-    gpu_scene_layout: VkWrapper<DescriptorLayout>,
+    
+    destruction_stack: DestructionStack,
 }
 
 
@@ -120,18 +120,14 @@ impl VInit {
         let swapchain = vk_create_interpreter(Swapchain::create(&mut instance, &surface, &p_device, &mut device), "swapchain");
         let mut command_control = vk_create_interpreter(CommandControl::create(&p_device, &mut device), "command_control");
         
+        let mut destruction_stack = objects::DestructionStack::new();
         
         let mut canvas = Canvas::new(&mut device, &mut allocator, swapchain.extent.into()).unwrap();
-        let (render_image, depth_image) = canvas.get_images();
+        let render_image = canvas.get_color();
         
-        
-        let (ds_pool, storage_descriptor_layout, ds_set, texture_descriptor_layout) = init_descriptors(&mut device, &render_image);
-        
+        let (mut ds_pool, storage_descriptor_layout, ds_set, texture_descriptor_layout) = init_descriptors(&mut device, &render_image);
         let compute_effects = c_pipeline::init_pipelines(&mut device, &storage_descriptor_layout);
         
-        
-        let mesh_pipeline = g_pipeline::init_mesh_pipeline(&mut device, &render_image, &depth_image, &texture_descriptor_layout);
-        let mesh_assets = load_gltf(&mut device, &mut allocator, &mut command_control,"res/gltf/basicmesh.glb").expect("runtime error");
         
         let frames_data = FramesData::create(&p_device, &mut device).unwrap();
         
@@ -143,6 +139,26 @@ impl VInit {
         
         let pixelated_sampler = Sampler::create(&mut device, vk::Filter::NEAREST).unwrap();
         let fuzzy_sampler = Sampler::create(&mut device, vk::Filter::LINEAR).unwrap();
+        
+        let materials = materials::init_material(&mut device, &mut allocator, &canvas, &mut ds_pool, &mut destruction_stack, &gpu_scene_layout, &white_texture, &fuzzy_sampler).unwrap();
+        
+        /*
+        let Materials{
+            metalic,
+            metalic_instance
+        } = materials;
+        std::mem::drop(metalic_instance);
+        metalic.destruct(VkDestructorArguments::Dev(&mut device));
+        */
+        
+        
+        let (render_image, depth_image) = canvas.get_images();
+        //let mesh_pipeline = g_pipeline::init_mesh_pipeline(&mut device, &render_image, &depth_image, &texture_descriptor_layout);
+        //let mesh_assets = load_gltf(&mut device, &mut allocator, &mut command_control,"res/gltf/basicmesh.glb").expect("runtime error");
+        let vk_mesh_assets = vk_load_gltf(&mut device, &mut allocator, &mut command_control,"res/gltf/basicmesh.glb").expect("runtime error");
+        let main_draw_context = DrawContext::default();
+        
+        
         
         VInit{
             frame_control: FrameControl(0),
@@ -162,11 +178,6 @@ impl VInit {
             swapchain: VkWrapper::new(swapchain),
             command_control: VkWrapper::new(command_control),
             
-            /*
-            render_image: VkWrapper::new(render_image),
-            render_extent,
-            depth_image: VkWrapper::new(depth_image),
-            */
             canvas: VkWrapper::new(canvas),
             
             texture_descriptor_layout: VkWrapper::new(texture_descriptor_layout),
@@ -177,8 +188,11 @@ impl VInit {
             compute_effects: VkWrapper::new(compute_effects),
             compute_effect_index:0,
             
-            mesh_pipeline: VkWrapper::new(mesh_pipeline),
-            mesh_assets: VkWrapper::new(mesh_assets),
+            //mesh_pipeline: VkWrapper::new(mesh_pipeline),
+            vk_mesh_assets: VkWrapper::new(vk_mesh_assets),
+            main_draw_context,
+            
+            materials: VkWrapper::new(materials),
             
             mesh_index: 0,
             
@@ -196,7 +210,9 @@ impl VInit {
             error_texture: VkWrapper::new(error_texture),
             
             pixelated_sampler: VkWrapper::new(pixelated_sampler),
-            fuzzy_sampler: VkWrapper::new(fuzzy_sampler)
+            fuzzy_sampler: VkWrapper::new(fuzzy_sampler),
+            
+            destruction_stack: destruction_stack,
         }
         
     }
@@ -267,7 +283,7 @@ impl VInit {
     ) ->  (
         (
             &[ArrayString<64>],
-            &[MeshAssetMetadata], 
+            &[std::rc::Rc<VkMeshAsset>],
         ),(
             &mut usize,
             &mut ComputePushConstants,
@@ -280,7 +296,7 @@ impl VInit {
         
         let index = self.compute_effect_index;
         (
-            (names, &self.mesh_assets.metadatas), 
+            (names, &self.vk_mesh_assets[..]), 
             (&mut self.compute_effect_index, &mut push_constants[index], &mut self.mesh_index, &mut self.field_of_view, &mut self.downscale_coheficient, )
         )
     }
@@ -314,18 +330,16 @@ impl Drop for VInit {
             
             canvas,
             
-            
-            /*
-            render_image, 
-            depth_image, 
-            */
-            
             ds_pool, 
             storage_descriptor_layout, 
             texture_descriptor_layout, 
             compute_effects, 
-            mesh_pipeline, 
-            mesh_assets,
+            //mesh_pipeline, 
+            //mesh_assets,
+            vk_mesh_assets,
+            
+            materials,
+            
             frames_data,
             gpu_scene_layout,
             fuzzy_sampler,
@@ -335,11 +349,14 @@ impl Drop for VInit {
             grey_texture,
             black_texture,
             error_texture,
+            destruction_stack,
             ..
         } = self;
         
         let dev = device;
         let all = allocator;
+        
+        destruction_stack.dispatch(dev, all);
         
         fuzzy_sampler.destruct(VkDestructorArguments::Dev(dev));
         pixelated_sampler.destruct(VkDestructorArguments::Dev(dev));
@@ -350,15 +367,22 @@ impl Drop for VInit {
         error_texture.destruct(VkDestructorArguments::DevAll(dev, all));
         
         gpu_scene_layout.destruct(VkDestructorArguments::Dev(dev));
-        frames_data.destruct(VkDestructorArguments::Dev(dev));
+        frames_data.destruct(VkDestructorArguments::DevAll(dev, all));
         
-        mesh_assets.destruct(VkDestructorArguments::DevAll(dev, all));
-        mesh_pipeline.destruct(VkDestructorArguments::Dev(dev));
+        
+        vk_mesh_assets.destruct(VkDestructorArguments::DevAll(dev, all));
+        
+        materials.destruct(VkDestructorArguments::Dev(dev));
+        
+        //mesh_assets.destruct(VkDestructorArguments::DevAll(dev, all));
+        //mesh_pipeline.destruct(VkDestructorArguments::Dev(dev));
         compute_effects.destruct(VkDestructorArguments::Dev(dev));
+        
         
         ds_pool.destruct(VkDestructorArguments::Dev(dev));
         storage_descriptor_layout.destruct(VkDestructorArguments::Dev(dev));
         texture_descriptor_layout.destruct(VkDestructorArguments::Dev(dev));
+        
         
         /*
         render_image.destruct(VkDestructorArguments::DevAll(dev, all));

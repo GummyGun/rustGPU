@@ -60,10 +60,11 @@ impl ComputePushConstants {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone, Copy)]
 pub struct GeoSurface {
     pub start_index: u32,
     pub count: u32,
+    
 }
 
 #[derive(Debug, Default)]
@@ -72,7 +73,13 @@ pub struct MeshAssetMetadata {
     pub surfaces: Vec<GeoSurface>,
 }
 
-#[derive(Debug, Default)]
+impl AsRef<str> for MeshAssetMetadata {
+    fn as_ref(&self) -> &str {
+        &self.name
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
 #[repr(C)]
 pub struct GPUSceneData {
     view: Matrix4<f32>,
@@ -83,6 +90,28 @@ pub struct GPUSceneData {
     sunlight_color: Vector4<f32>,
 }
 
+const _:u64 = GPUSceneData::size_u64();
+impl GPUSceneData {
+    pub const fn size_u64() -> u64 {
+        if size_of::<Self>() > u64::MAX as usize {
+            panic!("{}", COMPILETIME_ASSERT);
+        }
+        size_of::<Self>() as u64
+    }
+}
+
+impl Default for GPUSceneData {
+    fn default() -> Self {
+        Self{
+            view: Matrix4::<f32>::identity(),
+            projection: Matrix4::<f32>::identity(),
+            view_projection: Matrix4::<f32>::identity(),
+            ambient_color: Vector4::<f32>::new(1.0,1.0,1.0,1.0),
+            sunlight_direction: Vector4::<f32>::new(1.0,1.0,1.0,1.0),
+            sunlight_color: Vector4::<f32>::new(1.0,1.0,1.0,1.0),
+        }
+    }
+}
 
 
 /*

@@ -12,6 +12,7 @@ use super::super::PDevice;
 use super::super::Device;
 use super::super::GDescriptorAllocator;
 use super::super::DescriptorLayoutBuilder;
+use super::super::DestructionStack;
 
 
 use ash::vk;
@@ -30,6 +31,8 @@ pub struct FrameData {
     
     #[derivative(Debug="ignore")]
     pub descriptor_allocator: GDescriptorAllocator,
+    #[derivative(Debug="ignore")]
+    pub destruction_stack: DestructionStack,
 }
 
 
@@ -70,6 +73,7 @@ impl FrameData {
         let descriptor_counts = ds_layout_builder.assemble();
         
         let descriptor_allocator:GDescriptorAllocator = GDescriptorAllocator::create(device, descriptor_counts).unwrap();
+        let destruction_stack = DestructionStack::default();
         
         Ok(Self{
             image_available_semaphore,
@@ -78,6 +82,7 @@ impl FrameData {
             cmd_pool,
             cmd_buffer,
             descriptor_allocator,
+            destruction_stack
         })
     }
     
@@ -92,6 +97,19 @@ impl FrameData {
     
     pub(in self) fn get_descriptor_allocator(&mut self) -> &mut GDescriptorAllocator {
         &mut self.descriptor_allocator
+    }
+    
+    pub(in self) fn get_destruction_stack(&mut self) -> &mut DestructionStack {
+        &mut self.destruction_stack
+    }
+    
+    pub(in self) fn get_references(&mut self) -> (&mut GDescriptorAllocator, &mut DestructionStack) {
+        let Self{
+            destruction_stack,
+            descriptor_allocator,
+            ..
+        } = self;
+        (descriptor_allocator, destruction_stack)
     }
     
 }
@@ -120,14 +138,22 @@ impl FramesData {
         self.0[frame].get_descriptor_allocator()
     }
     
+    pub fn get_destruction_stack(&mut self, frame:usize) -> &mut DestructionStack {
+        self.0[frame].get_destruction_stack()
+    }
+    
+    pub fn get_references(&mut self, frame: usize) -> (&mut GDescriptorAllocator, &mut DestructionStack) {
+        self.0[frame].get_references()
+    }
+    
 }
 
 
 impl VkDestructor for FrameData {
-    fn destruct(self, mut args:VkDestructorArguments) {
+    fn destruct(mut self, mut args:VkDestructorArguments) {
         logger::destruct!("frame_data");
         logger::destruct!("command_control");
-        let device = args.unwrap_dev();
+        let (device, allocator) = args.unwrap_dev_all();
         unsafe{device.destroy_command_pool(self.cmd_pool, None)};
         
         logger::destruct!("sync_objects");
@@ -135,15 +161,17 @@ impl VkDestructor for FrameData {
         unsafe{device.destroy_semaphore(self.render_finished_semaphore, None)};
         unsafe{device.destroy_fence(self.inflight_fence, None)};
         self.descriptor_allocator.destruct(VkDestructorArguments::Dev(device));
+        
+        self.destruction_stack.dispatch(device, allocator);
     }
 }
 
 impl VkDestructor for FramesData {
     fn destruct(self, mut args:VkDestructorArguments) {
         logger::destruct!("frames_data");
-        let device = args.unwrap_dev();
+        let (device, allocator) = args.unwrap_dev_all();
         for frame_data in self.0 {
-            frame_data.destruct(VkDestructorArguments::Dev(device));
+            frame_data.destruct(VkDestructorArguments::DevAll(device, allocator));
         }
     }
 }

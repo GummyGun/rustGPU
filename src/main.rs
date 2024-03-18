@@ -153,7 +153,7 @@ fn main() {
         v_init.handle_events(window);
         
         let (static_metadata, modifiable_metadata) = v_init.get_imgui_data();
-        imgui.draw_ui(window, static_metadata, modifiable_metadata);
+        imgui.draw_ui(window, static_metadata, modifiable_metadata, |holder|{&holder.name});
         
         v_init.gui_tick(imgui.get_ui_data());
         

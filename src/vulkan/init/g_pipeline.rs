@@ -13,17 +13,19 @@ use super::pipeline;
 use super::super::graphics as vk_graphics;
 
 use std::slice::from_ref;
+use std::rc::Rc;
 
 use arrayvec::ArrayVec;
 use ash::vk;
 
-//#[derive(Clone, Copy)]
 pub struct GPipeline {
     pub layout: vk::PipelineLayout,
     pipeline: vk::Pipeline,
+    dispatchable: Rc<DispatchableGPipeline>,
 }
 macros::impl_underlying!(GPipeline, vk::Pipeline, pipeline);
 
+#[derive(Clone)]
 pub struct DispatchableGPipeline {
     pub layout: vk::PipelineLayout,
     pub pipeline: vk::Pipeline,
@@ -33,7 +35,6 @@ macros::impl_underlying!(DispatchableGPipeline, vk::Pipeline, pipeline);
 #[derive(Default, Debug)]
 pub struct GPipelineBuilder {
     shader_stages: ArrayVec<vk::PipelineShaderStageCreateInfo, 16>,
-    
     input_assembly: vk::PipelineInputAssemblyStateCreateInfo,
     rasterizer: vk::PipelineRasterizationStateCreateInfo,
     color_blend_attachment: vk::PipelineColorBlendAttachmentState,
@@ -141,11 +142,14 @@ impl GPipelineBuilder {
         logger::various_log!("graphics_pipeline",
             (logger::Trace, "{:#?}", &self)
         );
+        
         let (pipeline, layout) = self.build_internals(device)?;
+        let dispatchable = Rc::new(DispatchableGPipeline{pipeline, layout});
         
         Ok(GPipeline{
             layout,
             pipeline,
+            dispatchable,
         })
     }
     
@@ -153,7 +157,7 @@ impl GPipelineBuilder {
     pub fn build_raw(mut self, device:&mut Device)  -> Result<vk::Pipeline, AAError> {
         logger::create!("graphics_pipeline");
         logger::various_log!("graphics_pipeline",
-            (logger::Trace, "{:#?}", &self)
+            (logger::Trace, "raw build {:#?}", &self)
         );
         self.build_internals(device).map(|(pipeline, layout)|pipeline)
     }
@@ -348,6 +352,12 @@ impl GPipelineBuilder {
     
 }
 
+impl GPipeline { 
+    pub fn get_dispatchable(&self) -> Rc<DispatchableGPipeline> {
+        self.dispatchable.clone()
+    }
+}
+
 
 impl VkDestructor for GPipeline {
     fn destruct(self, mut args:VkDestructorArguments) {
@@ -355,6 +365,9 @@ impl VkDestructor for GPipeline {
         logger::destruct!("graphics_pipeline");
         unsafe{device.destroy_pipeline_layout(self.layout, None)}
         unsafe{device.destroy_pipeline(self.pipeline, None)};
+        if Rc::strong_count(&self.dispatchable) != 1 {
+            todo!("should crash change error message");
+        }
     }
 }
 
