@@ -40,6 +40,8 @@ pub struct FramesData (
     [FrameData; constants::fif::USIZE],
 );
 
+
+
 impl FrameData {
     pub fn create(p_device:&PDevice, device:&mut Device) -> Result<Self, AAError> {
         

@@ -1,5 +1,8 @@
 use super::*;
 
+use crate::logger;
+use crate::errors::messages::RESOURCE_REFERENCED;
+
 use super::VkDestructor;
 use super::VkDestructorArguments;
 
@@ -61,6 +64,7 @@ impl MetalicMaterial {
     }
     
     pub fn build_pipelines(device:&mut Device, canvas:&Canvas, scene_descriptor:&DescriptorLayout) -> Result<Self, AAError> {
+        logger::create!("metalic_material");
         let vert_module = pipeline::create_shader_module(device, constants::graph::MESH_VERT)?;
         let frag_module = pipeline::create_shader_module(device, constants::graph::MESH_FRAG)?;
         
@@ -155,19 +159,22 @@ impl MetalicMaterial {
     
 
     fn internal_destroy(mut self, device: &mut Device) {
-        //TODO:
-        //add logging
-        //should validate whether the Rc are emptys
+        logger::destruct!("metalic_material");
         unsafe{device.destroy_pipeline(self.opaque_pipeline, None)};
         unsafe{device.destroy_pipeline(self.transparent_pipeline, None)};
         unsafe{device.destroy_pipeline_layout(self.pipeline_layout, None)};
         self.descriptor_layout.destruct(VkDestructorArguments::Dev(device));
-        if Rc::strong_count(&self.dispatchable_opaque) != 1 {
-            todo!("TODO Change message");
+        
+        let count = Rc::strong_count(&self.dispatchable_opaque);
+        if count != 1 {
+            panic!("{}: {} times", RESOURCE_REFERENCED, count);
         }
-        if Rc::strong_count(&self.dispatchable_transparent) != 1 {
-            todo!("TODO Change message");
+        
+        let count = Rc::strong_count(&self.dispatchable_transparent);
+        if count != 1 {
+            panic!("{}: {} times", RESOURCE_REFERENCED, count);
         }
+        
     }
 }
 
@@ -175,6 +182,7 @@ impl MetalicMaterial {
 impl VkDestructor for MetalicMaterial {
     fn destruct(self, mut args:VkDestructorArguments) {
         let device = args.unwrap_dev();
-        self .internal_destroy(device);
+        self.internal_destroy(device);
     }
 }
+

@@ -90,6 +90,7 @@ pub mod messages {
     pub const SU_COMMAND_FAIL:&'static str = "single use instant command should not fail";
     pub const CPU_ACCESIBLE:&'static str = "memory should be granted to be cpu accesible";
     
+    pub const RESOURCE_REFERENCED:&'static str = "resource is still reference somewhere";
 }
 
 /*

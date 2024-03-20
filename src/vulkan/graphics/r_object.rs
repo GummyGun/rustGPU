@@ -1,6 +1,3 @@
-use crate::AAError;
-use crate::constants;
-
 use super::DrawContext;
 use super::VkGeoSurface;
 use super::VkMeshBuffers;
@@ -80,7 +77,7 @@ impl IRenderable for VkMeshAsset {
                 material,
                 transform: top_matrix.clone(),
             };
-            ctx.context.push(render_object_holder);
+            ctx.push(render_object_holder);
         }
     }
 }

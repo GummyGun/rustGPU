@@ -5,11 +5,9 @@ pub use vk_imgui::Imgui;
 
 use crate::window::Window;
 use crate::graphics::ComputePushConstants;
-use crate::graphics::MeshAssetMetadata;
 
 use nalgebra as na;
 use na::Vector3;
-use arrayvec::ArrayString;
 
 
 
@@ -48,15 +46,16 @@ impl Imgui{
         platform_holder.prepare_frame(context_holder.io_mut(), window.underlying(), &window.event_pump().mouse_state());
     }
     
-    pub fn draw_ui<C:AsRef<str>, D, DD:Fn(&D)->&str>(
+    pub fn draw_ui<C, CC:Fn(&C)->&str, D, DD:Fn(&D)->&str>(
         &mut self,
         window: &mut Window,
         args: (&[C], &[D]),
+        transform: (CC, DD),
         parameters: (&mut usize, &mut ComputePushConstants, &mut usize, &mut Vector3<f32>, &mut f32),
-        d_transform: DD,
     ) {
         
         let (compute_effects_name, mesh_assets_metadata) = args;
+        let (c_transform, d_transform) = transform;
         let (compute_effect_index, compute_push_constant, mesh_index, near_far, downscale_coheficient) = parameters;
         
         let (context, platform, ui_data) = self.get_common_mut();
@@ -67,7 +66,7 @@ impl Imgui{
             ui.text("Compute shader");
             
             for (index, effect) in compute_effects_name.into_iter().enumerate() {
-                ui.radio_button(effect, compute_effect_index, index);
+                ui.radio_button(c_transform(effect), compute_effect_index, index);
             }
             
             //ui_data.push_constants = compute_effect_metadata[ui_data.background_index].data.clone();

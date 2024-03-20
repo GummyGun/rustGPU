@@ -1,9 +1,12 @@
 mod metalic;
 pub use metalic::*;
 
+use crate::logger;
+
 use crate::AAError;
 use crate::constants;
 use crate::errors::messages::COMPILETIME_ASSERT;
+use crate::errors::messages::CPU_ACCESIBLE;
 
 use super::graphics::*;
 use super::init::*;
@@ -88,8 +91,10 @@ pub fn init_material(
     
 ) -> Result<Materials, AAError> {
     
-    let mut metalic = MetalicMaterial::build_pipelines(device, canvas, scene_descriptor).unwrap();
-    let mut buffer = Buffer::create(device, allocator, Some("Metalic material"), MaterialConstants::size_u64(), vk::BufferUsageFlags::UNIFORM_BUFFER, gpu_all::MemoryLocation::CpuToGpu).unwrap();
+    logger::create!("materials");
+    
+    let mut metalic = MetalicMaterial::build_pipelines(device, canvas, scene_descriptor)?;
+    let mut buffer = Buffer::create(device, allocator, Some("Metalic material"), MaterialConstants::size_u64(), vk::BufferUsageFlags::UNIFORM_BUFFER, gpu_all::MemoryLocation::CpuToGpu)?;
     let holder = MaterialConstants{
         color_factors: na::Vector4::new(1f32,1f32,1f32,1f32),
         metal_rough_factors: na::Vector4::new(1f32,0.5f32,0f32,0f32),
@@ -97,7 +102,7 @@ pub fn init_material(
     };
     destruction_stack.push(buffer.defered_destruct());
     {
-        let mut align = buffer.get_align::<MaterialConstants>(0, MaterialConstants::size_u64()).unwrap();
+        let mut align = buffer.get_align::<MaterialConstants>(0, MaterialConstants::size_u64()).expect(CPU_ACCESIBLE);
         align.copy_from_slice(from_ref(&holder));
     }
     
@@ -110,7 +115,7 @@ pub fn init_material(
         color_sampler: linear_sampler,
     };
     
-    let metalic_instance = metalic.write_material(device, ds_pool, MaterialPass::MainColor, &material_resources).unwrap();
+    let metalic_instance = metalic.write_material(device, ds_pool, MaterialPass::MainColor, &material_resources)?;
     
     Ok(Materials{
         metalic_instance, 
@@ -127,7 +132,7 @@ impl Materials {
 
 impl VkDestructor for Materials {
     fn destruct(self, mut args:VkDestructorArguments) {
-        use std::mem::drop;
+        logger::destruct!("materials");
         let device = args.unwrap_dev();
         let Materials{
             metalic_instance,

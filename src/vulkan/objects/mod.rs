@@ -2,7 +2,7 @@ mod wrapper;
 pub use wrapper::VkWrapper;
 
 mod d_wrapper;
-pub use d_wrapper::VkDeferedWrapper;
+//pub use d_wrapper::VkDeferedWrapper;
 
 mod d_stack;
 pub use d_stack::DestructionStack;

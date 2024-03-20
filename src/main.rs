@@ -36,99 +36,8 @@ struct HolderStruct {
     imgui: ManuallyDrop<imgui::Imgui>,
 }
 
-/*
-use std::boxed::Box;
-use std::error::Error as StdError;
-use std::{fs, io};
-
-fn print_tree(node: &gltf::Node, depth: i32) {
-    for _ in 0..(depth - 1) {
-        print!("  ");
-    }
-    print!(" -");
-    print!(" Node {}", node.index());
-    #[cfg(feature = "names")]
-    print!(" ({})", node.name().unwrap_or("<Unnamed>"));
-    println!();
-
-    for child in node.children() {
-        print_tree(&child, depth + 1);
-    }
-}
-
-fn run(path: &str) -> Result<(), Box<dyn StdError>> {
-    let file = fs::File::open(path)?;
-    let reader = io::BufReader::new(file);
-    let gltf = gltf::Gltf::from_reader(reader)?;
-    for scene in gltf.scenes() {
-        print!("Scene {}", scene.index());
-        #[cfg(feature = "names")]
-        print!(" ({})", scene.name().unwrap_or("<Unnamed>"));
-        println!();
-        for node in scene.nodes() {
-            print_tree(&node, 1);
-        }
-    }
-    
-    
-    let meshes = gltf.meshes();
-    println!("{}", meshes.len());
-    for mesh in meshes {
-        println!("{:?}", mesh.name());
-        let primitives = mesh.primitives();
-        println!("{}", &primitives.len());
-        for primitive in primitives {
-            let reader = primitive.reader(|primitive|{Some(&gltf.blob.as_ref().unwrap()[..])});
-            
-            let positions = reader.read_positions().unwrap();
-            println!("vertex ammount{}", positions.len());
-            for pos in positions {
-                println!("{:?}", pos);
-            }
-            let normals = reader.read_normals().unwrap();
-            println!("vertex ammount{}", normals.len());
-            for pos in normals {
-                println!("{:?}", pos);
-            }
-            let color = reader.read_colors(0);
-            println!("color {:?}", color);
-            for pos in reader.read_colors(1) {
-                println!("{:?}", pos);
-            }
-        }
-        break;
-    }
-    
-    
-    panic!();
-    panic!("{:?}", gltf.blob);
-    for mesh in gltf.meshes() {
-       println!("Mesh #{}", mesh.index());
-       for primitive in mesh.primitives() {
-           let reader = primitive.reader();
-            for a in reader.read_normals(|buffer| Some(&buffer[buffer.index()])) {
-                println!("{:?}", a);
-            }
-           
-           /*
-           println!("- Primitive #{}", primitive.index());
-           for (semantic, a) in primitive.attributes() {
-               println!("-- {:?} {:?}", semantic, a);
-           }
-           */
-       }
-    }
-
-    Ok(())
-}
-*/
 
 fn main() {
-    //let model = graphics::Model::load_gltf();
-    
-    //let mut perspective = nalgebra::Matrix4::new(0.952099, 0.000000, 0.000000, 0.000000, 0.000000, 1.428148, 0.000000, 0.000000, 0.000000, 0.000000, 1.000020, -1.000000, 0.000000, 0.000000, 0.200002, 0.000000);
-    //println!("{:?}", perspective);
-    //return;
     
     let _state = State::init();
     
@@ -152,18 +61,13 @@ fn main() {
         
         v_init.handle_events(window);
         
-        let (static_metadata, modifiable_metadata) = v_init.get_imgui_data();
-        imgui.draw_ui(window, static_metadata, modifiable_metadata, |holder|{&holder.name});
+        let (static_metadata, transformations, modifiable_metadata) = v_init.get_imgui_data();
+        imgui.draw_ui(window, static_metadata, transformations, modifiable_metadata);
         
         v_init.gui_tick(imgui.get_ui_data());
         
         v_init.draw_frame(imgui);
         
-        /*
-        let current_time = state.secs_from_start();
-        //println!("{:?}", 1f32/(current_time-last_time));
-        last_time = current_time;
-        */
     }
     println!("=====================================================================================================================================================================\n=====================================================================================================================================================================");
     v_init.wait_idle();

@@ -1,10 +1,8 @@
 mod mesh;
 pub use mesh::load_gltf;
-pub use mesh::vk_load_gltf;
 pub use mesh::VkMeshBuffers;
 pub use mesh::VkMeshAsset;
 pub use mesh::VkMeshAssets;
-pub use mesh::MeshAssets;
 
 mod frame;
 pub use frame::FramesData;
@@ -22,7 +20,6 @@ use crate::errors::messages::SIMPLE_VK_FN;
 use crate::errors::messages::COMPILETIME_ASSERT;
 use crate::errors::messages::CPU_ACCESIBLE;
 
-pub use crate::graphics::MeshAssetMetadata;
 pub use crate::graphics::GeoSurface;
 pub use crate::graphics::ComputePushConstants;
 pub use crate::graphics::Vertex;
@@ -39,14 +36,10 @@ use super::Allocator;
 use super::Buffer;
 use super::Image;
 use super::CPipeline;
-use super::GPipeline;
 use super::pipeline;
 use super::image;
 
 use super::DescriptorWriter;
-use super::DescriptorLayout;
-use super::GDescriptorAllocator;
-use super::Sampler;
 
 use super::materials::MaterialInstance;
 
@@ -138,7 +131,7 @@ impl VInit {
             device, 
             allocator,
             
-            vk_mesh_assets,
+            mesh_assets,
             mesh_index,
             
             field_of_view,
@@ -165,7 +158,7 @@ impl VInit {
         unsafe{device.wait_for_fences(from_ref(&inflight_fence), true, u64::MAX)}.expect(SIMPLE_VK_FN);
         
         destruction_stack.dispatch(device, allocator);
-        main_draw_context.context.clear();
+        main_draw_context.clear();
         
         let mut gpu_scene_buffer = Buffer::create(device, allocator, Some("per_frame_buffer"), GPUSceneData::size_u64(), vk::BufferUsageFlags::UNIFORM_BUFFER, gpu_all::MemoryLocation::CpuToGpu).unwrap();//TODO:changet this unwrap
         {
@@ -217,8 +210,8 @@ impl VInit {
         Image::transition_image(device, cmd, r_image_handle, vk::ImageLayout::GENERAL, vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL);
         
         let default_material = materials.get_default();
-        vk_mesh_assets[*mesh_index].draw(&na::Matrix4::<f32>::identity(), main_draw_context);
-        Self::draw_geometry(device, cmd, extent, canvas, vk_mesh_assets, *mesh_index, field_of_view, main_draw_context, default_material, scene_descriptor);
+        mesh_assets[*mesh_index].draw(&na::Matrix4::<f32>::identity(), main_draw_context);
+        Self::draw_geometry(device, cmd, extent, canvas, mesh_assets, *mesh_index, field_of_view, main_draw_context, default_material, scene_descriptor);
         
         Image::transition_image(device, cmd, r_image_handle, vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL, vk::ImageLayout::TRANSFER_SRC_OPTIMAL);
         Image::transition_image(device, cmd, p_image_handle, vk::ImageLayout::UNDEFINED, vk::ImageLayout::TRANSFER_DST_OPTIMAL);
@@ -327,7 +320,7 @@ impl VInit {
         unsafe{device.cmd_set_viewport(cmd, 0, from_ref(&viewport))};
         unsafe{device.cmd_set_scissor(cmd, 0, from_ref(&scissor))};
         
-        for render_object in draw_context.context.iter() {
+        for render_object in draw_context.iter() {
             
             let material = match render_object.material.as_ref() {
                 Some(material) => {material}

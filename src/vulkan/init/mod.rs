@@ -42,7 +42,7 @@ pub use c_pipeline::CPipeline;
 pub use c_pipeline::ComputeEffects;
 
 pub mod g_pipeline;
-pub use g_pipeline::GPipeline;
+//pub use g_pipeline::GPipeline;
 pub use g_pipeline::GPipelineBuilder;
 pub use g_pipeline::DispatchableGPipeline;
 

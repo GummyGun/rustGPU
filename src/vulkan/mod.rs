@@ -40,7 +40,6 @@ pub struct VInit {
     frame_control: FrameControl,
     
     resize_required: bool,
-
     
     pub instance: VkWrapper<Instance>,
     messenger: Option<VkWrapper<DMessenger>>,
@@ -65,7 +64,7 @@ pub struct VInit {
     //mesh_assets: VkWrapper<MeshAssets>,
     
     materials: VkWrapper<Materials>,
-    vk_mesh_assets: VkWrapper<VkMeshAssets>,
+    mesh_assets: VkWrapper<VkMeshAssets>,
     
     main_draw_context: DrawContext,
     
@@ -155,7 +154,7 @@ impl VInit {
         let (render_image, depth_image) = canvas.get_images();
         //let mesh_pipeline = g_pipeline::init_mesh_pipeline(&mut device, &render_image, &depth_image, &texture_descriptor_layout);
         //let mesh_assets = load_gltf(&mut device, &mut allocator, &mut command_control,"res/gltf/basicmesh.glb").expect("runtime error");
-        let vk_mesh_assets = vk_load_gltf(&mut device, &mut allocator, &mut command_control,"res/gltf/basicmesh.glb").expect("runtime error");
+        let mesh_assets = load_gltf(&mut device, &mut allocator, &mut command_control,"res/gltf/basicmesh.glb").expect("runtime error");
         let main_draw_context = DrawContext::default();
         
         
@@ -189,7 +188,7 @@ impl VInit {
             compute_effect_index:0,
             
             //mesh_pipeline: VkWrapper::new(mesh_pipeline),
-            vk_mesh_assets: VkWrapper::new(vk_mesh_assets),
+            mesh_assets: VkWrapper::new(mesh_assets),
             main_draw_context,
             
             materials: VkWrapper::new(materials),
@@ -284,6 +283,9 @@ impl VInit {
         (
             &[ArrayString<64>],
             &[std::rc::Rc<VkMeshAsset>],
+        ), (
+            &dyn Fn(&ArrayString<64>)->&str,
+            &dyn Fn(&std::rc::Rc<VkMeshAsset>)->&str,
         ),(
             &mut usize,
             &mut ComputePushConstants,
@@ -293,10 +295,10 @@ impl VInit {
         )
     ) {
         let ComputeEffects{ref names, ref mut push_constants, ..} = *self.compute_effects;
-        
         let index = self.compute_effect_index;
         (
-            (names, &self.vk_mesh_assets[..]), 
+            (names, &self.mesh_assets[..]), 
+            (&|holder|{holder}, &|holder|{&holder.name}),
             (&mut self.compute_effect_index, &mut push_constants[index], &mut self.mesh_index, &mut self.field_of_view, &mut self.downscale_coheficient, )
         )
     }
@@ -334,9 +336,7 @@ impl Drop for VInit {
             storage_descriptor_layout, 
             texture_descriptor_layout, 
             compute_effects, 
-            //mesh_pipeline, 
-            //mesh_assets,
-            vk_mesh_assets,
+            mesh_assets,
             
             materials,
             
@@ -370,7 +370,7 @@ impl Drop for VInit {
         frames_data.destruct(VkDestructorArguments::DevAll(dev, all));
         
         
-        vk_mesh_assets.destruct(VkDestructorArguments::DevAll(dev, all));
+        mesh_assets.destruct(VkDestructorArguments::DevAll(dev, all));
         
         materials.destruct(VkDestructorArguments::Dev(dev));
         
