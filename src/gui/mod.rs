@@ -1,7 +1,7 @@
 #[cfg(feature = "vulkan")]
-mod vk_imgui;
+mod vk_gui;
 #[cfg(feature = "vulkan")]
-pub use vk_imgui::Imgui;
+pub use vk_gui::Gui;
 
 use crate::window::Window;
 use crate::graphics::ComputePushConstants;
@@ -36,7 +36,7 @@ const FOV_FIELD_TEXT:[&str; 3] = [
     "angle",
 ];
 
-impl Imgui{
+impl Gui{
     
     pub fn handle_events(
         &mut self,
@@ -61,7 +61,8 @@ impl Imgui{
         let (context, platform, ui_data) = self.get_common_mut();
         let ui = context.new_frame();
         
-        let _background = ui.window("Background").build(||{
+        let _background = Self::get_next_window(&ui, "Background", [0,0]).build(||{
+            
             let _disabled_token = ui.begin_disabled(false);
             ui.text("Compute shader");
             
@@ -79,7 +80,7 @@ impl Imgui{
             
         });
         
-        let _global = ui.window("Global").build(||{
+        let _global = Self::get_next_window(&ui, "Global", [0,1]).build(||{
             let _disabled_token = ui.begin_disabled(false);
             
             ui.text("Render scale");
@@ -87,7 +88,7 @@ impl Imgui{
             
         });
         
-        let _model = ui.window("Model").build(||{
+        let _model = Self::get_next_window(&ui, "Model", [0,2]).build(||{
             let _disabled_token = ui.begin_disabled(false);
             ui.text("Select Model");
             for (index, mesh) in mesh_assets_metadata.into_iter().enumerate() {
@@ -95,11 +96,8 @@ impl Imgui{
             }
         });
         
-        let _window = ui.window("Field of View(FOV)").build(||{
-            
+        let mut _window = Self::get_next_window(&ui, "Field of View(FOV)", [0,3]).build(||{
             let _disabled_token = ui.begin_disabled(false);
-            ui.text("graphics");
-            
             //ui_data.push_constants = compute_effect_metadata[ui_data.background_index].data.clone();
             let _ = ui.slider(FOV_FIELD_TEXT[0], 0.0, 10000.0, &mut near_far[0]);
             let _ = ui.slider(FOV_FIELD_TEXT[1], 0.0, 10.0, &mut near_far[1]);
@@ -107,10 +105,18 @@ impl Imgui{
             ui.text("Dangerous button");
             
         });
-        /*
-        */
         
         platform.prepare_render(&ui, window.underlying());
+    }
+    
+
+    fn get_next_window<'a>(ui:&'a imgui::Ui, name:&'a str, position:[u8; 2]) -> imgui::Window<'a, 'a, &'a str> {
+        let position = [32.0+position[0] as f32*256.0, 32.0+position[1] as f32*32.0];
+        ui.window(name)
+            .collapsed(true, imgui::Condition::Once)
+            .position(position, imgui::Condition::Once)
+            .size([1.5*256.0, 256.0], imgui::Condition::Once)
+            
     }
 }
 

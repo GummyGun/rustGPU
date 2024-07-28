@@ -1,6 +1,6 @@
 mod window;
 mod vulkan;
-mod imgui;
+mod gui;
 mod errors;
 mod logger;
 mod constants;
@@ -33,7 +33,7 @@ enum Verbosity {
 struct HolderStruct {
     window: ManuallyDrop<window::Window>,
     v_init: ManuallyDrop<vulkan::VInit>,
-    imgui: ManuallyDrop<imgui::Imgui>,
+    gui: ManuallyDrop<gui::Gui>,
 }
 
 
@@ -45,28 +45,28 @@ fn main() {
     
     let mut window = window::Window::init();
     let mut v_init = vulkan::VInit::init(&mut window);
-    let imgui = imgui::Imgui::init(&mut window, &mut v_init);
+    let gui = gui::Gui::init(&mut window, &mut v_init);
     
-    let mut holder_struct = HolderStruct::new(window, v_init, imgui);
+    let mut holder_struct = HolderStruct::new(window, v_init, gui);
     let HolderStruct{
         window,
         v_init,
-        imgui,
+        gui,
     } = &mut holder_struct;
     
     println!("=====================================================================================================================================================================\n=====================================================================================================================================================================");
     while !window.should_close() {
-        window.poll_events(imgui);
-        imgui.handle_events(window);
+        window.poll_events(gui);
+        gui.handle_events(window);
         
         v_init.handle_events(window);
         
-        let (static_metadata, transformations, modifiable_metadata) = v_init.get_imgui_data();
-        imgui.draw_ui(window, static_metadata, transformations, modifiable_metadata);
+        let (static_metadata, transformations, modifiable_metadata) = v_init.get_gui_data();
+        gui.draw_ui(window, static_metadata, transformations, modifiable_metadata);
         
-        v_init.gui_tick(imgui.get_ui_data());
+        v_init.gui_tick(gui.get_ui_data());
         
-        v_init.draw_frame(imgui);
+        v_init.draw_frame(gui);
         
     }
     println!("=====================================================================================================================================================================\n=====================================================================================================================================================================");
@@ -75,11 +75,11 @@ fn main() {
 
 
 impl HolderStruct {
-    fn new(window:window::Window, v_init:vulkan::VInit, imgui:imgui::Imgui) -> Self {
+    fn new(window:window::Window, v_init:vulkan::VInit, gui:gui::Gui) -> Self {
         HolderStruct{
             window: ManuallyDrop::new(window),
             v_init: ManuallyDrop::new(v_init),
-            imgui: ManuallyDrop::new(imgui),
+            gui: ManuallyDrop::new(gui),
         }
         
     }
@@ -87,7 +87,7 @@ impl HolderStruct {
 
 impl Drop for HolderStruct {
     fn drop(&mut self) {
-        unsafe{ManuallyDrop::drop(&mut self.imgui)};
+        unsafe{ManuallyDrop::drop(&mut self.gui)};
         unsafe{ManuallyDrop::drop(&mut self.v_init)};
         unsafe{ManuallyDrop::drop(&mut self.window)};
     }

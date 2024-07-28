@@ -25,7 +25,7 @@ use gpu_allocator::vulkan as gpu_vk;
 
 
 #[allow(dead_code)]
-pub struct Imgui{
+pub struct Gui{
     allocator: Arc<Mutex<gpu_vk::Allocator>>,
     pub platform: ImguiSdl2,
     pub context: Context,
@@ -33,7 +33,7 @@ pub struct Imgui{
     pub ui_data: InputData,
 }
 
-impl Imgui {
+impl Gui {
     pub fn init(window:&mut Window, v_init:&mut VInit) -> Self {
         let VInit{
             instance,
@@ -124,7 +124,7 @@ impl Imgui {
     
 }
 
-impl Drop for Imgui {
+impl Drop for Gui {
     fn drop(&mut self) {
         logger::destruct!("imgui");
         unsafe{ManuallyDrop::drop(&mut self.renderer)};

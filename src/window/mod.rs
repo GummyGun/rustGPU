@@ -2,7 +2,7 @@ mod vk_win;
 
 use crate::logger;
 use crate::errors::messages::SIMPLE_SDL_FN;
-use crate::imgui::Imgui;
+use crate::gui::Gui;
 use crate::player::Movement;
 
 use std::mem::ManuallyDrop;
@@ -49,13 +49,13 @@ impl Window {
         self.should_quit
     }
     
-    pub fn poll_events(&mut self, imgui:&mut Imgui) -> Movement {
+    pub fn poll_events(&mut self, gui:&mut Gui) -> Movement {
         use sdl2::event::Event;
         use sdl2::keyboard::Keycode;
         
         
         for event in self.event_pump.poll_iter() {
-            imgui.platform.handle_event(&mut imgui.context, &event);
+            gui.platform.handle_event(&mut gui.context, &event);
             match event {
                 Event::Quit { .. } | Event::KeyDown{keycode: Some(Keycode::Escape),.. } => {
                     self.should_quit = true;
