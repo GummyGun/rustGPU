@@ -44,39 +44,41 @@ pub struct DescriptorPoolAllocator {
     pool: vk::DescriptorPool,
 }
 
-pub fn init_descriptors(device:&mut Device, render_image:&Image) -> (GDescriptorAllocator, DescriptorLayout, vk::DescriptorSet, DescriptorLayout) {
+pub fn init_descriptors(device:&mut Device, render_image:&Image) -> (GDescriptorAllocator, vk::DescriptorSet, DescriptorLayout, DescriptorLayout) {
     //logger::init();
     
     let mut ds_layout_builder = DescriptorLayoutBuilder::create();
     ds_layout_builder.add_binding(0, vk::DescriptorType::STORAGE_IMAGE, 1);
-    let (storage_descriptor_layout, types_in_layout) = ds_layout_builder.build(device, vk::ShaderStageFlags::COMPUTE).unwrap();
+    let (background_image_descriptor_layout, _types_in_layout) = ds_layout_builder.build(device, vk::ShaderStageFlags::COMPUTE).unwrap();
     
     let mut ds_layout_builder = DescriptorLayoutBuilder::create();
-    ds_layout_builder.add_binding(0, vk::DescriptorType::COMBINED_IMAGE_SAMPLER, 1);
+    ds_layout_builder.add_binding(0, vk::DescriptorType::UNIFORM_BUFFER, 1);
+    ds_layout_builder.add_binding(1, vk::DescriptorType::COMBINED_IMAGE_SAMPLER, 1);
+    ds_layout_builder.add_binding(2, vk::DescriptorType::COMBINED_IMAGE_SAMPLER, 1);
     let (texture_descriptor_layout, image_types_in_layout) = ds_layout_builder.build(device, vk::ShaderStageFlags::FRAGMENT).unwrap();
     
     //types_in_layout += image_types_in_layout;
     
-    let mut gds_pool: GDescriptorAllocator = GDescriptorAllocator::create(device, types_in_layout).unwrap();
+    let mut gds_pool: GDescriptorAllocator = GDescriptorAllocator::create(device, image_types_in_layout).unwrap();
     
     //types_in_layout *= 10;//allocate 10 DS
     //let mut ds_pool = DescriptorPoolAllocator::create(device, types_in_layout).unwrap();
-    //let ds_set = ds_pool.allocate(device, storage_descriptor_layout).unwrap();
+    //let background_image_ds = ds_pool.allocate(device, storage_descriptor_layout).unwrap();
     
-    let ds_set = gds_pool.allocate(device, &storage_descriptor_layout).unwrap();
+    let background_image_ds = gds_pool.allocate(device, &background_image_descriptor_layout).unwrap();
     let mut writer = DescriptorWriter::default();
     writer.write_image(0, render_image.view, vk::Sampler::null(), vk::ImageLayout::GENERAL, vk::DescriptorType::STORAGE_IMAGE);
-    writer.update_set(device, ds_set);
+    writer.update_set(device, background_image_ds);
     
     /*
-    let ds_set = gds_pool.allocate(device, &texture_descriptor_layout).unwrap();
+    let background_image_ds = gds_pool.allocate(device, &texture_descriptor_layout).unwrap();
     let mut writer = DescriptorWriter::default();
     writer.write_image(0, render_image.view, vk::Sampler::null(), vk::ImageLayout::GENERAL, vk::DescriptorType::STORAGE_IMAGE);
-    writer.update_set(device, ds_set);
+    writer.update_set(device, background_image_ds);
     */
     
-    (gds_pool, storage_descriptor_layout, ds_set, texture_descriptor_layout)
-    //(gds_pool, storage_descriptor_layout, ds_set, None)
+    (gds_pool, background_image_ds, background_image_descriptor_layout, texture_descriptor_layout)
+    //(gds_pool, storage_descriptor_layout, background_image_ds, None)
 }
 
 impl DescriptorLayoutBuilder {
@@ -285,6 +287,10 @@ impl AddAssign<&Self> for DescriptorPoolCount {
 }
 
 
+/*
+
+Potentially dead code review how to delete it
+
 impl DescriptorPoolAllocator {
     
     pub fn create(device:&mut Device, count:DescriptorPoolCount) -> Result<Self, AAError> {
@@ -322,6 +328,7 @@ impl DescriptorPoolAllocator {
         Ok(holder[0])
     }
 }
+*/
 
 impl VkDestructor for DescriptorPoolAllocator {
     fn destruct(self, mut args:VkDestructorArguments) {

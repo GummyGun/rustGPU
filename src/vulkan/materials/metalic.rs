@@ -42,7 +42,9 @@ impl MetalicMaterial {
             }
         };
         
+        
         let descriptor_holder = descriptor_allocator.allocate(device, &self.descriptor_layout)?;
+        
         
         let Self{
             descriptor_writer: writer,
@@ -54,7 +56,9 @@ impl MetalicMaterial {
         writer.write_image(1, material_resources.color_image.view, material_resources.color_sampler.underlying(), vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL, vk::DescriptorType::COMBINED_IMAGE_SAMPLER);
         writer.write_image(2, material_resources.metal_image.view, material_resources.metal_sampler.underlying(), vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL, vk::DescriptorType::COMBINED_IMAGE_SAMPLER);
         
+        
         writer.update_set(device, descriptor_holder);
+        
         
         Ok(MaterialInstance{
             pipeline: pipeline_holder,

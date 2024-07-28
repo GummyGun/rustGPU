@@ -15,7 +15,7 @@ mod types;
 pub use types::*;
 
 use crate::AAError;
-use crate::imgui::Imgui;
+use crate::gui::Gui;
 use crate::errors::messages::SIMPLE_VK_FN;
 use crate::errors::messages::COMPILETIME_ASSERT;
 use crate::errors::messages::CPU_ACCESIBLE;
@@ -24,7 +24,6 @@ pub use crate::graphics::GeoSurface;
 pub use crate::graphics::ComputePushConstants;
 pub use crate::graphics::Vertex;
 pub use crate::graphics::GPUSceneData;
-
 
 
 use super::VkDestructor;
@@ -111,7 +110,7 @@ impl VInit {
 //----
     pub fn draw_frame(
         &mut self,
-        imgui: &mut Imgui,
+        imgui: &mut Gui,
         
     ) {
         self.frame_update();
@@ -121,7 +120,7 @@ impl VInit {
             resize_required,
             compute_effects, 
             compute_effect_index, 
-            ds_set, 
+            background_image_ds, 
             
             canvas,
             main_draw_context,
@@ -186,7 +185,6 @@ impl VInit {
         
         unsafe{device.reset_fences(from_ref(&inflight_fence))}.expect(SIMPLE_VK_FN);
         unsafe{device.reset_command_buffer(cmd, vk::CommandBufferResetFlags::empty())}.expect(SIMPLE_VK_FN);
-        unsafe{device.reset_command_buffer(cmd, vk::CommandBufferResetFlags::empty())}.expect(SIMPLE_VK_FN);
         
         let begin_info = vk::CommandBufferBeginInfo::builder()
             .flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
@@ -204,7 +202,7 @@ impl VInit {
         
         Image::transition_image(device, cmd, r_image_handle, vk::ImageLayout::UNDEFINED, vk::ImageLayout::GENERAL);
         
-        Self::draw_background(device, cmd, render_image, *ds_set, &compute_effects.pipelines[compute_effect_index], &compute_effects.push_constants[compute_effect_index]);
+        Self::draw_background(device, cmd, render_image, *background_image_ds, &compute_effects.pipelines[compute_effect_index], &compute_effects.push_constants[compute_effect_index]);
         
         Image::transition_image(device, cmd, d_image_handle, vk::ImageLayout::UNDEFINED, vk::ImageLayout::DEPTH_ATTACHMENT_OPTIMAL);
         Image::transition_image(device, cmd, r_image_handle, vk::ImageLayout::GENERAL, vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL);
@@ -259,10 +257,10 @@ impl VInit {
     }
     
 //----
-    pub fn draw_background(device:&mut Device, cmd:vk::CommandBuffer, image:&Image, ds_set:vk::DescriptorSet, cp_pipeline:&CPipeline, push_constants:&ComputePushConstants) {
+    pub fn draw_background(device:&mut Device, cmd:vk::CommandBuffer, image:&Image, background_image_ds:vk::DescriptorSet, cp_pipeline:&CPipeline, push_constants:&ComputePushConstants) {
         
         unsafe{device.cmd_bind_pipeline(cmd, vk::PipelineBindPoint::COMPUTE, cp_pipeline.pipeline)};
-        unsafe{device.cmd_bind_descriptor_sets(cmd, vk::PipelineBindPoint::COMPUTE, cp_pipeline.layout, 0, from_ref(&ds_set), &[])};
+        unsafe{device.cmd_bind_descriptor_sets(cmd, vk::PipelineBindPoint::COMPUTE, cp_pipeline.layout, 0, from_ref(&background_image_ds), &[])};
         
         let push_constants_slice = unsafe{crate::any_as_u8_slice(push_constants)};
         unsafe{device.cmd_push_constants(cmd, cp_pipeline.layout, vk::ShaderStageFlags::COMPUTE, 0, push_constants_slice)};

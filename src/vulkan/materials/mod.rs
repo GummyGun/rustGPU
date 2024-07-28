@@ -117,6 +117,7 @@ pub fn init_material(
     
     let metalic_instance = metalic.write_material(device, ds_pool, MaterialPass::MainColor, &material_resources)?;
     
+    
     Ok(Materials{
         metalic_instance, 
         metalic,

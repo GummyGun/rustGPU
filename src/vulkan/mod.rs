@@ -12,7 +12,7 @@ mod materials;
 use materials::*;
 
 use crate::logger;
-use crate::imgui::InputData;
+use crate::gui::InputData;
 use crate::errors::messages::SIMPLE_VK_FN;
 use crate::errors::messages::VK_UNRECOVERABLE;
 
@@ -53,10 +53,10 @@ pub struct VInit {
     
     canvas: VkWrapper<graphics::Canvas>,
     
-    storage_descriptor_layout: VkWrapper<DescriptorLayout>,
+    background_image_descriptor_layout: VkWrapper<DescriptorLayout>,
     texture_descriptor_layout: VkWrapper<DescriptorLayout>,
     ds_pool: VkWrapper<GDescriptorAllocator>,
-    ds_set: vk::DescriptorSet,
+    background_image_ds: vk::DescriptorSet,
     
     compute_effects: VkWrapper<ComputeEffects>,
     
@@ -124,15 +124,17 @@ impl VInit {
         let mut canvas = Canvas::new(&mut device, &mut allocator, swapchain.extent.into()).unwrap();
         let render_image = canvas.get_color();
         
-        let (mut ds_pool, storage_descriptor_layout, ds_set, texture_descriptor_layout) = init_descriptors(&mut device, &render_image);
-        let compute_effects = c_pipeline::init_pipelines(&mut device, &storage_descriptor_layout);
+        let (mut ds_pool, background_image_ds, background_image_descriptor_layout, texture_descriptor_layout) = init_descriptors(&mut device, &render_image);
+        let compute_effects = c_pipeline::init_pipelines(&mut device, &background_image_descriptor_layout);
         
         
         let frames_data = FramesData::create(&p_device, &mut device).unwrap();
         
+        
         let mut ds_layout_builder = DescriptorLayoutBuilder::create();
         ds_layout_builder.add_binding(0, vk::DescriptorType::UNIFORM_BUFFER, 1);
         let (gpu_scene_layout, _types_in_layout) = ds_layout_builder.build(&mut device, vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT).unwrap();
+        
         
         let (white_texture, grey_texture, black_texture, error_texture) = init_textures(&mut device, &mut allocator, &mut command_control);
         
@@ -152,9 +154,8 @@ impl VInit {
         
         
         let (render_image, depth_image) = canvas.get_images();
-        //let mesh_pipeline = g_pipeline::init_mesh_pipeline(&mut device, &render_image, &depth_image, &texture_descriptor_layout);
-        //let mesh_assets = load_gltf(&mut device, &mut allocator, &mut command_control,"res/gltf/basicmesh.glb").expect("runtime error");
         let mesh_assets = load_gltf(&mut device, &mut allocator, &mut command_control,"res/gltf/basicmesh.glb").expect("runtime error");
+        
         let main_draw_context = DrawContext::default();
         
         
@@ -180,9 +181,9 @@ impl VInit {
             canvas: VkWrapper::new(canvas),
             
             texture_descriptor_layout: VkWrapper::new(texture_descriptor_layout),
-            storage_descriptor_layout: VkWrapper::new(storage_descriptor_layout),
+            background_image_descriptor_layout: VkWrapper::new(background_image_descriptor_layout),
             ds_pool: VkWrapper::new(ds_pool),
-            ds_set: ds_set,
+            background_image_ds: background_image_ds,
             
             compute_effects: VkWrapper::new(compute_effects),
             compute_effect_index:0,
@@ -277,7 +278,7 @@ impl VInit {
         self.frame_control.get_frame()
     }
     
-    pub fn get_imgui_data(
+    pub fn get_gui_data(
         &mut self
     ) ->  (
         (
@@ -333,7 +334,7 @@ impl Drop for VInit {
             canvas,
             
             ds_pool, 
-            storage_descriptor_layout, 
+            background_image_descriptor_layout, 
             texture_descriptor_layout, 
             compute_effects, 
             mesh_assets,
@@ -380,7 +381,7 @@ impl Drop for VInit {
         
         
         ds_pool.destruct(VkDestructorArguments::Dev(dev));
-        storage_descriptor_layout.destruct(VkDestructorArguments::Dev(dev));
+        background_image_descriptor_layout.destruct(VkDestructorArguments::Dev(dev));
         texture_descriptor_layout.destruct(VkDestructorArguments::Dev(dev));
         
         
