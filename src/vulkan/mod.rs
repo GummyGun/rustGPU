@@ -154,7 +154,7 @@ impl VInit {
         
         
         let (render_image, depth_image) = canvas.get_images();
-        let mesh_assets = load_gltf(&mut device, &mut allocator, &mut command_control,"res/gltf/basicmesh.glb").expect("runtime error");
+        let mesh_assets = load_gltf(&mut device, &mut allocator, &mut command_control, "res/gltf/basicmesh.glb").expect("runtime error");
         
         let main_draw_context = DrawContext::default();
         

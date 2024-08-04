@@ -84,7 +84,10 @@ impl IRenderable for VkMeshAsset {
 
 impl IRenderable for Node {
     fn draw(&self, top_matrix:&na::Matrix4<f32>, ctx:&mut DrawContext) {
-        panic!();
+        let node_matrix = top_matrix * self.world_transform;
+        for son in &self.sons {
+            son.draw(&node_matrix, ctx);
+        }
     }
 }
 
@@ -92,9 +95,9 @@ impl IRenderable for Node {
 impl IRenderable for MeshNode {
     fn draw(&self, top_matrix:&na::Matrix4<f32>, ctx:&mut DrawContext) {
         let node_matrix = top_matrix * self.world_transform;
-        self.mesh.draw(top_matrix, ctx);
-        for son in &self.sons{
-            son.draw(top_matrix, ctx);
+        self.mesh.draw(&node_matrix, ctx);
+        for son in &self.sons {
+            son.draw(&node_matrix, ctx);
         }
     }
 }
@@ -110,7 +113,7 @@ impl RenderableNode {
 
 impl IRenderable for RenderableNode {
     fn draw(&self, top_matrix:&na::Matrix4<f32>, ctx:&mut DrawContext) {
-        self.unwrap().draw(top_matrix, ctx);
+        self.unwrap().draw(&top_matrix, ctx);
     }
 }
 

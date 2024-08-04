@@ -209,7 +209,14 @@ impl VInit {
         
         let default_material = materials.get_default();
         mesh_assets[*mesh_index].draw(&na::Matrix4::<f32>::identity(), main_draw_context);
-        Self::draw_geometry(device, cmd, extent, canvas, mesh_assets, *mesh_index, field_of_view, main_draw_context, default_material, scene_descriptor);
+        mesh_assets[2].draw(&(na::Matrix4::<f32>::identity().append_translation(&na::Vector3::new(1.3,0.4,0.0))), main_draw_context);
+        /*
+        mesh_assets[*mesh_index].draw(&(na::Matrix4::<f32>::identity().append_translation(&na::Vector3::new(-1.0,-1.0,-1.0))), main_draw_context);
+        mesh_assets[*mesh_index].draw(&(na::Matrix4::<f32>::identity().append_translation(&na::Vector3::new(1.0,-1.0,-1.0))), main_draw_context);
+        mesh_assets[*mesh_index].draw(&(na::Matrix4::<f32>::identity().append_translation(&na::Vector3::new(1.0,1.0,-1.0))), main_draw_context);
+        */
+        //Self::draw_geometry(device, cmd, extent, canvas, mesh_assets, *mesh_index, field_of_view, main_draw_context, default_material, scene_descriptor);
+        Self::draw_geometry(device, cmd, extent, canvas, /*mesh_assets, *mesh_index, */field_of_view, main_draw_context, default_material, scene_descriptor);
         
         Image::transition_image(device, cmd, r_image_handle, vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL, vk::ImageLayout::TRANSFER_SRC_OPTIMAL);
         Image::transition_image(device, cmd, p_image_handle, vk::ImageLayout::UNDEFINED, vk::ImageLayout::TRANSFER_DST_OPTIMAL);
@@ -283,8 +290,10 @@ impl VInit {
         
         //mesh_pipeline: &GPipeline, 
         
+        /*
         meshes: &VkMeshAssets, 
         mesh_selector: usize, 
+        */
         
         field_of_view: &na::Vector3<f32>,
         draw_context: &mut DrawContext,
@@ -333,7 +342,7 @@ impl VInit {
             
             let mut push_constant_tmp = GPUDrawPushConstants::default();
             push_constant_tmp.vertex_buffer = render_object.vertex_buffer_address;
-            push_constant_tmp.world_matrix = Self::tmp_perspective_matrix(extent, field_of_view);
+            push_constant_tmp.world_matrix = Self::tmp_perspective_matrix(extent, field_of_view)*render_object.transform;
             let push_constants_slice = unsafe{crate::any_as_u8_slice(&push_constant_tmp)};
             
             unsafe{device.cmd_push_constants(cmd, material.pipeline.layout, vk::ShaderStageFlags::VERTEX, 0, push_constants_slice)};
@@ -369,6 +378,31 @@ impl VInit {
         */
         */
         unsafe{device.cmd_end_rendering(cmd)};
+    }
+    
+//----
+    pub fn draw_scene(
+        device: &mut Device, 
+        cmd: vk::CommandBuffer, 
+        extent: vk::Extent2D, 
+        canvas: &mut Canvas,
+    ) -> Result<(), ()> {
+        let (image, depth) = canvas.get_images();
+        let color_attachment_info = pipeline::rendering_attachment_info(image.view, None, vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL);
+        let depth_attachment_info = pipeline::depth_attachment_info(depth.view, vk::ImageLayout::DEPTH_ATTACHMENT_OPTIMAL);
+        let rendering_info = pipeline::rendering_info(extent, &color_attachment_info, Some(&depth_attachment_info));
+        
+        
+        let viewport = vk::Viewport::builder()
+            .width(extent.width as f32)
+            .height(extent.height as f32)
+            .min_depth(0f32)
+            .max_depth(1f32);
+        
+        let scissor = vk::Rect2D::from(extent);
+        
+        
+        Ok(())
     }
     
 //----
