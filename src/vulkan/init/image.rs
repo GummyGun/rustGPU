@@ -157,7 +157,7 @@ impl Image {
         
         let holder = Self::create(device, allocator, extent, TEXTURE, overwrite_name)?;
         
-        let copy_state = cmd_ctrl.run_su_buffer(device, &mut |device, cmd|{
+        let _copy_state = cmd_ctrl.run_su_buffer(device, &mut |device, cmd|{
             let image_handle = holder.underlying();
             Self::transition_image(device, cmd, image_handle, vk::ImageLayout::UNDEFINED, vk::ImageLayout::TRANSFER_DST_OPTIMAL);
             

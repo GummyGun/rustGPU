@@ -105,7 +105,7 @@ pub fn copy_buffer_2_buffer(
     );
     
     
-    let holder = cmd_ctrl.run_su_buffer(device, &mut |device, cmd|{
+    let _holder = cmd_ctrl.run_su_buffer(device, &mut |device, cmd|{
         
         let buffer_copy = vk::BufferCopy::builder()
             .size(size)

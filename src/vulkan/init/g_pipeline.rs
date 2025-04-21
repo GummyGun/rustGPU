@@ -137,7 +137,7 @@ impl GPipelineBuilder {
     }
     
 //----
-    pub fn build(mut self, device:&mut Device) -> Result<GPipeline, AAError> {
+    pub fn build(self, device:&mut Device) -> Result<GPipeline, AAError> {
         logger::create!("graphics_pipeline");
         logger::various_log!("graphics_pipeline",
             (logger::Trace, "{:#?}", &self)

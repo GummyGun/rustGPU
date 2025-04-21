@@ -191,7 +191,6 @@ impl VInit {
         
         unsafe{device.begin_command_buffer(cmd, &begin_info)}.expect(SIMPLE_VK_FN);
         
-        
         let (render_image, depth_image) = canvas.get_images();
         
         let r_image_handle = render_image.underlying();
@@ -209,7 +208,7 @@ impl VInit {
         
         let default_material = materials.get_default();
         mesh_assets[*mesh_index].draw(&na::Matrix4::<f32>::identity(), main_draw_context);
-        mesh_assets[2].draw(&(na::Matrix4::<f32>::identity().append_translation(&na::Vector3::new(1.3,0.4,0.0))), main_draw_context);
+        //mesh_assets[2].draw(&(na::Matrix4::<f32>::identity().append_translation(&na::Vector3::new(1.3,0.4,0.0))), main_draw_context);
         /*
         mesh_assets[*mesh_index].draw(&(na::Matrix4::<f32>::identity().append_translation(&na::Vector3::new(-1.0,-1.0,-1.0))), main_draw_context);
         mesh_assets[*mesh_index].draw(&(na::Matrix4::<f32>::identity().append_translation(&na::Vector3::new(1.0,-1.0,-1.0))), main_draw_context);
@@ -410,8 +409,7 @@ impl VInit {
         let mut view = Matrix4::<f32>::identity();
         view.prepend_translation_mut(&na::Vector3::new(-1.5,1.5,-5.0));
         
-        //let mut projection = Matrix4::new_perspective(extent.width as f32/extent.height as f32, 70.0/180.0*std::f32::consts::PI, 10000.0, 0.1);
-        
+        //let mut projection = Matrix4::new_perspective(extent.width as f32/extent.height as f32, 70.0/180.0*std::f32::consts::PI, 10000.0, 0.1);       
         let mut projection = glm::perspective_zo(extent.width as f32/extent.height as f32, field_of_view[2]/180.0*std::f32::consts::PI, field_of_view[0], field_of_view[1]);
         
         /*

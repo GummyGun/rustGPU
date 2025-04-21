@@ -90,6 +90,7 @@ pub struct GPUSceneData {
     sunlight_color: Vector4<f32>,
 }
 
+/* avoid the optimized truncating GPUSceneData */
 const _:u64 = GPUSceneData::size_u64();
 impl GPUSceneData {
     pub const fn size_u64() -> u64 {

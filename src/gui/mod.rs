@@ -64,6 +64,7 @@ impl Gui{
         let _background = Self::get_next_window(&ui, "Background", [0,0]).build(||{
             
             let _disabled_token = ui.begin_disabled(false);
+            
             ui.text("Compute shader");
             
             for (index, effect) in compute_effects_name.into_iter().enumerate() {
@@ -115,8 +116,8 @@ impl Gui{
         ui.window(name)
             .collapsed(true, imgui::Condition::Once)
             .position(position, imgui::Condition::Once)
+            .movable(false)
             .size([1.5*256.0, 256.0], imgui::Condition::Once)
-            
     }
 }
 

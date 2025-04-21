@@ -8,6 +8,7 @@ mod utility;
 mod graphics; 
 mod player;
 mod macros;
+mod game;
 pub use errors::Error as AAError;
 
 use std::time::SystemTime;
@@ -34,6 +35,7 @@ struct HolderStruct {
     window: ManuallyDrop<window::Window>,
     v_init: ManuallyDrop<vulkan::VInit>,
     gui: ManuallyDrop<gui::Gui>,
+    game: ManuallyDrop<game::Game>,
 }
 
 
@@ -46,12 +48,14 @@ fn main() {
     let mut window = window::Window::init();
     let mut v_init = vulkan::VInit::init(&mut window);
     let gui = gui::Gui::init(&mut window, &mut v_init);
+    let game = game::Game::init();
     
-    let mut holder_struct = HolderStruct::new(window, v_init, gui);
+    let mut holder_struct = HolderStruct::new(window, v_init, gui, game);
     let HolderStruct{
         window,
         v_init,
         gui,
+        game,
     } = &mut holder_struct;
     
     println!("=====================================================================================================================================================================\n=====================================================================================================================================================================");
@@ -66,6 +70,8 @@ fn main() {
         
         v_init.gui_tick(gui.get_ui_data());
         
+        game.step(window);
+        
         v_init.draw_frame(gui);
         
     }
@@ -75,18 +81,19 @@ fn main() {
 
 
 impl HolderStruct {
-    fn new(window:window::Window, v_init:vulkan::VInit, gui:gui::Gui) -> Self {
+    fn new(window:window::Window, v_init:vulkan::VInit, gui:gui::Gui, game:game::Game) -> Self {
         HolderStruct{
             window: ManuallyDrop::new(window),
             v_init: ManuallyDrop::new(v_init),
             gui: ManuallyDrop::new(gui),
+            game: ManuallyDrop::new(game),
         }
-        
     }
 }
 
 impl Drop for HolderStruct {
     fn drop(&mut self) {
+        unsafe{ManuallyDrop::drop(&mut self.game)};
         unsafe{ManuallyDrop::drop(&mut self.gui)};
         unsafe{ManuallyDrop::drop(&mut self.v_init)};
         unsafe{ManuallyDrop::drop(&mut self.window)};
